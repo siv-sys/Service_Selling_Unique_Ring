@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>BondKeeper · Eternal Rings</title>
+  <!-- Fonts & Icons (BondKeeper style) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+   <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#ff2aa2',      // warm antique gold / rose taupe
+              light: '#dcc2b2',
+              dark: '#7f5a45',
+            },
+            gold: '#c6a27a',
+            cream: '#faf6f2',
+            charcoal: '#1e1b1a',
+            surface: { light: '#ffffff', dark: '#1c1c1c' },
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+            serif: ['Cormorant Garamond', 'serif'],
+          },
+          boxShadow: {
+            'premium': '0 20px 40px -10px rgba(0,0,0,0.08), 0 8px 20px -8px rgba(177,123,94,0.15)',
+            'card': '0 4px 16px rgba(0,0,0,0.02), 0 1px 4px rgba(177,123,94,0.08)',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .heading-serif { font-family: 'Cormorant Garamond', serif; }
+    .premium-blur { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .glass-panel { background: rgba(255,255,255,0.7); border: 1px solid rgba(188, 71, 108, 0.15); }
+    .dark .glass-panel { background: rgba(28,28,28,0.7); border-color: rgba(182, 48, 147, 0.2); }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    .diamond-shine { position: relative; overflow: hidden; }
+    .diamond-shine::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(60deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%); transform: rotate(25deg); animation: shine 6s infinite; pointer-events: none; }
+    @keyframes shine { 0% { transform: translateX(-100%) rotate(25deg); } 20% { transform: translateX(100%) rotate(25deg); } 100% { transform: translateX(200%) rotate(25deg); } }
+    .ring-image-premium { transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.4, 1); }
+    .ring-image-premium:hover { transform: scale(1.03); }
+    .stat-card { transition: all 0.2s ease; border: 1px solid transparent; }
+    .stat-card:hover { border-color: #c8218b40; box-shadow: 0 15px 30px -15px rgba(177,123,94,0.3); }
+  </style>
+</head>
+<body class="bg-cream dark:bg-charcoal text-charcoal dark:text-cream/90 transition-colors duration-500 antialiased">
+
+  <!-- STICKY HEADER – minimalist, luxurious, with active links -->
+  <header class="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+    <div class="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+      <!-- left logo + navigation (functional) -->
+      <div class="flex items-center gap-12">
+        <a href="./dashboard-premium.html" class="flex items-center gap-2 group">
+          <span class="material-symbols-outlined text-primary text-3xl">diamond</span>
+          <span class="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+          <a href="./index.html" class="hover:text-primary transition-colors">Dashboard</a>
+          <a href="./shop.html" id="nav-shop" class="text-primary border-b border-primary/40 pb-1">Couple Shop</a>
+          <a href="./my-ring.html" id="nav-myring" class="hover:text-primary transition-colors">My Ring</a>
+          <a href="./profile.html" id="nav-profile" class="hover:text-primary transition-colors">Couple Profile</a>
+          <a href="./relationship.html" id="nav-relationship" class="hover:text-primary transition-colors">Relationship</a>
+        </nav>
+      </div>
+      <!-- right icons & member subtle -->
+      <div class="flex items-center gap-6">
+        <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">notifications_none</span></button>
+        <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">dark_mode</span></button>
+        <div class="flex items-center gap-3 pl-2 border-l border-primary/20">
+          <span class="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+            <a href="./profile.html"><span class="material-symbols-outlined">favorite</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-12">
+    <!-- HERO (same) -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
+      <div class="max-w-2xl">
+        <nav class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-widest">
+          <a href="#">Home</a><span>/</span><span class="text-primary font-bold">Rings</span>
+        </nav>
+        <h2 class="text-5xl font-extralight tracking-tight mb-4">The Signature <span
+            class="font-bold text-primary">Collection</span></h2>
+        <p class="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">Explore our curated selection of
+          handcrafted rings, where timeless elegance meets modern ethical sourcing. Each piece is a testament to
+          extraordinary craftsmanship.</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <select id="type-select"
+          class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary">
+          <option value="" selected>All Types</option>
+          <option value="diamond">Diamond</option>
+          <option value="gold">Gold</option>
+          <option value="platinum">Platinum</option>
+          <option value="silver">Silver</option>
+        </select>
+        <select id="sort-select"
+          class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary">
+          <option value="featured">Sort by: Featured</option>
+          <option value="low-high">Price: Low to High</option>
+          <option value="high-low">Price: High to Low</option>
+          <option value="newest">Newest Arrivals</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- RING GRID (dynamic 50 cards, initially 9 shown, load more via button) -->
+    <div id="ring-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-x-9 gap-y-16">
+      <!-- cards will be injected by javascript -->
+    </div>
+
+    <!-- PAGINATION / LOAD MORE (updated to show count & load all 50) -->
+    <div id="load-more-section" class="mt-24 flex flex-col items-center gap-6">
+      <p id="showing-count" class="text-sm text-slate-500 uppercase tracking-[0.2em]">Showing 9 of 50 pieces</p>
+      <div class="w-full max-w-xs h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div id="progress-bar" class="h-full bg-primary transition-all duration-500" style="width: 18%"></div>
+      </div>
+      <button id="discover-btn"
+        class="px-12 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold tracking-widest uppercase hover:border-primary transition-all flex items-center gap-3 group">
+        <span>Discover More</span>
+        <span
+          class="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform">expand_more</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- FOOTER (same) -->
+  <footer class="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
+    <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
+      <div class="col-span-1 md:col-span-1">
+        <div class="flex items-center gap-2 mb-6"><span class="material-symbols-outlined text-primary">diamond</span>
+          <h2 class="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical
+          craftsmanship and timeless design. Every ring tells a story.</p>
+        <div class="flex gap-4"><a
+            class="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all"
+            href="#"><span class="material-symbols-outlined text-lg">share</span></a></div>
+      </div>
+      <div>
+        <h4 class="font-bold uppercase tracking-widest text-xs mb-6">Experience</h4>
+        <ul class="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+          <li><a class="hover:text-primary transition-colors" href="#">Our Showroom</a></li>
+          <li><a class="hover:text-primary transition-colors" href="#">Bespoke Design</a></li>
+          <li><a class="hover:text-primary transition-colors" href="#">Book Consultation</a></li>
+          <li><a class="hover:text-primary transition-colors" href="#">Diamond Guide</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-bold uppercase tracking-widest text-xs mb-6">Support</h4>
+        <ul class="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+          <li><a class="hover:text-primary transition-colors" href="#">Ring Sizing</a></li>
+          <li><a class="hover:text-primary transition-colors" href="#">Shipping & Returns</a></li>
+          <li><a class="hover:text-primary transition-colors" href="#">Lifetime Warranty</a></li>
+          <li><a class="hover:text-primary transition-colors" href="#">FAQs</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
+        <p class="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
+        <div class="flex gap-2"><input
+            class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary"
+            placeholder="Email address" type="email" /><button
+            class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
+        </div>
+      </div>
+    </div>
+    <div
+      class="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+      <p class="text-xs text-slate-400">© 2024 Lumina Luxe Fine Jewelry. All Rights Reserved.</p>
+      <div class="flex gap-6 text-xs text-slate-400 uppercase tracking-widest"><a class="hover:text-primary"
+          href="#">Privacy Policy</a><a class="hover:text-primary" href="#">Terms of Service</a></div>
+    </div>
+  </footer>
+
+  <!-- JavaScript: ring data + filter + sort + discover more + navigation to detail page -->
+  <script>
+    (function () {
+      // ---------- RING DATA (50 rings) ----------
+      const ringNames = [
+        "Elysian Halo Diamond", "Midnight Sapphire Band", "Rose Gold Pavé",
+        "Classic Platinum Solitaire", "Emerald Cut Eternity", "Celestial Opal Ring",
+        "Vintage Marquise", "Art Deco Baguette", "Sunburst Citrine", "Infinity Twist",
+        "Royal Ruby Halo", "Onyx Shield", "Morganite Blossom", "Titanium Chevron",
+        "Pearl Embrace", "Spinel Star", "Amethyst Dusk", "Golden Eclipse",
+        "Sapphire Trinity", "Diamond Petal", "Black Diamond Vault", "Jade Empress",
+        "Ruby Cascade", "Peridot Breeze", "Garnet Flame", "Aquamarine Wave",
+        "Moonstone Veil", "Lapis Code", "Tourmaline Vine", "Oval Solitaire",
+        "Cushion Halo", "Princess Cut Legacy", "Asscher Eternity", "Radiant Crown",
+        "Heart's Desire", "Baguette Trio", "Bezel Set Mercury", "Tension Set",
+        "Twisted Vine", "Cat's Eye Chrysoberyl", "Alexandrite Charm", "Padparadscha",
+        "Paraiba Tourmaline", "Tanzanite Night", "Zircon Spark", "Champagne Diamond",
+        "Canary Yellow", "Salt and Pepper", "Rough Diamond Raw", "Eden Garden"
+      ];
+
+      const imgUrls = [
+        "https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900",
+        "https://loforay.com/cdn/shop/products/O1CN01yJYHgs1uzyLnogHKq__3222026109-0-cib.jpg?v=1677245225",
+        "https://esdomera.com/cdn/shop/files/classic-pink-morganite-leaf-floral-engagement-his-and-hers-wedding-ring-pink-yellow-gold-promise-couple-rings-esdomera-2_1800x1800.png?v=1743672938",
+        "https://m.media-amazon.com/images/I/61btVGnRO6L._AC_UF894,1000_QL80_.jpg",
+        "https://jewelrybyjohan.com/cdn/shop/products/E3362WG10-2150BCArtCropped_1-5.jpg?v=1675110462&width=695",
+        "https://img.kwcdn.com/product/open/2023-09-05/1693914328872-5ec4896063854249a6f2609cca8c9a22-goods.jpeg?imageMogr2/auto-orient%7CimageView2/2/w/800/q/70/format/webp",
+        "https://i.pinimg.com/736x/0e/21/48/0e2148ac9639fa9f608f95c7584f4f98.jpg",
+        "https://www.tajjewels.com/cdn/shop/products/19_FRONT_RoseGold_1080x.jpg?v=1650544247",
+        "https://img.kwcdn.com/product/fancy/d42a9fc0-5d2e-4728-a4fc-7edb6afb62b7.jpg",
+        "https://i.pinimg.com/originals/91/e0/eb/91e0ebb8563c8cd36337297331ab6a94.jpg",
+        "https://cdn.augrav.com/online/jewels/2023/12/13110756/113.jpg",
+        "https://m.media-amazon.com/images/I/51MTmuSy5eL._AC_UY1100_.jpg",
+        "https://img.joomcdn.net/ce020665a289dab3b7fa1aa8e1482ec91f953958_original.jpeg",
+        "https://i.etsystatic.com/16396575/r/il/51d9af/6115811213/il_570xN.6115811213_jfpd.jpg",
+        "https://rukminim2.flixcart.com/image/480/640/xif0q/ring/1/b/j/adjustable-2-mkcr112-ring-myki-original-imagr5pjxbajyewj.jpeg?q=90",
+        "https://i.pinimg.com/736x/1a/f3/6c/1af36c7a1c3e754334108a43a163b0ab.jpg",
+        "https://i5.walmartimages.com/asr/cecf5302-3a84-45c2-95c7-ec5f4c212f4d.b8654ded71d4429be2d4d4febef4d2d6.jpeg?q=80",
+        "https://sc04.alicdn.com/kf/H287107c64b9b4182b8477fd7ba79b7d21.jpg",
+        "https://esdomera.com/cdn/shop/files/4F9A3506.jpg?v=1758004629&width=900",
+        "https://cpimg.tistatic.com/08073806/b/4/Diamond-Couple-Rings.jpg",
+        "https://m.media-amazon.com/images/I/61Jj1R1UChL._AC_UY1000_.jpg",
+        "https://i.pinimg.com/474x/fd/61/84/fd61841efb1466054aab3424f076cb98.jpg",
+        "https://laraso.com/cdn/shop/files/4811BL-3946_1000x1000.jpg?v=1757118068",
+        "https://www.loville.co/cdn/shop/products/CPR5013FANTASY-1_600x600.jpg?v=1586341339",
+        "https://m.media-amazon.com/images/I/81QzSKSsObS._AC_UY1000_.jpg",
+        "https://t3.ftcdn.net/jpg/18/72/14/94/360_F_1872149462_JAK23sHoI6L4U5RrfFm25JQNUbFFC7QB.jpg",
+        "https://img.kwcdn.com/product/open/2023-09-05/1693903526024-a72036188e734902ac941154dd5c6b3e-goods.jpeg?imageMogr2/auto-orient%7CimageView2/2/w/800/q/70/format/webp",
+        "https://i5.walmartimages.com/seo/Solid-10k-Yellow-Gold-His-Hers-Round-Diamond-Square-Matching-Couple-Three-Rings-Bridal-Engagement-Ring-Wedding-Bands-Set-1-12-Ct-L-9-M-10-5_e2bd050b-f2bd-451b-94ae-512679a5a087.9f8aa8cf42a34b3f048d1ea934507652.jpeg",
+        "https://rukminim2.flixcart.com/image/480/640/k5vcya80/ring/j/e/a/adjustable-swn11nos1-ring-set-silvoswan-original-imafzgn9h6hpz9f4.jpeg?q=90"
+      ];
+
+      const metals = ["18k White Gold", "14k Yellow Gold", "18k White Diamond", "950 Platinum", "14k White Green Daimond", "18k Gold large", "18k Yellow silver", "950 Platinum"];
+      const certs = ["GIA Diamond", "Ceylon Sapphire", "Conflict-free", "GIA Certified", "Full Eternity", "Australian Opal", "Milgrain Detail", "Step-cut Diamonds"];
+
+      function getRingType(metal) {
+        const m = metal.toLowerCase();
+        if (m.includes('platinum')) return 'platinum';
+        if (m.includes('gold')) return 'gold';
+        if (m.includes('white')) return 'diamond';
+        return 'silver';
+      }
+
+      function getRandomPrice(i) {
+        const base = [4200, 2800, 3500, 5100, 7200, 1900, 6400, 4800, 3900, 4700, 8900, 2300, 3300, 9900, 2700, 5800, 4400, 6100, 3700, 8100];
+        return base[i % base.length];
+      }
+
+      let rings = [];
+      for (let i = 0; i < 50; i++) {
+        const metal = metals[i % metals.length];
+        rings.push({
+          id: i,
+          name: ringNames[i % ringNames.length],
+          img: imgUrls[i % imgUrls.length],
+          metal: metal,
+          cert: certs[i % certs.length],
+          price: getRandomPrice(i),
+          type: getRingType(metal),
+          isNew: i % 7 === 0,
+        });
+      }
+
+      const typeSelect = document.getElementById('type-select');
+      const sortSelect = document.getElementById('sort-select');
+      const grid = document.getElementById('ring-grid');
+      const showingSpan = document.getElementById('showing-count');
+      const progressBar = document.getElementById('progress-bar');
+      const discoverBtn = document.getElementById('discover-btn');
+
+      let currentFiltered = [...rings];
+      let visibleCount = 9;
+
+      // DEBUG: Test if navigation works
+      function goToDetailPage(ring) {
+        console.log('🔵 goToDetailPage called with:', ring.name);
+        try {
+          sessionStorage.setItem('currentRing', JSON.stringify(ring));
+          console.log('✅ Data saved to sessionStorage');
+          
+          // TEST: Try to open in new window first (for debugging)
+          // window.open('ring_page.html', '_blank');
+          
+          // Normal navigation
+          window.location.href = 'ring_page.html';
+          console.log('✅ Navigation attempted to ring_page.html');
+        } catch (e) {
+          console.error('❌ Error in navigation:', e);
+          alert('Error: ' + e.message);
+        }
+      }
+
+      function renderGrid() {
+        const limit = Math.min(visibleCount, currentFiltered.length);
+        let html = '';
+        
+        for (let i = 0; i < limit; i++) {
+          const r = currentFiltered[i];
+          const newBadge = r.isNew ? '<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">New Arrival</div>' : '';
+          
+          html += `
+            <div class="ring-card group flex flex-col">
+              <div class="relative aspect-[4/5] bg-white dark:bg-slate-800 rounded-xl overflow-hidden mb-6">
+                <img alt="${r.name}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" src="${r.img}" />
+                <div class="absolute top-4 right-4">
+                  <button class="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-slate-900 hover:text-primary transition-colors">
+                    <span class="material-symbols-outlined text-xl">favorite</span>
+                  </button>
+                </div>
+                ${newBadge}
+              </div>
+              <div class="flex flex-col gap-1 px-2">
+                <h3 class="text-lg font-bold tracking-tight">${r.name}</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">${r.metal} • ${r.cert}</p>
+                <p class="text-xl font-bold text-primary mt-2">$${r.price.toLocaleString()}</p>
+                <div class="flex items-center gap-2 mt-4">
+                  <button class="flex-1 bg-primary text-white py-3 rounded-lg text-sm font-bold tracking-widest uppercase hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">Add to Cart</button>
+                  <button class="see-more-btn flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all" data-ring-id="${r.id}">
+                    See More
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        
+        grid.innerHTML = html;
+
+        // Add click handlers
+        document.querySelectorAll('.see-more-btn').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const ringId = this.getAttribute('data-ring-id');
+            console.log('👆 See More clicked for ID:', ringId);
+            const ring = rings.find(r => r.id == ringId);
+            if (ring) {
+              console.log('🎯 Found ring:', ring.name);
+              goToDetailPage(ring);
+            } else {
+              console.error('❌ Ring not found for ID:', ringId);
+              alert('Ring not found!');
+            }
+          });
+        });
+
+        showingSpan.innerText = `Showing ${limit} of ${currentFiltered.length} pieces`;
+        progressBar.style.width = (currentFiltered.length ? (limit / currentFiltered.length) * 100 : 0) + '%';
+
+        if (limit >= currentFiltered.length || currentFiltered.length === 0) {
+          discoverBtn.disabled = true;
+          discoverBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          discoverBtn.innerHTML = `<span>All pieces loaded</span>`;
+        } else {
+          discoverBtn.disabled = false;
+          discoverBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          discoverBtn.innerHTML = `<span>Discover More</span><span class="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform">expand_more</span>`;
+        }
+      }
+
+      function applyFilterAndSort() {
+        const type = typeSelect.value;
+        const sort = sortSelect.value;
+
+        let filtered = rings;
+        if (type && type !== '') {
+          filtered = rings.filter(r => r.type === type);
+        }
+
+        if (sort === 'low-high') {
+          filtered.sort((a, b) => a.price - b.price);
+        } else if (sort === 'high-low') {
+          filtered.sort((a, b) => b.price - a.price);
+        } else if (sort === 'newest') {
+          filtered.sort((a, b) => {
+            if (a.isNew && !b.isNew) return -1;
+            if (!a.isNew && b.isNew) return 1;
+            return b.id - a.id;
+          });
+        } else {
+          filtered.sort((a, b) => a.id - b.id);
+        }
+
+        currentFiltered = filtered;
+        visibleCount = 9;
+        renderGrid();
+      }
+
+      typeSelect.addEventListener('change', applyFilterAndSort);
+      sortSelect.addEventListener('change', applyFilterAndSort);
+      discoverBtn.addEventListener('click', function () {
+        if (visibleCount < currentFiltered.length) {
+          visibleCount = Math.min(visibleCount + 9, currentFiltered.length);
+          renderGrid();
+        }
+      });
+
+      applyFilterAndSort();
+    })();
+  </script>
+</body>
+
+</html>

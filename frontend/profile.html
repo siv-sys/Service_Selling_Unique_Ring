@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+   <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#ff2aa2',      // warm antique gold / rose taupe
+              light: '#dcc2b2',
+              dark: '#7f5a45',
+            },
+            gold: '#c6a27a',
+            cream: '#faf6f2',
+            charcoal: '#1e1b1a',
+            surface: { light: '#ffffff', dark: '#1c1c1c' },
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+            serif: ['Cormorant Garamond', 'serif'],
+          },
+          boxShadow: {
+            'premium': '0 20px 40px -10px rgba(0,0,0,0.08), 0 8px 20px -8px rgba(177,123,94,0.15)',
+            'card': '0 4px 16px rgba(0,0,0,0.02), 0 1px 4px rgba(177,123,94,0.08)',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .heading-serif { font-family: 'Cormorant Garamond', serif; }
+    .premium-blur { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .glass-panel { background: rgba(255,255,255,0.7); border: 1px solid rgba(188, 71, 108, 0.15); }
+    .dark .glass-panel { background: rgba(28,28,28,0.7); border-color: rgba(182, 48, 147, 0.2); }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    .diamond-shine { position: relative; overflow: hidden; }
+    .diamond-shine::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(60deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%); transform: rotate(25deg); animation: shine 6s infinite; pointer-events: none; }
+    @keyframes shine { 0% { transform: translateX(-100%) rotate(25deg); } 20% { transform: translateX(100%) rotate(25deg); } 100% { transform: translateX(200%) rotate(25deg); } }
+    .ring-image-premium { transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.4, 1); }
+    .ring-image-premium:hover { transform: scale(1.03); }
+    .stat-card { transition: all 0.2s ease; border: 1px solid transparent; }
+    .stat-card:hover { border-color: #c8218b40; box-shadow: 0 15px 30px -15px rgba(177,123,94,0.3); }
+  </style>
+</head>
+<body class="bg-cream dark:bg-charcoal text-charcoal dark:text-cream/90 transition-colors duration-500 antialiased">
+
+  <!-- STICKY HEADER – minimalist, luxurious, with active links -->
+  <header class="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+    <div class="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+      <!-- left logo + navigation (functional) -->
+      <div class="flex items-center gap-12">
+        <a href="./dashboard-premium.html" class="flex items-center gap-2 group">
+          <span class="material-symbols-outlined text-primary text-3xl">diamond</span>
+          <span class="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+          <a href="./index.html" class="hover:text-primary transition-colors">Dashboard</a>
+          <a href="./shop.html" id="nav-shop" class="hover:text-primary transition-colors">Couple Shop</a>
+          <a href="#" id="nav-myring" class="hover:text-primary transition-colors">My Ring</a>
+          <a href="./profile.html" id="nav-profile" class="text-primary border-b border-primary/40 pb-1">Couple Profile</a>
+          <a href="#" id="nav-relationship" class="hover:text-primary transition-colors">Relationship</a>
+        </nav>
+      </div>
+      <!-- right icons & member subtle -->
+      <div class="flex items-center gap-6">
+        <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">notifications_none</span></button>
+        <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">dark_mode</span></button>
+        <div class="flex items-center gap-3 pl-2 border-l border-primary/20">
+          <span class="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+            <a href="./profile.html"><span class="material-symbols-outlined">favorite</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+<main class="pb-24">
+<!-- Welcome Section -->
+<section class="px-4 py-6"><div class="max-w-7xl mx-auto px-6 pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-6">
+<h2 class="text-3xl font-bold text-slate-900">Welcome back, Alex</h2>
+<p class="text-slate-400 mt-1">Everything looks great today.</p>
+<div class="w-full max-w-md">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+<input class="w-full bg-white border-none rounded-2xl pl-12 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 shadow-sm placeholder-slate-400" placeholder="Find Email Partner" type="text"/>
+</div>
+<p class="text-[10px] italic text-slate-400 px-1 mt-1 text-right md:text-left">Search by registered email address</p>
+</div></div></section>
+<!-- Summary Cards Grid -->
+<section class="px-4 gap-4 mb-6"><div class="max-w-7xl mx-auto px-6 grid grid-cols-2 gap-4">
+<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center">
+<div>
+<p class="text-xs font-semibold text-slate-400 mb-2">Our Anniversary</p>
+<p class="text-2xl font-bold text-primary">June 15, 2023</p>
+</div>
+<div class="size-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">calendar_month</span>
+</div>
+</div>
+<div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center">
+<div>
+<p class="text-xs font-semibold text-slate-400 mb-2">Time Started Love</p>
+<p class="text-2xl font-bold text-slate-900">1 Year, 2 Months</p>
+</div>
+<div class="size-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined text-2xl">favorite</span>
+</div>
+</div>
+</div></section>
+<!-- Ring Status Card -->
+<section class="max-w-7xl mx-auto px-6 my-8">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Ring Main Card -->
+<div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-50">
+<div class="flex justify-between items-start mb-8">
+<div class="flex items-center gap-4">
+<div class="size-14 bg-slate-100 rounded-2xl flex items-center justify-center">
+<span class="material-symbols-outlined text-slate-500 text-3xl">circle</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-slate-900">Twin Souls Silver B</h3>
+<p class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">Sterling Silver | Size 7 | SHOP-TSS-002</p>
+</div>
+</div>
+<span class="bg-green-100 text-green-600 text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1">
+<span class="size-1.5 bg-green-500 rounded-full"></span>
+          SYSTEM ONLINE
+        </span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  <!-- card with working link to passerellesnumeriques cambodia -->
+  <div class="bg-slate-50/50 p-4 rounded-3xl">
+    <p class="text-[10px] font-black text-slate-400 uppercase mb-3">Current Location</p>
+    <!-- the whole clickable area is the image + label; we wrap only the meaningful part.
+         we keep the layout identical but embed an anchor that opens the link. -->
+    <div class="flex gap-3 mb-3">
+      <span class="material-symbols-outlined text-primary">location_on</span>
+      <!-- link on the warehouse name (opens in new tab) -->
+      <a href="https://cambodia.passerellesnumeriques.org" target="_blank" rel="noopener noreferrer" class="text-sm font-bold hover:text-primary hover:underline transition-colors">WAREHOUSE: Main WH</a>
+    </div>
+    <!-- image is also a link to the same site -->
+    <a href="https://www.google.com/maps/dir//Passerelles+num%C3%A9riques+Cambodia+(PNC),+BP+511,+Phum+Tropeang+Chhuk+(Borey+Sorla)+Sangtak,+Street+371,+Phnom+Penh/@11.5592652,104.8828671,15z/data=!4m8!4m7!1m0!1m5!1m1!1s0x310951add5e2cd81:0x171e0b69c7c6f7ba!2m2!1d104.8830826!2d11.5508551?entry=ttu&g_ep=EgoyMDI2MDIyNC4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" class="block aspect-video bg-slate-200 rounded-xl overflow-hidden relative group">
+      <img class="w-full h-full object-cover opacity-50 group-hover:opacity-70 transition-opacity" src="https://lh3.googleusercontent.com/gps-cs-s/AHVAweoqxMyOcpkmy2qL3HifLkO_pQ6UWZKgcaR59hJRfkXa6Bie_a8RZJ1Y1QlGdf-uXfpYIsdhQXee9GYkqgB59UTfyqLCuMsm6-O879zZRbbYJKFOuTPNXhm7WyROJf_0UgQL4ynF5g=s1360-w1360-h1020-rw" alt="cambodia map representation"/>
+      <!-- subtle overlay hint -->
+      <span class="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">passerellesnumeriques.org ↗</span>
+    </a>
+  </div>
+  <!-- other two cards remain unchanged (placeholders) -->
+  <div class="bg-slate-50/50 p-4 rounded-3xl">
+    <p class="text-[10px] font-black text-slate-400 uppercase mb-4">Battery Level</p>
+    <div class="flex items-center gap-3 mb-2">
+      <span class="material-symbols-outlined text-green-500">battery_charging_80</span>
+      <p class="text-2xl font-bold">88%</p>
+    </div>
+    <p class="text-[10px] text-slate-400">Approx. 14 hours left</p>
+  </div>
+  <div class="bg-slate-50/50 p-4 rounded-3xl">
+    <p class="text-[10px] font-black text-slate-400 uppercase mb-4">Signal Strength</p>
+    <div class="flex items-center gap-3 mb-2">
+      <span class="material-symbols-outlined text-primary rotate-45">signal_cellular_4_bar</span>
+      <p class="text-xl font-bold">Excellent</p>
+    </div>
+    <p class="text-[10px] text-slate-400">Last ping: 2m ago</p>
+  </div>
+</div>
+</div>
+<div class="bg-slate-50/50 p-4 rounded-3xl">
+<p class="text-[10px] font-black text-slate-400 uppercase mb-4">Battery Level</p>
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-green-500">battery_charging_80</span>
+<p class="text-2xl font-bold">88%</p>
+</div>
+<p class="text-[10px] text-slate-400">Approx. 14 hours left</p>
+</div>
+<div class="bg-slate-50/50 p-4 rounded-3xl">
+<p class="text-[10px] font-black text-slate-400 uppercase mb-4">Signal Strength</p>
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary rotate-45">signal_cellular_4_bar</span>
+<p class="text-xl font-bold">Excellent</p>
+</div>
+<p class="text-[10px] text-slate-400">Last ping: 2m ago</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<button class="w-full bg-primary/10 text-primary py-4 rounded-2xl font-bold text-sm hover:bg-primary/20 transition-colors">Test Connection</button>
+<button class="w-full border border-slate-100 text-slate-600 py-4 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-colors">Unpair Device</button>
+</div>
+</div>
+<!-- Pairing Management -->
+<div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-50">
+<h3 class="text-lg font-bold mb-6">Pairing Management</h3>
+<div class="space-y-4 mb-10">
+<div class="flex justify-between items-center border-b border-slate-50 pb-4">
+<span class="text-sm text-slate-400">Pair Selection</span>
+<span class="text-sm font-bold">No pair linked</span>
+</div>
+<div class="flex justify-between items-center border-b border-slate-50 pb-4">
+<span class="text-sm text-slate-400">Pair Code</span>
+<span class="text-sm font-bold">N/A</span>
+</div>
+<div class="flex justify-between items-center border-b border-slate-50 pb-4">
+<span class="text-sm text-slate-400">Status</span>
+<span class="text-sm font-bold text-primary">N/A</span>
+</div>
+<div class="flex justify-between items-center pb-4">
+<span class="text-sm text-slate-400">Established</span>
+<span class="text-sm font-bold">N/A</span>
+</div>
+</div>
+<button class="w-full border-2 border-dashed border-primary/30 text-primary py-4 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors">Initialize Link</button>
+</div>
+</div>
+</section>
+<!-- Safeguards & Settings -->
+<div class="max-w-7xl mx-auto px-6 mb-8">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-bold">Shared Safeguards</h3>
+<span class="material-symbols-outlined text-primary">verified_user</span>
+</div>
+<div class="bg-white p-6 rounded-3xl border border-slate-50">
+<div class="flex items-center justify-between mb-8">
+<div class="flex items-center gap-3">
+<p class="text-sm font-bold">Proximity Awareness</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between items-center">
+<p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sensitivity Threshold</p>
+<span class="text-xs font-bold text-primary">50m</span>
+</div>
+<input class="w-full h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-primary" type="range"/>
+</div>
+</div>
+</div>
+<div class="space-y-4">
+<h3 class="text-lg font-bold">Visibility Settings</h3>
+<div class="bg-white rounded-3xl border border-slate-50 overflow-hidden">
+<label class="flex items-center px-6 py-5 border-b border-slate-50 cursor-pointer">
+<input class="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full" name="visibility_new" type="radio"/>
+<div class="ml-4">
+<p class="text-sm font-bold">Public Presence</p>
+<p class="text-[10px] text-slate-400 mt-0.5">Visible to all users in range</p>
+</div>
+</label>
+<label class="flex items-center px-6 py-5 border-2 border-primary/20 bg-primary/[0.02] cursor-pointer">
+<input checked="" class="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full" name="visibility_new" type="radio"/>
+<div class="ml-4">
+<p class="text-sm font-bold">Partners Only</p>
+<p class="text-[10px] text-slate-400 mt-0.5">Only your linked partner can see you</p>
+</div>
+</label>
+<label class="flex items-center px-6 py-5 cursor-pointer">
+<input class="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full" name="visibility_new" type="radio"/>
+<div class="ml-4">
+<p class="text-sm font-bold">Private Ghost Mode</p>
+<p class="text-[10px] text-slate-400 mt-0.5">Invisible to everyone, even your partner</p>
+</div>
+</label></div>
+</div>
+</div>
+</div>
+<!-- Visibility Settings -->
+<!-- Pairing Management -->
+<!-- Find Partner -->
+<!-- Emergency Contact -->
+<div class="max-w-7xl mx-auto px-6 mb-8">
+<div class="grid grid-cols-1 gap-6">
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">emergency</span>
+<h3 class="text-lg font-bold">Emergency Contact</h3>
+</div>
+<a class="flex items-center gap-1 text-primary font-bold text-sm hover:underline" href="#">
+<span class="material-symbols-outlined text-lg">add</span>Pair New Device
+</a>
+</div>
+<div class="bg-white p-8 rounded-[2rem] border border-slate-50 shadow-sm">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+<div>
+<label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Contact Name</label>
+<input class="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20" type="text" value="Sam Richards"/>
+</div>
+<div>
+<label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Phone Number</label>
+<input class="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20" type="text" value="+1 (555) 000-9999"/>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 items-center gap-8">
+<button class="w-full border-2 border-primary text-primary py-3 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors">Update Contact</button>
+<div class="w-full">
+<div class="flex justify-between items-center mb-2">
+<p class="text-[10px] font-bold text-slate-400 uppercase">Cloud Storage</p>
+<p class="text-[10px] font-bold text-primary">6.5GB / 10GB</p>
+</div>
+<div class="w-full bg-slate-100 rounded-full h-1.5">
+<div class="bg-primary h-1.5 rounded-full" style="width: 65%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- FOOTER – elegant, minimal, with functional links -->
+  <footer class="bg-white dark:bg-charcoal border-t border-primary/10 mt-28 pt-16 pb-12">
+    <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+      <div>
+        <div class="flex items-center gap-2 mb-6"><span class="material-symbols-outlined text-primary">diamond</span>
+          <span class="heading-serif text-xl font-semibold">BondKeeper</span>
+        </div>
+        <p class="text-sm text-charcoal/60 dark:text-cream/60 leading-relaxed">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
+      </div>
+      <div>
+        <h4 class="heading-serif text-lg font-medium mb-5">Experience</h4>
+        <ul class="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
+          <li><a href="#" class="hover:text-primary transition-colors">Bespoke atelier</a></li>
+          <li><a href="#" class="hover:text-primary transition-colors">Ring concierge</a></li>
+          <li><a href="#" class="hover:text-primary transition-colors">Private consultation</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="heading-serif text-lg font-medium mb-5">Support</h4>
+        <ul class="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
+          <li><a href="#" class="hover:text-primary transition-colors">Sizing guide</a></li>
+          <li><a href="#" class="hover:text-primary transition-colors">Shipping & returns</a></li>
+          <li><a href="#" class="hover:text-primary transition-colors">FAQ / help</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="heading-serif text-lg font-medium mb-5">Mailing list</h4>
+        <div class="flex gap-2"><input class="flex-1 bg-transparent border border-primary/20 rounded-full px-5 py-2.5 text-sm placeholder:text-charcoal/40 dark:placeholder:text-cream/40 focus:border-primary/70" placeholder="your@email.com" /><button class="bg-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-primary-dark transition-colors">join</button></div>
+      </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-6 mt-16 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-charcoal/40 dark:text-cream/40">
+      <p>© BondKeeper · Eternal Rings. All rights reserved.</p>
+      <div class="flex gap-6"><a href="#" class="hover:text-primary transition">Privacy</a><a href="#" class="hover:text-primary transition">Terms</a></div>
+    </div>
+  </footer>
+
+</main>
+</body>
+</html>
