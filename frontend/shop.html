@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html class="light" lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
@@ -8,24 +7,16 @@
   <!-- Fonts & Icons (BondKeeper style) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
-    rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0,1&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-   <script>
+  <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
           colors: {
-            primary: {
-              DEFAULT: '#ff2aa2',      // warm antique gold / rose taupe
-              light: '#dcc2b2',
-              dark: '#7f5a45',
-            },
-            gold: '#c6a27a',
+            primary: '#ff2aa2',
             cream: '#faf6f2',
             charcoal: '#1e1b1a',
             surface: { light: '#ffffff', dark: '#1c1c1c' },
@@ -35,8 +26,8 @@
             serif: ['Cormorant Garamond', 'serif'],
           },
           boxShadow: {
-            'premium': '0 20px 40px -10px rgba(0,0,0,0.08), 0 8px 20px -8px rgba(177,123,94,0.15)',
-            'card': '0 4px 16px rgba(0,0,0,0.02), 0 1px 4px rgba(177,123,94,0.08)',
+            'premium': '0 20px 40px -10px rgba(0,0,0,0.08), 0 8px 20px -8px rgba(255,42,162,0.15)',
+            'card': '0 4px 16px rgba(0,0,0,0.02), 0 1px 4px rgba(255,42,162,0.08)',
           },
         },
       },
@@ -46,24 +37,16 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .heading-serif { font-family: 'Cormorant Garamond', serif; }
     .premium-blur { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-    .glass-panel { background: rgba(255,255,255,0.7); border: 1px solid rgba(188, 71, 108, 0.15); }
-    .dark .glass-panel { background: rgba(28,28,28,0.7); border-color: rgba(182, 48, 147, 0.2); }
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
-    .diamond-shine { position: relative; overflow: hidden; }
-    .diamond-shine::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(60deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%); transform: rotate(25deg); animation: shine 6s infinite; pointer-events: none; }
-    @keyframes shine { 0% { transform: translateX(-100%) rotate(25deg); } 20% { transform: translateX(100%) rotate(25deg); } 100% { transform: translateX(200%) rotate(25deg); } }
-    .ring-image-premium { transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.4, 1); }
-    .ring-image-premium:hover { transform: scale(1.03); }
-    .stat-card { transition: all 0.2s ease; border: 1px solid transparent; }
-    .stat-card:hover { border-color: #c8218b40; box-shadow: 0 15px 30px -15px rgba(177,123,94,0.3); }
+    .ring-card { transition: all 0.25s ease; }
+    .ring-card:hover { transform: translateY(-4px); }
   </style>
 </head>
 <body class="bg-cream dark:bg-charcoal text-charcoal dark:text-cream/90 transition-colors duration-500 antialiased">
 
-  <!-- STICKY HEADER – minimalist, luxurious, with active links -->
+  <!-- STICKY HEADER with cart icon & count -->
   <header class="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
     <div class="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
-      <!-- left logo + navigation (functional) -->
       <div class="flex items-center gap-12">
         <a href="./dashboard-premium.html" class="flex items-center gap-2 group">
           <span class="material-symbols-outlined text-primary text-3xl">diamond</span>
@@ -77,10 +60,15 @@
           <a href="./relationship.html" id="nav-relationship" class="hover:text-primary transition-colors">Relationship</a>
         </nav>
       </div>
-      <!-- right icons & member subtle -->
+ 
       <div class="flex items-center gap-6">
         <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">notifications_none</span></button>
-        <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">dark_mode</span></button>
+         <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">dark_mode</span></button>
+        <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors relative" onclick="window.location.href='cart.html'">
+          <span class="material-symbols-outlined">shopping_cart</span>
+          <span id="cart-count" class="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">3</span>
+        </button>
+       
         <div class="flex items-center gap-3 pl-2 border-l border-primary/20">
           <span class="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
           <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
@@ -92,29 +80,24 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-6 py-12">
-    <!-- HERO (same) -->
+    <!-- HERO + FILTERS -->
     <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
       <div class="max-w-2xl">
         <nav class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-widest">
           <a href="#">Home</a><span>/</span><span class="text-primary font-bold">Rings</span>
         </nav>
-        <h2 class="text-5xl font-extralight tracking-tight mb-4">The Signature <span
-            class="font-bold text-primary">Collection</span></h2>
-        <p class="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">Explore our curated selection of
-          handcrafted rings, where timeless elegance meets modern ethical sourcing. Each piece is a testament to
-          extraordinary craftsmanship.</p>
+        <h2 class="heading-serif text-5xl md:text-6xl font-light tracking-tight mb-4">The Signature <span class="font-bold text-primary">Collection</span></h2>
+        <p class="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">Explore our curated selection of handcrafted rings, where timeless elegance meets modern ethical sourcing.</p>
       </div>
       <div class="flex items-center gap-4">
-        <select id="type-select"
-          class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary">
+        <select id="type-select" class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary">
           <option value="" selected>All Types</option>
           <option value="diamond">Diamond</option>
           <option value="gold">Gold</option>
           <option value="platinum">Platinum</option>
           <option value="silver">Silver</option>
         </select>
-        <select id="sort-select"
-          class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary">
+        <select id="sort-select" class="px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary">
           <option value="featured">Sort by: Featured</option>
           <option value="low-high">Price: Low to High</option>
           <option value="high-low">Price: High to Low</option>
@@ -123,78 +106,60 @@
       </div>
     </div>
 
-    <!-- RING GRID (dynamic 50 cards, initially 9 shown, load more via button) -->
-    <div id="ring-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-x-9 gap-y-16">
-      <!-- cards will be injected by javascript -->
-    </div>
+    <!-- RING GRID (dynamic 50 cards) -->
+    <div id="ring-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-9 gap-y-16"></div>
 
-    <!-- PAGINATION / LOAD MORE (updated to show count & load all 50) -->
+    <!-- LOAD MORE -->
     <div id="load-more-section" class="mt-24 flex flex-col items-center gap-6">
       <p id="showing-count" class="text-sm text-slate-500 uppercase tracking-[0.2em]">Showing 9 of 50 pieces</p>
       <div class="w-full max-w-xs h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
         <div id="progress-bar" class="h-full bg-primary transition-all duration-500" style="width: 18%"></div>
       </div>
-      <button id="discover-btn"
-        class="px-12 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold tracking-widest uppercase hover:border-primary transition-all flex items-center gap-3 group">
+      <button id="discover-btn" class="px-12 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold tracking-widest uppercase hover:border-primary transition-all flex items-center gap-3 group">
         <span>Discover More</span>
-        <span
-          class="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform">expand_more</span>
+        <span class="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform">expand_more</span>
       </button>
     </div>
   </main>
 
-  <!-- FOOTER (same) -->
-  <footer class="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
-    <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
-      <div class="col-span-1 md:col-span-1">
+  <!-- FOOTER (simplified, BondKeeper) -->
+  <footer class="bg-white dark:bg-charcoal border-t border-primary/10 pt-16 pb-10 mt-20">
+    <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+      <div>
         <div class="flex items-center gap-2 mb-6"><span class="material-symbols-outlined text-primary">diamond</span>
-          <h2 class="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
+          <span class="heading-serif text-xl font-semibold">BondKeeper</span>
         </div>
-        <p class="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical
-          craftsmanship and timeless design. Every ring tells a story.</p>
-        <div class="flex gap-4"><a
-            class="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all"
-            href="#"><span class="material-symbols-outlined text-lg">share</span></a></div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
       </div>
       <div>
-        <h4 class="font-bold uppercase tracking-widest text-xs mb-6">Experience</h4>
-        <ul class="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
-          <li><a class="hover:text-primary transition-colors" href="#">Our Showroom</a></li>
-          <li><a class="hover:text-primary transition-colors" href="#">Bespoke Design</a></li>
-          <li><a class="hover:text-primary transition-colors" href="#">Book Consultation</a></li>
-          <li><a class="hover:text-primary transition-colors" href="#">Diamond Guide</a></li>
+        <h4 class="heading-serif text-lg font-medium mb-5">Experience</h4>
+        <ul class="flex flex-col gap-3 text-sm text-slate-600 dark:text-slate-400">
+          <li><a href="#" class="hover:text-primary transition-colors">Our Showroom</a></li>
+          <li><a href="#" class="hover:text-primary transition-colors">Bespoke Design</a></li>
+          <li><a href="#" class="hover:text-primary transition-colors">Diamond Guide</a></li>
         </ul>
       </div>
       <div>
-        <h4 class="font-bold uppercase tracking-widest text-xs mb-6">Support</h4>
-        <ul class="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
-          <li><a class="hover:text-primary transition-colors" href="#">Ring Sizing</a></li>
-          <li><a class="hover:text-primary transition-colors" href="#">Shipping & Returns</a></li>
-          <li><a class="hover:text-primary transition-colors" href="#">Lifetime Warranty</a></li>
-          <li><a class="hover:text-primary transition-colors" href="#">FAQs</a></li>
+        <h4 class="heading-serif text-lg font-medium mb-5">Support</h4>
+        <ul class="flex flex-col gap-3 text-sm text-slate-600 dark:text-slate-400">
+          <li><a href="#" class="hover:text-primary transition-colors">Ring Sizing</a></li>
+          <li><a href="#" class="hover:text-primary transition-colors">Shipping & Returns</a></li>
+          <li><a href="#" class="hover:text-primary transition-colors">FAQs</a></li>
         </ul>
       </div>
       <div>
-        <h4 class="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
-        <p class="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
-        <div class="flex gap-2"><input
-            class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary"
-            placeholder="Email address" type="email" /><button
-            class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
-        </div>
+        <h4 class="heading-serif text-lg font-medium mb-5">Mailing List</h4>
+        <div class="flex gap-2"><input class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary" placeholder="Email address" /><button class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button></div>
       </div>
     </div>
-    <div
-      class="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-      <p class="text-xs text-slate-400">© 2024 Lumina Luxe Fine Jewelry. All Rights Reserved.</p>
-      <div class="flex gap-6 text-xs text-slate-400 uppercase tracking-widest"><a class="hover:text-primary"
-          href="#">Privacy Policy</a><a class="hover:text-primary" href="#">Terms of Service</a></div>
+    <div class="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-400">
+      <p>© 2025 BondKeeper · Eternal Rings. All rights reserved.</p>
+      <div class="flex gap-6"><a href="#" class="hover:text-primary">Privacy</a><a href="#" class="hover:text-primary">Terms</a></div>
     </div>
   </footer>
 
-  <!-- JavaScript: ring data + filter + sort + discover more + navigation to detail page -->
   <script>
-    (function () {
+    (function() {
       // ---------- RING DATA (50 rings) ----------
       const ringNames = [
         "Elysian Halo Diamond", "Midnight Sapphire Band", "Rose Gold Pavé",
@@ -275,43 +240,50 @@
         });
       }
 
+      // DOM elements
       const typeSelect = document.getElementById('type-select');
       const sortSelect = document.getElementById('sort-select');
       const grid = document.getElementById('ring-grid');
       const showingSpan = document.getElementById('showing-count');
       const progressBar = document.getElementById('progress-bar');
       const discoverBtn = document.getElementById('discover-btn');
+      const cartCountSpan = document.getElementById('cart-count');
 
       let currentFiltered = [...rings];
       let visibleCount = 9;
 
-      // DEBUG: Test if navigation works
-      function goToDetailPage(ring) {
-        console.log('🔵 goToDetailPage called with:', ring.name);
+      // Update cart count from localStorage
+      function updateCartCount() {
         try {
-          sessionStorage.setItem('currentRing', JSON.stringify(ring));
-          console.log('✅ Data saved to sessionStorage');
-          
-          // TEST: Try to open in new window first (for debugging)
-          // window.open('ring_page.html', '_blank');
-          
-          // Normal navigation
-          window.location.href = 'ring_page.html';
-          console.log('✅ Navigation attempted to ring_page.html');
+          const cart = JSON.parse(localStorage.getItem('cart')) || [];
+          cartCountSpan.innerText = cart.length;
+        } catch { cartCountSpan.innerText = '0'; }
+      }
+      updateCartCount();
+
+      // Add to cart function – saves to localStorage and redirects to cart.html
+      function addToCart(ring) {
+        try {
+          let cart = JSON.parse(localStorage.getItem('cart')) || [];
+          cart.push(ring);
+          localStorage.setItem('cart', JSON.stringify(cart));
+          updateCartCount();
+          // Redirect to cart.html after adding
+          window.location.href = 'cart.html';
         } catch (e) {
-          console.error('❌ Error in navigation:', e);
-          alert('Error: ' + e.message);
+          alert('Error adding to cart');
         }
       }
 
+      // Render grid
       function renderGrid() {
         const limit = Math.min(visibleCount, currentFiltered.length);
         let html = '';
-        
+
         for (let i = 0; i < limit; i++) {
           const r = currentFiltered[i];
           const newBadge = r.isNew ? '<div class="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">New Arrival</div>' : '';
-          
+
           html += `
             <div class="ring-card group flex flex-col">
               <div class="relative aspect-[4/5] bg-white dark:bg-slate-800 rounded-xl overflow-hidden mb-6">
@@ -328,32 +300,39 @@
                 <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">${r.metal} • ${r.cert}</p>
                 <p class="text-xl font-bold text-primary mt-2">$${r.price.toLocaleString()}</p>
                 <div class="flex items-center gap-2 mt-4">
-                  <button class="flex-1 bg-primary text-white py-3 rounded-lg text-sm font-bold tracking-widest uppercase hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">Add to Cart</button>
-                  <button class="see-more-btn flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all" data-ring-id="${r.id}">
-                    See More
-                  </button>
+                  <button class="add-to-cart-btn flex-1 bg-primary text-white py-3 rounded-lg text-sm font-bold tracking-widest uppercase hover:bg-primary/90 transition-all shadow-lg shadow-primary/20" data-ring-id="${r.id}">Add to Cart</button>
+                  <button class="see-more-btn flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all" data-ring-id="${r.id}">See More</button>
                 </div>
               </div>
             </div>
           `;
         }
-        
+
         grid.innerHTML = html;
 
-        // Add click handlers
+        // See More click (navigate to detail)
         document.querySelectorAll('.see-more-btn').forEach(btn => {
-          btn.addEventListener('click', function(e) {
+          btn.addEventListener('click', (e) => {
             e.preventDefault();
-            e.stopPropagation();
-            const ringId = this.getAttribute('data-ring-id');
-            console.log('👆 See More clicked for ID:', ringId);
-            const ring = rings.find(r => r.id == ringId);
+            const id = btn.getAttribute('data-ring-id');
+            const ring = rings.find(r => r.id == id);
             if (ring) {
-              console.log('🎯 Found ring:', ring.name);
-              goToDetailPage(ring);
+              sessionStorage.setItem('currentRing', JSON.stringify(ring));
+              window.location.href = 'ring_page.html'; // detail page (placeholder)
+            } else alert('Ring not found');
+          });
+        });
+
+        // Add to Cart click – now works and redirects to cart.html
+        document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const id = btn.getAttribute('data-ring-id');
+            const ring = rings.find(r => r.id == id);
+            if (ring) {
+              addToCart(ring);  // this will redirect to cart.html
             } else {
-              console.error('❌ Ring not found for ID:', ringId);
-              alert('Ring not found!');
+              alert('Ring not found');
             }
           });
         });
@@ -361,7 +340,7 @@
         showingSpan.innerText = `Showing ${limit} of ${currentFiltered.length} pieces`;
         progressBar.style.width = (currentFiltered.length ? (limit / currentFiltered.length) * 100 : 0) + '%';
 
-        if (limit >= currentFiltered.length || currentFiltered.length === 0) {
+        if (limit >= currentFiltered.length) {
           discoverBtn.disabled = true;
           discoverBtn.classList.add('opacity-50', 'cursor-not-allowed');
           discoverBtn.innerHTML = `<span>All pieces loaded</span>`;
@@ -372,28 +351,18 @@
         }
       }
 
+      // Filter & sort
       function applyFilterAndSort() {
         const type = typeSelect.value;
         const sort = sortSelect.value;
 
         let filtered = rings;
-        if (type && type !== '') {
-          filtered = rings.filter(r => r.type === type);
-        }
+        if (type) filtered = rings.filter(r => r.type === type);
 
-        if (sort === 'low-high') {
-          filtered.sort((a, b) => a.price - b.price);
-        } else if (sort === 'high-low') {
-          filtered.sort((a, b) => b.price - a.price);
-        } else if (sort === 'newest') {
-          filtered.sort((a, b) => {
-            if (a.isNew && !b.isNew) return -1;
-            if (!a.isNew && b.isNew) return 1;
-            return b.id - a.id;
-          });
-        } else {
-          filtered.sort((a, b) => a.id - b.id);
-        }
+        if (sort === 'low-high') filtered.sort((a, b) => a.price - b.price);
+        else if (sort === 'high-low') filtered.sort((a, b) => b.price - a.price);
+        else if (sort === 'newest') filtered.sort((a, b) => (a.isNew === b.isNew) ? b.id - a.id : (a.isNew ? -1 : 1));
+        else filtered.sort((a, b) => a.id - b.id); // featured
 
         currentFiltered = filtered;
         visibleCount = 9;
@@ -402,7 +371,7 @@
 
       typeSelect.addEventListener('change', applyFilterAndSort);
       sortSelect.addEventListener('change', applyFilterAndSort);
-      discoverBtn.addEventListener('click', function () {
+      discoverBtn.addEventListener('click', () => {
         if (visibleCount < currentFiltered.length) {
           visibleCount = Math.min(visibleCount + 9, currentFiltered.length);
           renderGrid();
@@ -413,5 +382,4 @@
     })();
   </script>
 </body>
-
 </html>

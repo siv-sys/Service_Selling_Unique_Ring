@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BondKeeper · Your cart</title>
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0,1&display=swap" rel="stylesheet">
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#ff2aa2',      // warm antique gold / rose taupe
+              light: '#dcc2b2',
+              dark: '#7f5a45',
+            },
+            gold: '#c6a27a',
+            cream: '#faf6f2',
+            charcoal: '#1e1b1a',
+            surface: { light: '#ffffff', dark: '#1c1c1c' },
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+            serif: ['Cormorant Garamond', 'serif'],
+          },
+          boxShadow: {
+            'premium': '0 20px 40px -10px rgba(0,0,0,0.08), 0 8px 20px -8px rgba(177,123,94,0.15)',
+            'card': '0 4px 16px rgba(0,0,0,0.02), 0 1px 4px rgba(177,123,94,0.08)',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans',  sans-serif; }
+    .heading-serif { font-family: 'Cormorant Garamond', serif; }
+    .premium-blur { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .glass-panel { background: rgba(255,255,255,0.7); border: 1px solid rgba(188, 71, 108, 0.15); }
+    .dark .glass-panel { background: rgba(28,28,28,0.7); border-color: rgba(182, 48, 147, 0.2); }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    .diamond-shine { position: relative; overflow: hidden; }
+    .diamond-shine::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(60deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%); transform: rotate(25deg); animation: shine 6s infinite; pointer-events: none; }
+    @keyframes shine { 0% { transform: translateX(-100%) rotate(25deg); } 20% { transform: translateX(100%) rotate(25deg); } 100% { transform: translateX(200%) rotate(25deg); } }
+    .ring-image-premium { transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.4, 1); }
+    .ring-image-premium:hover { transform: scale(1.03); }
+    .stat-card { transition: all 0.2s ease; border: 1px solid transparent; }
+    .stat-card:hover { border-color: #c8218b40; box-shadow: 0 15px 30px -15px rgba(177,123,94,0.3); }
+  </style>
+</head>
+<body class="bg-cream dark:bg-charcoal text-charcoal dark:text-cream/90 transition-colors duration-500 antialiased">
+
+  <!-- STICKY HEADER – minimalist, luxurious, with active links -->
+  <header class="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+    <div class="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+      <!-- left logo + navigation (functional) -->
+      <div class="flex items-center gap-12">
+        <a href="./dashboard-premium.html" class="flex items-center gap-2 group">
+          <span class="material-symbols-outlined text-primary text-3xl">diamond</span>
+          <span class="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+          <a href="./index.html" id="nav-myring" class="hover:text-primary transition-colors">Dashboard</a>
+          <a href="./shop.html" class="text-primary border-b border-primary/40 pb-1">Couple Shop</a>
+          <a href="#" id="nav-myring" class="hover:text-primary transition-colors">My Ring</a>
+          <a href="./profile.html" id="nav-profile" class="hover:text-primary transition-colors">Couple Profile</a>
+          <a href="#" id="nav-relationship" class="hover:text-primary transition-colors">Relationship</a>
+        </nav>
+      </div>
+      <!-- right icons & member subtle -->
+      <div class="flex items-center gap-6">
+        <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">notifications_none</span></button>
+        <button class="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"><span class="material-symbols-outlined">dark_mode</span></button>
+        <div><a href="./cart.html">
+          <button class="text-charcoal/60 hover:text-primary relative">
+          <span class="material-symbols-outlined">shopping_cart</span>
+          <span class="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">4</span>
+        </button></a></div>
+        <div class="flex items-center gap-3 pl-2 border-l border-primary/20">
+          <span class="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+            <a href="./profile.html"><span class="material-symbols-outlined">favorite</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-12">
+    <!-- Page heading + cart summary -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+      <div>
+        <span class="text-xs uppercase tracking-[0.3em] text-primary/70 font-semibold">Review your items</span>
+        <h1 class="heading-serif text-5xl font-light mt-2">Shopping cart <span class="text-primary">· 4 rings</span></h1>
+        <p class="text-slate-500 mt-2">Complete your purchase to register the relationship.</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="text-sm text-slate-400">Subtotal:</span>
+        <span class="text-3xl font-bold text-primary" id="cart-total">$ 4,236</span>
+      </div>
+    </div>
+
+    <!-- Cart items grid (all rings after add to cart) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <!-- LEFT: cart items list (2/3 width) -->
+      <div class="lg:col-span-2 space-y-5">
+        <!-- cart item 1 -->
+        <div class="cart-item bg-white dark:bg-surface-dark/80 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-5 transition-all">
+          <div class="sm:w-28 sm:h-28 rounded-xl bg-slate-100 overflow-hidden">
+            <img src="https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900" class="w-full h-full object-cover" alt="Twin Souls Silver B">
+          </div>
+          <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 class="font-bold text-lg">Twin Souls Silver B</h3>
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
+                <span>SKU: TSS-002</span>
+                <span>Type: Sterling Silver</span>
+                <span>Size: 7</span>
+                <span>Ring ID: #R784</span>
+              </div>
+              <div class="flex items-center gap-3 mt-2">
+                <span class="text-sm font-semibold text-primary">$ 899</span>
+                <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">in stock</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center border border-slate-200 rounded-full">
+                <button class="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors">−</button>
+                <span class="w-8 text-center text-sm font-medium">1</span>
+                <button class="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors">+</button>
+              </div>
+              <button class="text-slate-400 hover:text-primary transition-colors">
+                <span class="material-symbols-outlined">delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- cart item 2 -->
+        <div class="cart-item bg-white dark:bg-surface-dark/80 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-5">
+          <div class="sm:w-28 sm:h-28 rounded-xl bg-slate-100 overflow-hidden">
+            <img src="https://loforay.com/cdn/shop/products/O1CN01yJYHgs1uzyLnogHKq__3222026109-0-cib.jpg?v=1677245225" class="w-full h-full object-cover" alt="Midnight Sapphire">
+          </div>
+          <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 class="font-bold text-lg">Midnight Sapphire</h3>
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
+                <span>SKU: MS-119</span>
+                <span>Type: Platinum</span>
+                <span>Size: 8.5</span>
+                <span>Ring ID: #R932</span>
+              </div>
+              <div class="flex items-center gap-3 mt-2">
+                <span class="text-sm font-semibold text-primary">$ 1,450</span>
+                <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">in stock</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center border border-slate-200 rounded-full">
+                <button class="w-8 h-8 flex items-center justify-center hover:text-primary">−</button>
+                <span class="w-8 text-center text-sm font-medium">2</span>
+                <button class="w-8 h-8 flex items-center justify-center hover:text-primary">+</button>
+              </div>
+              <button class="text-slate-400 hover:text-primary"><span class="material-symbols-outlined">delete</span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- cart item 3 -->
+        <div class="cart-item bg-white dark:bg-surface-dark/80 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-5">
+          <div class="sm:w-28 sm:h-28 rounded-xl bg-slate-100 overflow-hidden">
+            <img src="https://esdomera.com/cdn/shop/files/classic-pink-morganite-leaf-floral-engagement-his-and-hers-wedding-ring-pink-yellow-gold-promise-couple-rings-esdomera-2_1800x1800.png?v=1743672938" class="w-full h-full object-cover" alt="Rose Pavé">
+          </div>
+          <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 class="font-bold text-lg">Rose Pavé Morganite</h3>
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
+                <span>SKU: RPM-22</span>
+                <span>Type: Rose gold</span>
+                <span>Size: 6.5</span>
+                <span>Ring ID: #R105</span>
+              </div>
+              <div class="flex items-center gap-3 mt-2">
+                <span class="text-sm font-semibold text-primary">$ 1,090</span>
+                <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">in stock</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center border border-slate-200 rounded-full">
+                <button class="w-8 h-8 flex items-center justify-center hover:text-primary">−</button>
+                <span class="w-8 text-center text-sm font-medium">1</span>
+                <button class="w-8 h-8 flex items-center justify-center hover:text-primary">+</button>
+              </div>
+              <button class="text-slate-400 hover:text-primary"><span class="material-symbols-outlined">delete</span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- cart item 4 -->
+        <div class="cart-item bg-white dark:bg-surface-dark/80 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-5">
+          <div class="sm:w-28 sm:h-28 rounded-xl bg-slate-100 overflow-hidden">
+            <img src="https://m.media-amazon.com/images/I/61btVGnRO6L._AC_UF894,1000_QL80_.jpg" class="w-full h-full object-cover" alt="Platinum Solitaire">
+          </div>
+          <div class="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 class="font-bold text-lg">Platinum Solitaire</h3>
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
+                <span>SKU: PS-88</span>
+                <span>Type: Platinum</span>
+                <span>Size: 9</span>
+                <span>Ring ID: #R421</span>
+              </div>
+              <div class="flex items-center gap-3 mt-2">
+                <span class="text-sm font-semibold text-primary">$ 797</span>
+                <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">in stock</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex items-center border border-slate-200 rounded-full">
+                <button class="w-8 h-8 flex items-center justify-center hover:text-primary">−</button>
+                <span class="w-8 text-center text-sm font-medium">1</span>
+                <button class="w-8 h-8 flex items-center justify-center hover:text-primary">+</button>
+              </div>
+              <button class="text-slate-400 hover:text-primary"><span class="material-symbols-outlined">delete</span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- continue shopping link -->
+        <div class="pt-4 flex items-center gap-2 text-sm">
+          <a href="./shop.html" class="text-primary hover:underline flex items-center gap-1">
+            <span class="material-symbols-outlined text-lg">arrow_back</span> Continue shopping
+          </a>
+        </div>
+      </div>
+
+      <!-- RIGHT: order summary + relationship preview -->
+      <div class="lg:col-span-1 space-y-6">
+        <!-- summary card -->
+        <div class="bg-white dark:bg-surface-dark/80 rounded-3xl p-8 border border-primary/10 shadow-premium sticky top-28">
+          <h3 class="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2"><span class="material-symbols-outlined text-primary">shopping_cart</span> Order summary</h3>
+          <div class="space-y-4 mb-6">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-500">Subtotal (4 items)</span>
+              <span class="font-bold">$ 4,236</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-500">Shipping</span>
+              <span class="font-bold">$ 25</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-500">Tax (est.)</span>
+              <span class="font-bold">$ 211</span>
+            </div>
+            <div class="border-t border-slate-200 pt-4 flex justify-between">
+              <span class="font-bold">Total</span>
+              <span class="text-2xl font-bold text-primary">$ 4,472</span>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mb-5 flex items-center gap-1"><span class="material-symbols-outlined text-sm">info</span> Includes lifetime warranty & certificate</p>
+          <a href="./purchase.html" class="block w-full bg-primary text-white text-center py-4 rounded-2xl font-bold text-lg hover:bg-primary/80 transition-all shadow-lg flex items-center justify-center gap-2">
+            <span>Checkout</span>
+            <span class="material-symbols-outlined">lock</span>
+          </a>
+          <div class="mt-6 p-4 bg-primary/5 rounded-xl">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-primary">favorite</span>
+              <span class="text-xs font-medium">Your relationship will be verified after purchase.</span>
+            </div>
+            <div class="mt-3 text-[10px] text-slate-500 flex items-center justify-between">
+              <span>Ring stock decreases</span>
+              <span>✓</span>
+            </div>
+            <div class="text-[10px] text-slate-500 flex items-center justify-between">
+              <span>Couple profile generated</span>
+              <span>✓</span>
+            </div>
+            <div class="text-[10px] text-slate-500 flex items-center justify-between">
+              <span>Duplicate protection</span>
+              <span>✓</span>
+            </div>
+          </div>
+        </div>
+        <!-- help card -->
+        <div class="bg-white/50 rounded-2xl p-6 border border-primary/10">
+          <h4 class="font-semibold flex items-center gap-2"><span class="material-symbols-outlined text-primary">help</span> Need help?</h4>
+          <p class="text-xs text-slate-500 mt-2">Contact our bond concierge at <span class="text-primary">support@bondkeeper.com</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- You may also like (upsell) -->
+    <section class="mt-20 border-t border-primary/10 pt-12">
+      <h3 class="heading-serif text-3xl font-light mb-8 flex items-center gap-4"><span class="w-12 h-px bg-primary/30"></span> You may also like</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+        <a href="#" class="group">
+          <div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="https://img.kwcdn.com/product/open/2023-09-05/1693914328872-5ec4896063854249a6f2609cca8c9a22-goods.jpeg?imageMogr2/auto-orient%7CimageView2/2/w/800/q/70/format/webp" class="w-full h-full object-cover group-hover:scale-105 transition"></div>
+          <p class="mt-2 font-medium">Celestial Opal</p>
+          <p class="text-primary text-sm">$1,290</p>
+        </a>
+        <a href="#" class="group">
+          <div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="https://i.pinimg.com/736x/0e/21/48/0e2148ac9639fa9f608f95c7584f4f98.jpg" class="w-full h-full object-cover group-hover:scale-105 transition"></div>
+          <p class="mt-2 font-medium">Vintage Marquise</p>
+          <p class="text-primary text-sm">$2,100</p>
+        </a>
+        <a href="#" class="group">
+          <div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="https://www.tajjewels.com/cdn/shop/products/19_FRONT_RoseGold_1080x.jpg?v=1650544247" class="w-full h-full object-cover group-hover:scale-105 transition"></div>
+          <p class="mt-2 font-medium">Art Deco Baguette</p>
+          <p class="text-primary text-sm">$1,850</p>
+        </a>
+        <a href="#" class="group">
+          <div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="https://img.kwcdn.com/product/fancy/d42a9fc0-5d2e-4728-a4fc-7edb6afb62b7.jpg" class="w-full h-full object-cover group-hover:scale-105 transition"></div>
+          <p class="mt-2 font-medium">Sunburst Citrine</p>
+          <p class="text-primary text-sm">$890</p>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white dark:bg-charcoal border-t border-primary/10 mt-20 pt-12 pb-8">
+    <div class="max-w-7xl mx-auto px-6 text-center text-xs text-slate-400">
+      <p>© BondKeeper · Cart preview. All rings final sale.</p>
+    </div>
+  </footer>
+
+  <!-- tiny script to simulate total update (static demo) -->
+  <script>
+    (function() {
+      // simple plus/minus handlers for demo (no real backend)
+      document.querySelectorAll('.cart-item .border').forEach(control => {
+        const minus = control.querySelector('button:first-of-type');
+        const plus = control.querySelector('button:last-of-type');
+        const qtySpan = control.querySelector('span');
+        minus.addEventListener('click', (e) => {
+          e.preventDefault();
+          let val = parseInt(qtySpan.innerText);
+          if (val > 1) {
+            qtySpan.innerText = val - 1;
+            updateTotal();
+          }
+        });
+        plus.addEventListener('click', (e) => {
+          e.preventDefault();
+          let val = parseInt(qtySpan.innerText);
+          qtySpan.innerText = val + 1;
+          updateTotal();
+        });
+      });
+
+      // delete buttons
+      document.querySelectorAll('.cart-item button .material-symbols-outlined:contains("delete")').forEach(btn => {
+        btn.closest('button')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          const item = e.currentTarget.closest('.cart-item');
+          item.remove();
+          updateTotal();
+        });
+      });
+
+      function updateTotal() {
+        // demo total stays same for simplicity, but we can recalc from items
+        // we'll just keep the displayed total static for this demo
+        console.log('cart updated (demo)');
+      }
+
+      // fix for contains selector (jQuery style not needed, just ignore)
+    })();
+  </script>
+</body>
+</html>

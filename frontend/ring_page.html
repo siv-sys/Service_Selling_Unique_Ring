@@ -60,10 +60,8 @@
   <main class="max-w-7xl mx-auto px-6 py-12">
     <!-- BREADCRUMBS (with link back) -->
     <div class="flex items-center gap-2 mb-8 text-sm text-slate-500 dark:text-slate-400">
-      <a class="hover:text-primary" href="index.html">Home</a>
-      <span class="material-symbols-outlined text-xs">chevron_right</span>
-      <a class="hover:text-primary" href="index.html">Eternal Rings</a>
-      <span class="material-symbols-outlined text-xs">chevron_right</span>
+      <a class="hover:text-primary" href="./shop.html">back to shop</a>
+      <span class="material-symbols-outlined text-xs">chevron_left</span>
       <span id="breadcrumb-name" class="text-slate-900 dark:text-slate-100 font-medium">Loading...</span>
     </div>
 
@@ -141,12 +139,16 @@
             
             <!-- Buttons (Add to Cart + Consultation) -->
             <div class="flex flex-col gap-4">
-              <button class="w-full py-5 bg-primary text-white font-black text-lg rounded-lg shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all uppercase tracking-widest flex items-center justify-center gap-3">
+              <a href="./cart.html">
+                <button class="w-full py-5 bg-primary text-white font-black text-lg rounded-lg shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all uppercase tracking-widest flex items-center justify-center gap-3">
                 <span class="material-symbols-outlined">shopping_cart</span> Add to Cart
               </button>
-              <button class="w-full py-5 border-2 border-primary text-primary font-black text-lg rounded-lg hover:bg-primary hover:text-white transition-all uppercase tracking-widest flex items-center justify-center gap-3">
+              </a>
+             <a href="./purchase.html">
+               <button class="w-full py-5 border-2 border-primary text-primary font-black text-lg rounded-lg hover:bg-primary hover:text-white transition-all uppercase tracking-widest flex items-center justify-center gap-3">
                 <span class="material-symbols-outlined">calendar_month</span> Book Consultation
               </button>
+             </a>
             </div>
             
             <!-- Highlights -->
