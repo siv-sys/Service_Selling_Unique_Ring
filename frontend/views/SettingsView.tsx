@@ -1,10 +1,30 @@
 import React from 'react';
 
 const PROFILE_AVATAR_STORAGE_KEY = 'eternal_rings_profile_avatar';
+const SETTINGS_STORAGE_KEY = 'eternal_rings_settings';
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80';
 
 const menuItems = ['General', 'Security & Privacy', 'Help & Support'];
+const languageOptions = ['English (US)', 'French (FR)', 'Spanish (ES)'];
+const DEFAULT_SETTINGS = {
+  twoFactorEnabled: false,
+  privacyLevel: 'Contacts',
+  themeMode: 'Light',
+  anniversaryReminders: true,
+  systemUpdates: false,
+  autoSync: true,
+  language: 'English (US)',
+  globalMute: false,
+  dndEnabled: true,
+  repeatDaily: true,
+  emailPrefs: {
+    weeklyWrap: true,
+    productTips: false,
+    occasionReminders: true,
+    partnerAlerts: true
+  }
+};
 const sessions = [
   {
     name: 'MacBook Pro 16"',
@@ -42,6 +62,7 @@ const SettingsView = ({
   const [systemUpdates, setSystemUpdates] = React.useState(false);
   const [autoSync, setAutoSync] = React.useState(true);
   const [language, setLanguage] = React.useState('English (US)');
+  const [languageSearch, setLanguageSearch] = React.useState('');
   const [globalMute, setGlobalMute] = React.useState(false);
   const [dndEnabled, setDndEnabled] = React.useState(true);
   const [repeatDaily, setRepeatDaily] = React.useState(true);
@@ -51,6 +72,7 @@ const SettingsView = ({
     occasionReminders: true,
     partnerAlerts: true
   });
+  const [saveMessage, setSaveMessage] = React.useState('');
   const [navAvatar, setNavAvatar] = React.useState(() => {
     try {
       return localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR;
@@ -76,8 +98,93 @@ const SettingsView = ({
     };
   }, []);
 
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      setTwoFactorEnabled(Boolean(parsed?.twoFactorEnabled));
+      setPrivacyLevel(typeof parsed?.privacyLevel === 'string' ? parsed.privacyLevel : DEFAULT_SETTINGS.privacyLevel);
+      setThemeMode(typeof parsed?.themeMode === 'string' ? parsed.themeMode : DEFAULT_SETTINGS.themeMode);
+      setAnniversaryReminders(Boolean(parsed?.anniversaryReminders));
+      setSystemUpdates(Boolean(parsed?.systemUpdates));
+      setAutoSync(Boolean(parsed?.autoSync));
+      setLanguage(typeof parsed?.language === 'string' ? parsed.language : DEFAULT_SETTINGS.language);
+      setGlobalMute(Boolean(parsed?.globalMute));
+      setDndEnabled(Boolean(parsed?.dndEnabled));
+      setRepeatDaily(Boolean(parsed?.repeatDaily));
+      setEmailPrefs({
+        weeklyWrap: Boolean(parsed?.emailPrefs?.weeklyWrap),
+        productTips: Boolean(parsed?.emailPrefs?.productTips),
+        occasionReminders: Boolean(parsed?.emailPrefs?.occasionReminders),
+        partnerAlerts: Boolean(parsed?.emailPrefs?.partnerAlerts)
+      });
+    } catch {
+      // Ignore invalid saved settings and keep defaults.
+    }
+  }, []);
+
+  const showSaveMessage = (message) => {
+    setSaveMessage(message);
+    window.setTimeout(() => setSaveMessage(''), 2000);
+  };
+
+  const handleSaveSettings = () => {
+    try {
+      localStorage.setItem(
+        SETTINGS_STORAGE_KEY,
+        JSON.stringify({
+          twoFactorEnabled,
+          privacyLevel,
+          themeMode,
+          anniversaryReminders,
+          systemUpdates,
+          autoSync,
+          language,
+          globalMute,
+          dndEnabled,
+          repeatDaily,
+          emailPrefs
+        })
+      );
+      showSaveMessage('Saved');
+    } catch {
+      showSaveMessage('Save failed');
+    }
+  };
+
+  const handleResetSettings = () => {
+    setTwoFactorEnabled(DEFAULT_SETTINGS.twoFactorEnabled);
+    setPrivacyLevel(DEFAULT_SETTINGS.privacyLevel);
+    setThemeMode(DEFAULT_SETTINGS.themeMode);
+    setAnniversaryReminders(DEFAULT_SETTINGS.anniversaryReminders);
+    setSystemUpdates(DEFAULT_SETTINGS.systemUpdates);
+    setAutoSync(DEFAULT_SETTINGS.autoSync);
+    setLanguage(DEFAULT_SETTINGS.language);
+    setGlobalMute(DEFAULT_SETTINGS.globalMute);
+    setDndEnabled(DEFAULT_SETTINGS.dndEnabled);
+    setRepeatDaily(DEFAULT_SETTINGS.repeatDaily);
+    setEmailPrefs(DEFAULT_SETTINGS.emailPrefs);
+    setLanguageSearch('');
+    try {
+      localStorage.removeItem(SETTINGS_STORAGE_KEY);
+    } catch {
+      // Ignore local storage errors.
+    }
+    showSaveMessage('Reset to defaults');
+  };
+
+  const isDarkTheme =
+    themeMode === 'Dark' ||
+    (themeMode === 'System' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const filteredLanguages = languageOptions.filter((item) =>
+    item.toLowerCase().includes(languageSearch.trim().toLowerCase())
+  );
+
   return (
-    <div className="settings-page">
+    <div className={`settings-page ${isDarkTheme ? 'dark' : ''}`}>
       <style>{`
         :root {
           --bg: #f7f8fb;
@@ -100,6 +207,64 @@ const SettingsView = ({
           background: var(--bg);
           color: var(--text);
           font-family: Manrope, 'Segoe UI', sans-serif;
+        }
+
+        .settings-page.dark {
+          --bg: #111827;
+          --panel: #1f2937;
+          --line: #374151;
+          --muted: #9ca3af;
+          --text: #f3f4f6;
+          --accent-soft: #3b1f29;
+          --success: #1b3a2a;
+        }
+
+        .settings-page.dark .topbar,
+        .settings-page.dark .general-card,
+        .settings-page.dark .card,
+        .settings-page.dark .danger-card,
+        .settings-page.dark .premium-card,
+        .settings-page.dark .help-card,
+        .settings-page.dark .sound-row,
+        .settings-page.dark .email-card,
+        .settings-page.dark .dnd-card {
+          background: var(--panel);
+          border-color: var(--line);
+        }
+
+        .settings-page.dark .setting-row,
+        .settings-page.dark .theme-switch,
+        .settings-page.dark .search-input,
+        .settings-page.dark .device,
+        .settings-page.dark .info-box,
+        .settings-page.dark .data-box,
+        .settings-page.dark .dnd-time {
+          background: #253244;
+          border-color: var(--line);
+          color: var(--text);
+        }
+
+        .settings-page.dark .heading,
+        .settings-page.dark .general-heading,
+        .settings-page.dark .danger-title,
+        .settings-page.dark .session-name,
+        .settings-page.dark h3,
+        .settings-page.dark h4,
+        .settings-page.dark .brand-text {
+          color: var(--text);
+        }
+
+        .settings-page.dark .subheading,
+        .settings-page.dark .general-subheading,
+        .settings-page.dark .setting-sub,
+        .settings-page.dark .crumbs,
+        .settings-page.dark p {
+          color: var(--muted);
+        }
+
+        .settings-page.dark .theme-switch button.active {
+          background: #374151;
+          color: #f9a8b8;
         }
 
         .topbar {
@@ -202,6 +367,13 @@ const SettingsView = ({
           color: #61718d;
           font-size: 20px;
           line-height: 1;
+        }
+
+        .icon-btn {
+          border: 0;
+          background: transparent;
+          padding: 0;
+          cursor: pointer;
         }
 
         .avatar {
@@ -321,6 +493,13 @@ const SettingsView = ({
           align-items: center;
           gap: 12px;
           flex-wrap: wrap;
+        }
+
+        .save-message {
+          color: var(--accent);
+          font-size: 13px;
+          font-weight: 800;
+          min-width: 120px;
         }
 
         .ghost-btn {
@@ -543,6 +722,13 @@ const SettingsView = ({
           display: flex;
           align-items: center;
           justify-content: space-between;
+        }
+
+        .language-empty {
+          color: #6d7f99;
+          font-size: 14px;
+          font-weight: 600;
+          padding: 8px 12px;
         }
 
         .data-box {
@@ -1696,7 +1882,15 @@ const SettingsView = ({
 
         <div className="top-actions">
           <span className="unlink-pill">{'\u2923'} UNLINKED</span>
-          <span className="top-icon">{'\u263E'}</span>
+          <button
+            type="button"
+            className="icon-btn top-icon"
+            onClick={() => setThemeMode(isDarkTheme ? 'Light' : 'Dark')}
+            aria-label="Toggle dark mode"
+            title="Toggle dark mode"
+          >
+            {'\u263E'}
+          </button>
           <span className="top-icon">{'\u{1F514}'}</span>
           <img
             className="avatar"
@@ -1740,8 +1934,9 @@ const SettingsView = ({
                   <p className="general-subheading">Customize your app experience and preferences.</p>
                 </div>
                 <div className="head-actions">
-                  <button type="button" className="ghost-btn">Reset</button>
-                  <button type="button" className="save-btn">Save Changes</button>
+                  <span className="save-message">{saveMessage}</span>
+                  <button type="button" className="ghost-btn" onClick={handleResetSettings}>Reset</button>
+                  <button type="button" className="save-btn" onClick={handleSaveSettings}>Save Changes</button>
                 </div>
               </div>
 
@@ -1803,12 +1998,13 @@ const SettingsView = ({
                     <input
                       className="search-input"
                       type="text"
-                      value="Search languages..."
-                      readOnly
+                      value={languageSearch}
+                      onChange={(event) => setLanguageSearch(event.target.value)}
+                      placeholder="Search languages..."
                       aria-label="Search languages"
                     />
                     <div className="language-list">
-                      {['English (US)', 'French (FR)', 'Spanish (ES)'].map((item) => (
+                      {filteredLanguages.map((item) => (
                         <button
                           key={item}
                           type="button"
@@ -1819,6 +2015,9 @@ const SettingsView = ({
                           {language === item ? <span>{'\u25CE'}</span> : null}
                         </button>
                       ))}
+                      {filteredLanguages.length === 0 ? (
+                        <p className="language-empty">No language found.</p>
+                      ) : null}
                     </div>
                   </article>
 
@@ -1952,7 +2151,7 @@ const SettingsView = ({
                     <h1 className="help-title">Notification & Sound</h1>
                     <p className="help-subtitle">Manage how you experience alerts and updates from your shared journey.</p>
                   </div>
-                  <button type="button" className="help-save-btn">Save Changes</button>
+                  <button type="button" className="help-save-btn" onClick={handleSaveSettings}>Save Changes</button>
                 </div>
 
                 <article className="help-card">
