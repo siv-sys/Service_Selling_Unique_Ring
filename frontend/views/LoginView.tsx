@@ -6,6 +6,7 @@ import { GoogleLoginButton } from '../components/GoogleLoginButton';
 interface LoginScreenProps {
   onRegister: () => void;
   onGoogleLogin: () => void;
+  onForgotPassword: () => void;
 }
 
 const MailIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
@@ -22,7 +23,7 @@ const LockIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
-export function LoginScreen({ onRegister, onGoogleLogin }: LoginScreenProps) {
+export function LoginScreen({ onRegister, onGoogleLogin, onForgotPassword }: LoginScreenProps) {
   return (
     <AuthLayout
       title="A Promise of Forever"
@@ -49,7 +50,11 @@ export function LoginScreen({ onRegister, onGoogleLogin }: LoginScreenProps) {
           placeholder="Enter your password "
           icon={LockIcon}
           rightElement={
-            <button type="button" className="text-xs font-semibold text-brand transition-colors hover:text-brand-dark">
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="text-xs font-semibold text-brand transition-colors hover:text-brand-dark"
+            >
               Forgot Password?
             </button>
           }

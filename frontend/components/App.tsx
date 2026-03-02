@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AuthScreen } from './types';
 import { LoginScreen } from '../views/LoginView';
 import { RegisterScreen } from '../views/RegisterView';
+import { ResetPasswordScreen } from '../views/ResetPasswordView';
 import { GoogleAccountSelector } from './GoogleAccountSelector';
 
 export default function App() {
@@ -10,6 +11,7 @@ export default function App() {
   const handleRegisterClick = () => setScreen('register');
   const handleLoginClick = () => setScreen('login');
   const handleGoogleLoginClick = () => setScreen('google-select');
+  const handleForgotPasswordClick = () => setScreen('reset-password');
   const handleBackFromGoogle = () => setScreen('login');
   
   const handleAccountSelect = (email: string) => {
@@ -23,7 +25,8 @@ export default function App() {
       {screen === 'login' && (
         <LoginScreen 
           onRegister={handleRegisterClick} 
-          onGoogleLogin={handleGoogleLoginClick} 
+          onGoogleLogin={handleGoogleLoginClick}
+          onForgotPassword={handleForgotPasswordClick}
         />
       )}
       
@@ -38,6 +41,13 @@ export default function App() {
         <GoogleAccountSelector 
           onBack={handleBackFromGoogle} 
           onSelect={handleAccountSelect} 
+        />
+      )}
+
+      {screen === 'reset-password' && (
+        <ResetPasswordScreen
+          onBackToLogin={handleLoginClick}
+          onGoogleLogin={handleGoogleLoginClick}
         />
       )}
     </div>
