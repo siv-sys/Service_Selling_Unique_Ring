@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -18,6 +18,37 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const Sidebar = () => {
+  const DEFAULT_ADMIN_AVATAR =
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCmqQASMOLSpK9bGM0-CgmKl9sKhEN6GVoUAzpwuV_qazu6yD8oWPjCj2CgVE-fyl5QOGCpNgh0AALDLKkdOHjRa-3p55FWqeWN2IEP7WRWdYnm7HXTQcVmjLgTru9rytSOijqqbXBENwG2h6eS5rbKl-DJofpCy0tEpZyPfoMv5AsJPZDZqpkkANt9xz8DD1AV_Bn_rHCYdbeLal-7ErCbx9aXUtuDHNY3zLpAGd8hn2VbYSXD_hlpXuc3K9cKXLeY3qGkLCYJB5Sw';
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [adminAvatar, setAdminAvatar] = useState(DEFAULT_ADMIN_AVATAR);
+
+  useEffect(() => {
+    return () => {
+      if (adminAvatar.startsWith('blob:')) {
+        URL.revokeObjectURL(adminAvatar);
+      }
+    };
+  }, [adminAvatar]);
+
+  const handleOpenAvatarPicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      window.alert('Please select an image file.');
+      event.target.value = '';
+      return;
+    }
+
+    const nextUrl = URL.createObjectURL(file);
+    setAdminAvatar(nextUrl);
+  };
+
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'User & Pair Management', path: '/users' },
@@ -78,11 +109,24 @@ const Sidebar = () => {
         </button>
 
         <div className="flex items-center gap-3 px-2">
-          <img
-            alt="Alex Rivera"
-            className="w-10 h-10 rounded-full border-2 border-primary/20 shadow-sm object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmqQASMOLSpK9bGM0-CgmKl9sKhEN6GVoUAzpwuV_qazu6yD8oWPjCj2CgVE-fyl5QOGCpNgh0AALDLKkdOHjRa-3p55FWqeWN2IEP7WRWdYnm7HXTQcVmjLgTru9rytSOijqqbXBENwG2h6eS5rbKl-DJofpCy0tEpZyPfoMv5AsJPZDZqpkkANt9xz8DD1AV_Bn_rHCYdbeLal-7ErCbx9aXUtuDHNY3zLpAGd8hn2VbYSXD_hlpXuc3K9cKXLeY3qGkLCYJB5Sw"
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarChange}
           />
+          <button
+            onClick={handleOpenAvatarPicker}
+            className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/40"
+            title="Upload admin profile photo"
+          >
+            <img
+              alt="Alex Rivera"
+              className="w-10 h-10 rounded-full border-2 border-primary/20 shadow-sm object-cover"
+              src={adminAvatar}
+            />
+          </button>
           <div className="overflow-hidden text-left">
             <p className="text-sm font-bold truncate">Alex Rivera</p>
             <p className="text-xs text-slate-500 truncate">System Admin</p>
