@@ -48,6 +48,44 @@ const sessions = [
     icon: '\u{1F4F2}'
   }
 ];
+const INITIAL_NOTIFICATIONS = [
+  {
+    id: 'new-photo',
+    icon: '\u{1F5BC}',
+    iconClass: 'image',
+    title: 'New photo added by partner',
+    message: 'Emma just uploaded a new memory to your shared gallery.',
+    time: '2 MINUTES AGO',
+    unread: true
+  },
+  {
+    id: 'anniversary',
+    icon: '\u{1F4C5}',
+    iconClass: 'calendar',
+    title: 'Upcoming anniversary reminder',
+    message: 'Your 2nd Anniversary is in 3 days. Time to celebrate!',
+    time: '1 HOUR AGO',
+    unread: true
+  },
+  {
+    id: 'gift',
+    icon: '\u{1F381}',
+    iconClass: 'gift',
+    title: 'Gift suggestion for you',
+    message: 'Check out these personalized ring designs for your special day.',
+    time: '5 HOURS AGO',
+    unread: false
+  },
+  {
+    id: 'system',
+    icon: '\u2699',
+    iconClass: 'system',
+    title: 'System update',
+    message: 'Eternal Rings v2.4 is now live with new relationship goals.',
+    time: '1 DAY AGO',
+    unread: false
+  }
+];
 
 const SettingsView = ({
   onNavigateRelationship = () => {},
@@ -73,6 +111,9 @@ const SettingsView = ({
     partnerAlerts: true
   });
   const [saveMessage, setSaveMessage] = React.useState('');
+  const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
+  const [notifications, setNotifications] = React.useState(INITIAL_NOTIFICATIONS);
+  const notificationPanelRef = React.useRef(null);
   const [navAvatar, setNavAvatar] = React.useState(() => {
     try {
       return localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR;
@@ -97,6 +138,34 @@ const SettingsView = ({
       window.removeEventListener('storage', syncAvatar);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!isNotificationOpen) {
+      return;
+    }
+
+    const handleClickAway = (event) => {
+      if (!notificationPanelRef.current) {
+        return;
+      }
+      if (!notificationPanelRef.current.contains(event.target)) {
+        setIsNotificationOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsNotificationOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickAway);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickAway);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isNotificationOpen]);
 
   React.useEffect(() => {
     try {
@@ -175,6 +244,11 @@ const SettingsView = ({
     }
     showSaveMessage('Reset to defaults');
   };
+  const unreadCount = notifications.filter((item) => item.unread).length;
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications((current) => current.map((item) => ({ ...item, unread: false })));
+  };
 
   const isDarkTheme =
     themeMode === 'Dark' ||
@@ -230,6 +304,43 @@ const SettingsView = ({
         .settings-page.dark .dnd-card {
           background: var(--panel);
           border-color: var(--line);
+        }
+
+        .settings-page.dark .notification-panel {
+          background: #111827;
+          border-color: #243244;
+          box-shadow: 0 20px 40px rgba(2, 6, 23, 0.6);
+        }
+
+        .settings-page.dark .notification-head {
+          border-color: #243244;
+        }
+
+        .settings-page.dark .notification-mark {
+          color: #fb7185;
+        }
+
+        .settings-page.dark .notification-title,
+        .settings-page.dark .notification-item-title {
+          color: #e5e7eb;
+        }
+
+        .settings-page.dark .notification-item-copy,
+        .settings-page.dark .notification-time,
+        .settings-page.dark .notification-footer {
+          color: #94a3b8;
+        }
+
+        .settings-page.dark .notification-item + .notification-item {
+          border-color: #1f2937;
+        }
+
+        .settings-page.dark .notification-list {
+          scrollbar-color: #334155 transparent;
+        }
+
+        .settings-page.dark .notification-list::-webkit-scrollbar-thumb {
+          background: #334155;
         }
 
         .settings-page.dark .setting-row,
@@ -347,7 +458,7 @@ const SettingsView = ({
           justify-content: flex-end;
         }
 
-        .unlink-pill {
+        .basket-pill {
           border: 1.4px solid #ef2f5a;
           color: #ef2f5a;
           border-radius: 999px;
@@ -374,6 +485,182 @@ const SettingsView = ({
           background: transparent;
           padding: 0;
           cursor: pointer;
+        }
+
+        .notification-wrap {
+          position: relative;
+        }
+
+        .notification-btn {
+          border: 0;
+          background: transparent;
+          padding: 0;
+          cursor: pointer;
+          color: #61718d;
+          font-size: 20px;
+          line-height: 1;
+          position: relative;
+        }
+
+        .notification-btn-badge {
+          position: absolute;
+          top: 2px;
+          right: -1px;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #ef2f5a;
+          border: 1.5px solid #f4f5f7;
+        }
+
+        .notification-panel {
+          position: absolute;
+          right: -6px;
+          top: calc(100% + 10px);
+          width: min(332px, 92vw);
+          background: #fff;
+          border: 1px solid #e8edf5;
+          border-radius: 16px;
+          box-shadow: 0 24px 40px rgba(30, 42, 62, 0.16);
+          overflow: hidden;
+          z-index: 40;
+        }
+
+        .notification-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 16px 12px;
+          border-bottom: 1px solid #edf1f7;
+        }
+
+        .notification-title {
+          margin: 0;
+          color: #8ea0b9;
+          font-size: 28px;
+          letter-spacing: -0.03em;
+          font-weight: 900;
+          line-height: 1;
+        }
+
+        .notification-mark {
+          border: 0;
+          background: transparent;
+          color: #ef2f5a;
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .notification-list {
+          padding: 6px 8px;
+          max-height: 360px;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          scrollbar-width: thin;
+          scrollbar-color: #c8d2e0 transparent;
+        }
+
+        .notification-list::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .notification-list::-webkit-scrollbar-thumb {
+          background: #c8d2e0;
+          border-radius: 999px;
+        }
+
+        .notification-list::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .notification-item {
+          display: grid;
+          grid-template-columns: 30px minmax(0, 1fr) 8px;
+          gap: 12px;
+          align-items: flex-start;
+          padding: 12px 10px;
+        }
+
+        .notification-item + .notification-item {
+          border-top: 1px solid #f2f5fa;
+        }
+
+        .notification-icon {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          font-size: 14px;
+          color: #284367;
+          font-weight: 700;
+          margin-top: 2px;
+        }
+
+        .notification-icon.image {
+          background: #e7eeff;
+          color: #3f68d7;
+        }
+
+        .notification-icon.calendar {
+          background: #ffe8ef;
+          color: #ea456f;
+        }
+
+        .notification-icon.gift {
+          background: #fff5d8;
+          color: #c99411;
+        }
+
+        .notification-icon.system {
+          background: #e9edf3;
+          color: #556c87;
+        }
+
+        .notification-item-title {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 800;
+          color: #5f718d;
+          line-height: 1.25;
+        }
+
+        .notification-item-copy {
+          margin: 4px 0 0;
+          color: #8ea0b7;
+          font-size: 14px;
+          line-height: 1.35;
+          font-weight: 600;
+        }
+
+        .notification-time {
+          margin-top: 8px;
+          color: #b0bcce;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .notification-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #ef2f5a;
+          margin-top: 11px;
+        }
+
+        .notification-footer {
+          border-top: 1px solid #edf1f7;
+          text-align: center;
+          padding: 12px;
+          color: #647790;
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
         }
 
         .avatar {
@@ -1854,8 +2141,12 @@ const SettingsView = ({
           }
 
           .top-actions .top-icon,
-          .top-actions .unlink-pill {
+          .top-actions .basket-pill {
             display: none;
+          }
+
+          .notification-panel {
+            right: -54px;
           }
 
           .footer {
@@ -1881,7 +2172,7 @@ const SettingsView = ({
         </nav>
 
         <div className="top-actions">
-          <span className="unlink-pill">{'\u2923'} UNLINKED</span>
+          <span className="basket-pill">{'\u{1F9FA}'} BASKET</span>
           <button
             type="button"
             className="icon-btn top-icon"
@@ -1891,7 +2182,42 @@ const SettingsView = ({
           >
             {'\u263E'}
           </button>
-          <span className="top-icon">{'\u{1F514}'}</span>
+          <div className="notification-wrap" ref={notificationPanelRef}>
+            <button
+              type="button"
+              className="notification-btn"
+              aria-label="Open notifications"
+              aria-expanded={isNotificationOpen}
+              onClick={() => setIsNotificationOpen((open) => !open)}
+            >
+              {'\u{1F514}'}
+              {unreadCount > 0 ? <span className="notification-btn-badge" /> : null}
+            </button>
+            {isNotificationOpen ? (
+              <section className="notification-panel" role="dialog" aria-label="Notifications">
+                <header className="notification-head">
+                  <h2 className="notification-title">Notifications</h2>
+                  <button type="button" className="notification-mark" onClick={markAllNotificationsAsRead}>
+                    Mark all as read
+                  </button>
+                </header>
+                <div className="notification-list">
+                  {notifications.map((item) => (
+                    <article key={item.id} className="notification-item">
+                      <div className={`notification-icon ${item.iconClass}`}>{item.icon}</div>
+                      <div>
+                        <h3 className="notification-item-title">{item.title}</h3>
+                        <p className="notification-item-copy">{item.message}</p>
+                        <div className="notification-time">{item.time}</div>
+                      </div>
+                      {item.unread ? <span className="notification-dot" aria-hidden="true" /> : <span />}
+                    </article>
+                  ))}
+                </div>
+                <footer className="notification-footer">View all activity</footer>
+              </section>
+            ) : null}
+          </div>
           <img
             className="avatar"
             src={navAvatar}

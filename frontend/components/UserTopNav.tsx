@@ -83,11 +83,15 @@ const UserTopNav: React.FC<UserTopNavProps> = ({ currentView, setView, onSignOut
       </div>
 
       <div className="flex items-center gap-6">
-        <button className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-rose-50 dark:bg-rose-900/20 text-primary-red text-[10px] font-black uppercase tracking-widest border border-rose-100 dark:border-rose-900/30">
-          <span className="material-symbols-outlined text-sm">link_off</span>
-          Unlinked
+        <button
+          onClick={() => setView(AppView.COUPLE_SHOP)}
+          className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-rose-50 dark:bg-rose-900/20 text-primary-red text-[10px] font-black uppercase tracking-widest border border-rose-100 dark:border-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
+          title="Open Couple Shop"
+        >
+          <span className="material-symbols-outlined text-sm">shopping_basket</span>
+          Basket
         </button>
-        
+
         <div className="flex items-center gap-4">
           <button 
             onClick={toggleTheme}
