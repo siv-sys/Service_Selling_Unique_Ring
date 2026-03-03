@@ -30,18 +30,18 @@ export function LoginScreen({ onRegister, onGoogleLogin, onForgotPassword }: Log
       subtitle="Your journey starts here."
       image="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80&w=1920&h=1080"
     >
-      <div className="mb-10 flex flex-col items-start">
-        <div className="mb-8 flex items-center gap-2">
+      <div className="mb-5 flex flex-col items-start">
+        <div className="mb-4 flex items-center gap-2">
           <div className="size-8 rounded-full bg-brand flex items-center justify-center">
             <div className="size-4 rotate-45 rounded-sm border-2 border-white" />
           </div>
           <span className="text-lg font-bold tracking-tight text-slate-900">Unique Ring</span>
         </div>
-        <h2 className="mb-2 text-4xl font-bold text-slate-900">Sign In</h2>
-        <p className="text-slate-500">Welcome back! Please enter your details.</p>
+        <h2 className="mb-1 text-3xl font-bold text-slate-900">Sign In</h2>
+        <p className="text-sm text-slate-500">Welcome back! Please enter your details.</p>
       </div>
 
-      <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
         <InputField label="Email Address" placeholder="name@company.com" icon={MailIcon} />
 
         <InputField
@@ -73,13 +73,13 @@ export function LoginScreen({ onRegister, onGoogleLogin, onForgotPassword }: Log
 
         <button
           type="submit"
-          className="w-full rounded-xl bg-brand px-4 py-4 font-bold text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-dark active:scale-[0.98]"
+          className="w-full rounded-xl bg-brand px-4 py-3 font-bold text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-dark active:scale-[0.98]"
         >
           Sign In
         </button>
       </form>
 
-      <div className="relative my-8">
+      <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-200" />
         </div>
@@ -90,7 +90,7 @@ export function LoginScreen({ onRegister, onGoogleLogin, onForgotPassword }: Log
 
       <GoogleLoginButton onClick={onGoogleLogin} />
 
-      <p className="mt-8 text-center text-slate-600">
+      <p className="mt-5 text-center text-sm text-slate-600">
         Don't have an account?{' '}
         <button onClick={onRegister} className="font-bold text-brand transition-colors hover:text-brand-dark">
           Register

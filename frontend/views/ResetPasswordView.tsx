@@ -37,12 +37,6 @@ export function ResetPasswordScreen({ onBackToLogin, onGoogleLogin }: ResetPassw
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-10">
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-10 shadow-sm">
         <div className="mb-10 flex flex-col items-start">
-          <div className="mb-8 flex items-center gap-2">
-            <div className="size-8 rounded-full bg-brand flex items-center justify-center">
-              <div className="size-4 rotate-45 rounded-sm border-2 border-white" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-slate-900">Unique Ring</span>
-          </div>
           <h2 className="mb-2 text-4xl font-bold text-slate-900">Set New Password</h2>
           <p className="text-slate-500">Your new password must be different from previously used passwords.</p>
         </div>

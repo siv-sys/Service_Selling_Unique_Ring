@@ -9,7 +9,7 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, image, title, subtitle }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen w-full overflow-hidden bg-white">
+    <div className="flex h-screen w-full overflow-hidden bg-white">
       {/* Left Panel: Image */}
       <div className="relative hidden w-1/2 lg:block">
         <img
@@ -26,12 +26,8 @@ export function AuthLayout({ children, image, title, subtitle }: AuthLayoutProps
       </div>
 
       {/* Right Panel: Content */}
-      <div className="flex w-full flex-col justify-center px-6 py-12 md:px-12 lg:w-1/2 lg:px-24">
+      <div className="flex h-full w-full flex-col justify-center px-5 py-5 md:px-10 md:py-6 lg:w-1/2 lg:px-16 lg:py-8">
         <div className="mx-auto w-full max-w-md">{children}</div>
-
-        <div className="mt-auto pt-10 text-center lg:text-left">
-          <p className="text-xs text-slate-400">Copyright 2026 Unique Ring. All rights reserved.</p>
-        </div>
       </div>
     </div>
   );
