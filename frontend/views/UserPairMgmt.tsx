@@ -23,11 +23,148 @@ const UserPairMgmt = () => {
     pair2: true,
     pair3: false
   });
-  const [selectedExport, setSelectedExport] = useState<'table' | 'file'>('table');
+  const [summaryFilter, setSummaryFilter] = useState<'all' | 'active' | 'disconnected' | 'outdated' | 'suspended'>('all');
+  const [selectedExport, setSelectedExport] = useState<'excel' | 'pdf'>('excel');
   const [selectedPage, setSelectedPage] = useState(1);
+  const [lastExportedFile, setLastExportedFile] = useState('');
+
+  const userPairs = [
+    {
+      id: 'pair1',
+      names: 'Sarah & Alex',
+      pairId: 'PR-9210',
+      tier: 'Executive',
+      ring: 'SR-90112',
+      os: 'iOS 17.4',
+      osIcon: Smartphone,
+      status: 'Active',
+      firmware: 'Updated',
+      accountState: 'Active',
+      lastActive: '2m ago',
+      disabled: false
+    },
+    {
+      id: 'pair2',
+      names: 'Elara & Jordan',
+      pairId: 'PR-5521',
+      tier: 'Standard',
+      ring: 'SR-90553',
+      os: 'Android 14',
+      osIcon: Cpu,
+      status: 'Pending',
+      firmware: 'Outdated',
+      accountState: 'Active',
+      lastActive: 'Never',
+      disabled: false
+    },
+    {
+      id: 'pair3',
+      names: 'Marcus & Sam',
+      pairId: 'Access Revoked',
+      tier: 'Guest',
+      ring: 'SR-88421',
+      os: 'Hardware Locked',
+      osIcon: Smartphone,
+      status: 'Disabled',
+      firmware: 'Outdated',
+      accountState: 'Suspended',
+      lastActive: '14 days ago',
+      disabled: true
+    }
+  ];
+
+  const visibleUserPairs =
+    summaryFilter === 'active'
+      ? userPairs.filter((pair) => pair.status === 'Active')
+      : summaryFilter === 'disconnected'
+      ? userPairs.filter((pair) => pair.status !== 'Active')
+      : summaryFilter === 'outdated'
+      ? userPairs.filter((pair) => pair.firmware === 'Outdated')
+      : summaryFilter === 'suspended'
+      ? userPairs.filter((pair) => pair.accountState === 'Suspended')
+      : userPairs;
 
   const togglePair = (id: string) => {
     setToggles(prev => ({ ...prev, [id]: !prev[id as keyof typeof prev] }));
+  };
+
+  const getTimestamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportExcel = () => {
+    const headers = ['Pair ID', 'Names', 'Tier', 'Ring', 'OS', 'Status', 'Firmware', 'Account State', 'Last Active'];
+    const rows = visibleUserPairs.map((pair) =>
+      [pair.pairId, pair.names, pair.tier, pair.ring, pair.os, pair.status, pair.firmware, pair.accountState, pair.lastActive].join(',')
+    );
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const fileName = `userpair-export-${getTimestamp()}.csv`;
+    downloadBlob(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }), fileName);
+    setLastExportedFile(fileName);
+  };
+
+  const handleExportPdf = () => {
+    const popup = window.open('', '_blank', 'width=1000,height=700');
+    if (!popup) {
+      window.alert('Please allow popups to export PDF.');
+      return;
+    }
+
+    const rowsHtml = visibleUserPairs
+      .map(
+        (pair) => `
+        <tr>
+          <td>${pair.pairId}</td>
+          <td>${pair.names}</td>
+          <td>${pair.tier}</td>
+          <td>${pair.ring}</td>
+          <td>${pair.os}</td>
+          <td>${pair.status}</td>
+          <td>${pair.firmware}</td>
+          <td>${pair.accountState}</td>
+          <td>${pair.lastActive}</td>
+        </tr>`
+      )
+      .join('');
+
+    popup.document.write(`
+      <html>
+        <head>
+          <title>UserPair Export</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; color: #0f172a; }
+            h2 { margin: 0 0 10px 0; }
+            p { margin: 0 0 14px 0; color: #475569; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; }
+            th { background: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <h2>UserPair Management Export</h2>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Pair ID</th><th>Names</th><th>Tier</th><th>Ring</th><th>OS</th><th>Status</th><th>Firmware</th><th>Account State</th><th>Last Active</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    popup.document.close();
+    popup.focus();
+    setTimeout(() => popup.print(), 250);
+    setLastExportedFile(`userpair-export-${getTimestamp()}.pdf`);
   };
 
   const entrance = (delayMs: number): React.CSSProperties => ({
@@ -57,7 +194,7 @@ const UserPairMgmt = () => {
         .btn-contrast-neutral {
           background: #ffffff;
           color: #0f172a;
-          border-color: rgba(15, 23, 42, 0.22);
+          border-color: rgba(15, 23, 42, 0.32);
         }
         .btn-contrast-neutral:hover {
           background: #f8fafc;
@@ -91,7 +228,7 @@ const UserPairMgmt = () => {
           border-color: #14532d;
         }
         .toggle-off {
-          background: #334155;
+          background: #1e293b;
           border-color: #0f172a;
         }
       `}</style>
@@ -111,6 +248,8 @@ const UserPairMgmt = () => {
             status="Active Now" 
             icon={Users} 
             color="green"
+            active={summaryFilter === 'active'}
+            onClick={() => setSummaryFilter((prev) => (prev === 'active' ? 'all' : 'active'))}
           />
           </div>
           <div style={entrance(90)}>
@@ -120,6 +259,8 @@ const UserPairMgmt = () => {
             status="Requires Sync" 
             icon={Link2Off} 
             color="amber"
+            active={summaryFilter === 'disconnected'}
+            onClick={() => setSummaryFilter((prev) => (prev === 'disconnected' ? 'all' : 'disconnected'))}
           />
           </div>
           <div style={entrance(140)}>
@@ -129,7 +270,8 @@ const UserPairMgmt = () => {
             status="Action Required" 
             icon={RefreshCw} 
             color="primary"
-            highlight
+            active={summaryFilter === 'outdated'}
+            onClick={() => setSummaryFilter((prev) => (prev === 'outdated' ? 'all' : 'outdated'))}
           />
           </div>
           <div style={entrance(190)}>
@@ -139,6 +281,8 @@ const UserPairMgmt = () => {
             status="Security Risk" 
             icon={ShieldAlert} 
             color="red"
+            active={summaryFilter === 'suspended'}
+            onClick={() => setSummaryFilter((prev) => (prev === 'suspended' ? 'all' : 'suspended'))}
           />
           </div>
         </div>
@@ -151,7 +295,7 @@ const UserPairMgmt = () => {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4 flex-1">
               <div className="relative max-w-md w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 w-4 h-4" />
                 <input 
                   type="text" 
                   placeholder="Search by name, ID, or phone..." 
@@ -164,11 +308,14 @@ const UserPairMgmt = () => {
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 mr-2 uppercase font-bold tracking-wider">Export:</span>
+              <span className="text-xs text-slate-600 mr-2 uppercase font-bold tracking-wider">Export:</span>
               <button
-                onClick={() => setSelectedExport('table')}
+                onClick={() => {
+                  setSelectedExport('excel');
+                  handleExportExcel();
+                }}
                 className={`btn-contrast p-2 rounded-lg border transition-all duration-200 hover:-translate-y-0.5 ${
-                  selectedExport === 'table'
+                  selectedExport === 'excel'
                     ? 'btn-contrast-primary shadow-md'
                     : 'btn-contrast-neutral'
                 }`}
@@ -176,9 +323,12 @@ const UserPairMgmt = () => {
                 <TableIcon className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setSelectedExport('file')}
+                onClick={() => {
+                  setSelectedExport('pdf');
+                  handleExportPdf();
+                }}
                 className={`btn-contrast p-2 rounded-lg border transition-all duration-200 hover:-translate-y-0.5 ${
-                  selectedExport === 'file'
+                  selectedExport === 'pdf'
                     ? 'btn-contrast-primary shadow-md'
                     : 'btn-contrast-neutral'
                 }`}
@@ -187,6 +337,9 @@ const UserPairMgmt = () => {
               </button>
             </div>
           </div>
+          {lastExportedFile && (
+            <p className="text-xs font-semibold text-slate-700 mb-4">Last export: {lastExportedFile}</p>
+          )}
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-6 border-t border-slate-100">
             <FilterSelect label="Ring Model" options={['All Models', 'Gen 3 Pro', 'Gen 3 Lite']} />
@@ -205,66 +358,62 @@ const UserPairMgmt = () => {
           style={entrance(320)}
           className="bg-white rounded-xl shadow-sm border border-primary/5 overflow-hidden hover:shadow-md transition-shadow duration-300"
         >
+          {summaryFilter !== 'all' && (
+            <div className="px-6 py-3 border-b border-primary/10 bg-green-50 flex items-center justify-between">
+              <p className="text-sm font-semibold text-green-800">
+                {summaryFilter === 'active'
+                  ? 'Showing active users only'
+                  : summaryFilter === 'disconnected'
+                  ? 'Showing disconnected pairs only'
+                  : summaryFilter === 'outdated'
+                  ? 'Showing outdated firmware users only'
+                  : 'Showing suspended account users only'}
+              </p>
+              <button
+                onClick={() => setSummaryFilter('all')}
+                className="btn-contrast btn-contrast-neutral px-3 py-1.5 rounded-lg text-xs"
+              >
+                Show All Users
+              </button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-primary/5">
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-500">Enable</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-500">Lover Pairs</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-500">Tier</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-500">Ring & OS</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-500">Last Active</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Admin Actions</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Enable</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Lover Pairs</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Tier</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Ring & OS</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Status</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Last Active</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700 text-right">Admin Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-primary/5">
-                <UserRow 
-                  id="pair1"
-                  names="Sarah & Alex"
-                  pairId="PR-9210"
-                  tier="Executive"
-                  ring="SR-90112"
-                  os="iOS 17.4"
-                  osIcon={Smartphone}
-                  status="Active"
-                  lastActive="2m ago"
-                  enabled={toggles.pair1}
-                  onToggle={() => togglePair('pair1')}
-                />
-                <UserRow 
-                  id="pair2"
-                  names="Elara & Jordan"
-                  pairId="PR-5521"
-                  tier="Standard"
-                  ring="SR-90553"
-                  os="Android 14"
-                  osIcon={Cpu}
-                  status="Pending"
-                  lastActive="Never"
-                  enabled={toggles.pair2}
-                  onToggle={() => togglePair('pair2')}
-                />
-                <UserRow 
-                  id="pair3"
-                  names="Marcus & Sam"
-                  pairId="Access Revoked"
-                  tier="Guest"
-                  ring="SR-88421"
-                  os="Hardware Locked"
-                  osIcon={Smartphone}
-                  status="Disabled"
-                  lastActive="14 days ago"
-                  enabled={toggles.pair3}
-                  onToggle={() => togglePair('pair3')}
-                  disabled
-                />
+                {visibleUserPairs.map((pair) => (
+                  <UserRow
+                    key={pair.id}
+                    id={pair.id}
+                    names={pair.names}
+                    pairId={pair.pairId}
+                    tier={pair.tier}
+                    ring={pair.ring}
+                    os={pair.os}
+                    osIcon={pair.osIcon}
+                    status={pair.status}
+                    lastActive={pair.lastActive}
+                    enabled={toggles[pair.id as keyof typeof toggles]}
+                    onToggle={() => togglePair(pair.id)}
+                    disabled={pair.disabled}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
           
           <div className="p-6 border-t border-primary/5 flex items-center justify-between">
-            <p className="text-sm text-slate-500 italic">System Admin Access: Displaying localized server records for 1,204 accounts</p>
+            <p className="text-sm text-slate-700 italic">System Admin Access: Displaying localized server records for 1,204 accounts</p>
             <div className="flex items-center gap-2">
               <button className="btn-contrast btn-contrast-neutral px-4 py-2 text-sm rounded-lg transition-all duration-200 hover:-translate-y-0.5">Previous</button>
               <div className="flex items-center gap-1">
@@ -291,7 +440,7 @@ const UserPairMgmt = () => {
   );
 };
 
-const SummaryCard = ({ title, value, status, icon: Icon, color, highlight }: any) => {
+const SummaryCard = ({ title, value, status, icon: Icon, color, onClick, active }: any) => {
   const colorClasses: any = {
     green: "bg-green-100 text-green-600",
     amber: "bg-amber-100 text-amber-600",
@@ -304,27 +453,37 @@ const SummaryCard = ({ title, value, status, icon: Icon, color, highlight }: any
     primary: "text-primary bg-primary/5",
     red: "text-red-500 bg-red-50"
   };
+  const activeClasses: any = {
+    green: 'border-green-400 ring-2 ring-green-200',
+    amber: 'border-amber-400 ring-2 ring-amber-200',
+    primary: 'border-[#be0f66] ring-2 ring-[#ec1380]/30',
+    red: 'border-red-400 ring-2 ring-red-200'
+  };
 
   return (
-    <div className={`bg-white p-6 rounded-xl border ${highlight ? 'border-primary/40 ring-2 ring-primary/20' : 'border-primary/5'} shadow-sm group hover:border-primary/30 hover:-translate-y-1 hover:shadow-lg transition-all duration-300`}>
+    <button
+      onClick={onClick}
+      className={`relative w-full text-left bg-white p-6 rounded-xl border ${
+        active ? activeClasses[color] : 'border-primary/5'
+      } shadow-sm group hover:border-primary/30 hover:-translate-y-1 hover:shadow-lg transition-all duration-300`}
+    >
       <div className="flex justify-between items-start mb-4">
         <div
           className={`w-12 h-12 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300 ${colorClasses[color]}`}
-          style={highlight ? { animation: 'softPulse 2.2s ease-in-out infinite' } : undefined}
         >
           <Icon className="w-6 h-6" />
         </div>
         <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${statusClasses[color]}`}>{status}</span>
       </div>
-      <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
-      <p className={`text-2xl font-bold mt-1 ${highlight ? 'text-primary' : 'text-slate-900'}`}>{value}</p>
-    </div>
+      <h3 className="text-slate-700 text-sm font-medium">{title}</h3>
+      <p className="text-2xl font-bold mt-1 text-slate-900">{value}</p>
+    </button>
   );
 };
 
 const FilterSelect = ({ label, options }: any) => (
   <div className="space-y-1.5">
-    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</label>
+    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">{label}</label>
     <select className="w-full bg-slate-50 border-none rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/30">
       {options.map((opt: string) => <option key={opt}>{opt}</option>)}
     </select>
@@ -366,25 +525,25 @@ const UserRow = ({ id, names, pairId, tier, ring, os, osIcon: OSIcon, status, la
           </div>
           <div>
             <p className={`text-sm font-bold ${disabled ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{names}</p>
-            <p className={`text-[11px] ${disabled ? 'text-slate-400 italic' : 'text-slate-500'}`}>{pairId}</p>
+            <p className={`text-[11px] ${disabled ? 'text-slate-500 italic' : 'text-slate-700'}`}>{pairId}</p>
           </div>
         </div>
       </td>
       <td className="p-5">
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase border ${
           tier === 'Executive' ? 'text-primary bg-primary/10 border-primary/20' : 
-          tier === 'Standard' ? 'text-slate-500 bg-slate-100 border-slate-200' :
-          'text-slate-400 bg-slate-50 border-slate-100'
+          tier === 'Standard' ? 'text-slate-700 bg-slate-100 border-slate-300' :
+          'text-slate-700 bg-slate-100 border-slate-300'
         }`}>
           {tier}
         </span>
       </td>
       <td className="p-5">
         <div>
-          <p className={`text-sm font-semibold ${disabled ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{ring}</p>
+          <p className={`text-sm font-semibold ${disabled ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{ring}</p>
           <div className="flex items-center gap-1 mt-0.5">
-            <OSIcon className={`w-3 h-3 ${disabled ? 'text-slate-400' : 'text-blue-500'}`} />
-            <span className="text-xs text-slate-500">{os}</span>
+            <OSIcon className={`w-3 h-3 ${disabled ? 'text-slate-500' : 'text-blue-700'}`} />
+            <span className="text-xs text-slate-700">{os}</span>
           </div>
         </div>
       </td>
