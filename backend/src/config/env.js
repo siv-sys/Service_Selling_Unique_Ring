@@ -1,1 +1,25 @@
 ﻿
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+function readNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+const env = {
+  nodeEnv: process.env.NODE_ENV || 'development',
+  port: readNumber(process.env.PORT, 4000),
+  frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+  db: {
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: readNumber(process.env.DB_PORT, 3306),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    name: process.env.DB_NAME || 'ring_app',
+    connectionLimit: readNumber(process.env.DB_CONNECTION_LIMIT, 10),
+  },
+};
+
+module.exports = { env };
