@@ -7,8 +7,7 @@ import {
   ShieldAlert,
   Database,
   Settings,
-  LogOut,
-  Heart
+  LogOut
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -59,13 +58,15 @@ const Sidebar = () => {
 
   return (
     <aside className="w-64 bg-white border-r border-primary/10 flex flex-col h-screen sticky top-0">
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
-          <Heart className="w-6 h-6 fill-current" />
+      <div className="p-6 flex items-center gap-3 border-b border-slate-200">
+        <div className="relative w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-pink-500 to-pink-700 text-white shadow-lg shadow-pink-500/30">
+          <span className="absolute w-6 h-6 rounded-full border-[2.5px] border-white/95" />
+          <span className="absolute w-3 h-3 rounded-full border-2 border-white/90" />
+          <span className="absolute top-1.5 w-2.5 h-2.5 rotate-45 rounded-[3px] bg-white/95 shadow-sm" />
         </div>
         <div>
-          <h1 className="text-lg font-bold leading-tight tracking-tight text-primary">SmartRing</h1>
-          <p className="text-xs text-slate-500">Admin Console</p>
+          <h1 className="text-lg font-black leading-tight tracking-tight text-pink-700">RingAdmin</h1>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-pink-500">Console</p>
         </div>
       </div>
 
