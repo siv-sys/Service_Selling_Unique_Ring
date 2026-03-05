@@ -107,7 +107,7 @@ const Header: React.FC<HeaderProps> = ({
                     <button
                       key={user.id}
                       onClick={() => handleSearchSelect(user.id)}
-                      className="w-full text-left px-3 py-2 border-b border-slate-100 last:border-b-0 hover:bg-primary/5"
+                      className="w-full text-left px-3 py-2 border-b border-slate-100 last:border-b-0 hover:bg-pink-100 active:bg-pink-200"
                     >
                       <p className="text-sm font-bold text-slate-900">{user.name}</p>
                       <p className="text-[11px] text-slate-700">{user.id} • {user.email}</p>
@@ -122,7 +122,11 @@ const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => setIsNotificationOpen((prev) => !prev)}
-              className="p-2 text-slate-500 hover:bg-primary/5 rounded-full relative transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              className={`p-2 rounded-full relative transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300 ${
+                isNotificationOpen
+                  ? 'text-pink-900 bg-pink-200 border-pink-300'
+                  : 'text-slate-600 border-transparent hover:bg-pink-100 active:bg-pink-200'
+              }`}
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -172,7 +176,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           {showExportButton && (
-            <button className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-50 transition-all">
+            <button className="bg-white border border-pink-300 text-pink-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-pink-100 active:bg-pink-200 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300">
               <Download className="w-4 h-4" />
               Export
             </button>
@@ -181,7 +185,7 @@ const Header: React.FC<HeaderProps> = ({
           {showProvisionButton && (
             <button
               onClick={() => setIsProvisionOpen(true)}
-              className="bg-[#ec1380] hover:bg-[#be0f66] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec1380] focus-visible:ring-offset-2 text-white px-5 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-[#ec1380]/30"
+              className="bg-[#ec1380] hover:bg-[#be0f66] active:bg-[#9f0d56] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec1380] focus-visible:ring-offset-2 text-white px-5 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-[#ec1380]/30"
             >
               <Plus className="w-4 h-4" />
               Provision New Device

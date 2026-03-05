@@ -96,10 +96,10 @@ const Sidebar = () => {
             key={item.path}
             to={item.path}
             className={({ isActive }) => cn(
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300',
               isActive
-                ? 'bg-primary/10 text-primary font-bold'
-                : 'text-slate-600 hover:bg-primary/5'
+                ? 'bg-pink-200 text-pink-900 font-bold border-pink-300 shadow-sm'
+                : 'text-slate-700 border-transparent hover:bg-pink-100 hover:text-pink-900 hover:border-pink-200 active:bg-pink-200 active:text-pink-900'
             )}
           >
             <item.icon className="w-5 h-5" />
@@ -111,10 +111,10 @@ const Sidebar = () => {
           <NavLink
             to="/settings"
             className={({ isActive }) => cn(
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300',
               isActive
-                ? 'bg-primary/10 text-primary font-bold'
-                : 'text-slate-600 hover:bg-primary/5'
+                ? 'bg-pink-200 text-pink-900 font-bold border-pink-300 shadow-sm'
+                : 'text-slate-700 border-transparent hover:bg-pink-100 hover:text-pink-900 hover:border-pink-200 active:bg-pink-200 active:text-pink-900'
             )}
           >
             <Settings className="w-5 h-5" />
