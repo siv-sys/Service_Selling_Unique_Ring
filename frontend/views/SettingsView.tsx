@@ -2,6 +2,8 @@ import React from 'react';
 
 const PROFILE_AVATAR_STORAGE_KEY = 'eternal_rings_profile_avatar';
 const SETTINGS_STORAGE_KEY = 'eternal_rings_settings';
+const LAST_EXPORT_STORAGE_KEY = 'eternal_rings_last_export';
+const SUBSCRIPTION_STORAGE_KEY = 'eternal_rings_subscription';
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80';
 
@@ -17,7 +19,14 @@ const DEFAULT_SETTINGS = {
   language: 'English (US)',
   globalMute: false,
   dndEnabled: true,
+  dndFromTime: '22:00',
+  dndUntilTime: '07:00',
   repeatDaily: true,
+  soundPrefs: {
+    anniversary: 'Bell Chime',
+    reminders: 'Soft Hum',
+    messages: 'Digital Pop'
+  },
   emailPrefs: {
     weeklyWrap: true,
     productTips: false,
@@ -87,6 +96,28 @@ const INITIAL_NOTIFICATIONS = [
   }
 ];
 
+const getNextRenewalIsoDate = () => {
+  const now = new Date();
+  const nextRenewal = new Date(now.getFullYear(), 11, 12);
+  if (nextRenewal.getTime() <= now.getTime()) {
+    nextRenewal.setFullYear(now.getFullYear() + 1);
+  }
+  return nextRenewal.toISOString();
+};
+
+const getDefaultSubscription = () => ({
+  planName: 'Premium Plan',
+  autoRenewEnabled: true,
+  renewingOn: getNextRenewalIsoDate()
+});
+
+const formatRenewingDate = (isoValue: string | null) => {
+  if (!isoValue) return 'Renewal is paused';
+  const date = new Date(isoValue);
+  if (Number.isNaN(date.getTime())) return 'Renewal date unavailable';
+  return `Renewing on ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+};
+
 const SettingsView = ({
   onNavigateRelationship = () => {},
   onNavigateCoupleProfile = () => {},
@@ -103,17 +134,48 @@ const SettingsView = ({
   const [languageSearch, setLanguageSearch] = React.useState('');
   const [globalMute, setGlobalMute] = React.useState(false);
   const [dndEnabled, setDndEnabled] = React.useState(true);
+  const [dndFromTime, setDndFromTime] = React.useState(DEFAULT_SETTINGS.dndFromTime);
+  const [dndUntilTime, setDndUntilTime] = React.useState(DEFAULT_SETTINGS.dndUntilTime);
   const [repeatDaily, setRepeatDaily] = React.useState(true);
+  const [soundPrefs, setSoundPrefs] = React.useState(DEFAULT_SETTINGS.soundPrefs);
+  const [playingSoundId, setPlayingSoundId] = React.useState<string | null>(null);
   const [emailPrefs, setEmailPrefs] = React.useState({
     weeklyWrap: true,
     productTips: false,
     occasionReminders: true,
     partnerAlerts: true
   });
+  const [activeSessions, setActiveSessions] = React.useState(sessions);
+  const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
+  const [lastExportAt, setLastExportAt] = React.useState<string | null>(() => {
+    try {
+      return localStorage.getItem(LAST_EXPORT_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  });
   const [saveMessage, setSaveMessage] = React.useState('');
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
   const [notifications, setNotifications] = React.useState(INITIAL_NOTIFICATIONS);
   const notificationPanelRef = React.useRef(null);
+  const soundPreviewTimerRef = React.useRef<number | null>(null);
+  const [isDeleteAccountConfirmOpen, setIsDeleteAccountConfirmOpen] = React.useState(false);
+  const [isLogoutAllConfirmOpen, setIsLogoutAllConfirmOpen] = React.useState(false);
+  const [isSubscriptionDialogOpen, setIsSubscriptionDialogOpen] = React.useState(false);
+  const [subscription, setSubscription] = React.useState(() => {
+    try {
+      const raw = localStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
+      if (!raw) return getDefaultSubscription();
+      const parsed = JSON.parse(raw);
+      return {
+        planName: typeof parsed?.planName === 'string' ? parsed.planName : 'Premium Plan',
+        autoRenewEnabled: Boolean(parsed?.autoRenewEnabled),
+        renewingOn: typeof parsed?.renewingOn === 'string' ? parsed.renewingOn : null
+      };
+    } catch {
+      return getDefaultSubscription();
+    }
+  });
   const [navAvatar, setNavAvatar] = React.useState(() => {
     try {
       return localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR;
@@ -183,7 +245,31 @@ const SettingsView = ({
       setLanguage(typeof parsed?.language === 'string' ? parsed.language : DEFAULT_SETTINGS.language);
       setGlobalMute(Boolean(parsed?.globalMute));
       setDndEnabled(Boolean(parsed?.dndEnabled));
+      setDndFromTime(
+        typeof parsed?.dndFromTime === 'string' && /^\d{2}:\d{2}$/.test(parsed.dndFromTime)
+          ? parsed.dndFromTime
+          : DEFAULT_SETTINGS.dndFromTime
+      );
+      setDndUntilTime(
+        typeof parsed?.dndUntilTime === 'string' && /^\d{2}:\d{2}$/.test(parsed.dndUntilTime)
+          ? parsed.dndUntilTime
+          : DEFAULT_SETTINGS.dndUntilTime
+      );
       setRepeatDaily(Boolean(parsed?.repeatDaily));
+      setSoundPrefs({
+        anniversary:
+          typeof parsed?.soundPrefs?.anniversary === 'string'
+            ? parsed.soundPrefs.anniversary
+            : DEFAULT_SETTINGS.soundPrefs.anniversary,
+        reminders:
+          typeof parsed?.soundPrefs?.reminders === 'string'
+            ? parsed.soundPrefs.reminders
+            : DEFAULT_SETTINGS.soundPrefs.reminders,
+        messages:
+          typeof parsed?.soundPrefs?.messages === 'string'
+            ? parsed.soundPrefs.messages
+            : DEFAULT_SETTINGS.soundPrefs.messages
+      });
       setEmailPrefs({
         weeklyWrap: Boolean(parsed?.emailPrefs?.weeklyWrap),
         productTips: Boolean(parsed?.emailPrefs?.productTips),
@@ -214,7 +300,10 @@ const SettingsView = ({
           language,
           globalMute,
           dndEnabled,
+          dndFromTime,
+          dndUntilTime,
           repeatDaily,
+          soundPrefs,
           emailPrefs
         })
       );
@@ -234,7 +323,10 @@ const SettingsView = ({
     setLanguage(DEFAULT_SETTINGS.language);
     setGlobalMute(DEFAULT_SETTINGS.globalMute);
     setDndEnabled(DEFAULT_SETTINGS.dndEnabled);
+    setDndFromTime(DEFAULT_SETTINGS.dndFromTime);
+    setDndUntilTime(DEFAULT_SETTINGS.dndUntilTime);
     setRepeatDaily(DEFAULT_SETTINGS.repeatDaily);
+    setSoundPrefs(DEFAULT_SETTINGS.soundPrefs);
     setEmailPrefs(DEFAULT_SETTINGS.emailPrefs);
     setLanguageSearch('');
     try {
@@ -250,6 +342,276 @@ const SettingsView = ({
     setNotifications((current) => current.map((item) => ({ ...item, unread: false })));
   };
 
+  const playSoundPreview = (soundId: 'anniversary' | 'reminders' | 'messages') => {
+    if (globalMute) {
+      showSaveMessage('Turn off Global Mute to preview sounds');
+      return;
+    }
+    try {
+      const AudioContextCtor =
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) {
+        showSaveMessage('Sound preview unavailable');
+        return;
+      }
+
+      const noteMap = {
+        anniversary: [659, 784, 988],
+        reminders: [392, 440, 392],
+        messages: [784, 659, 523]
+      };
+      const notes = noteMap[soundId];
+      const context = new AudioContextCtor();
+      const startAt = context.currentTime + 0.01;
+      const noteDuration = 0.2;
+      const gap = 0.03;
+
+      notes.forEach((freq, index) => {
+        const noteStart = startAt + index * (noteDuration + gap);
+        const noteEnd = noteStart + noteDuration;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, noteStart);
+        gain.gain.exponentialRampToValueAtTime(0.12, noteStart + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(noteStart);
+        oscillator.stop(noteEnd);
+      });
+
+      const totalMs = Math.ceil((notes.length * (noteDuration + gap) + 0.08) * 1000);
+      setPlayingSoundId(soundId);
+      if (soundPreviewTimerRef.current) {
+        window.clearTimeout(soundPreviewTimerRef.current);
+      }
+      soundPreviewTimerRef.current = window.setTimeout(() => {
+        setPlayingSoundId(null);
+        context.close().catch(() => {});
+      }, totalMs);
+    } catch {
+      showSaveMessage('Unable to play preview');
+    }
+  };
+
+  const formatExportTime = (value: string | null) => {
+    if (!value) return 'Last export: never';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Last export: never';
+    return `Last export: ${date.toLocaleString()}`;
+  };
+
+  const handleExportData = () => {
+    try {
+      const now = new Date();
+      const payload = {
+        exportedAt: now.toISOString(),
+        app: 'Eternal Rings',
+        settings: {
+          twoFactorEnabled,
+          privacyLevel,
+          themeMode,
+          anniversaryReminders,
+          systemUpdates,
+          autoSync,
+          language,
+          globalMute,
+          dndEnabled,
+          dndFromTime,
+          dndUntilTime,
+          repeatDaily,
+          soundPrefs,
+          emailPrefs
+        },
+        activeSessions,
+        notifications
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const filenameDate = now.toISOString().replace(/[:.]/g, '-');
+      link.href = downloadUrl;
+      link.download = `eternal-rings-data-${filenameDate}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+
+      const iso = now.toISOString();
+      setLastExportAt(iso);
+      try {
+        localStorage.setItem(LAST_EXPORT_STORAGE_KEY, iso);
+      } catch {
+        // Ignore local storage write issues.
+      }
+      showSaveMessage('Data exported');
+    } catch {
+      showSaveMessage('Export failed');
+    }
+  };
+
+  const openDeleteSessionConfirm = (sessionName) => {
+    setSessionToDelete(sessionName);
+  };
+
+  const closeDeleteSessionConfirm = () => {
+    setSessionToDelete(null);
+  };
+
+  const confirmDeleteSession = () => {
+    if (!sessionToDelete) return;
+    setActiveSessions((current) => current.filter((session) => session.name !== sessionToDelete));
+    setSessionToDelete(null);
+    showSaveMessage('Session removed');
+  };
+
+  const openLogoutAllConfirm = () => {
+    setIsLogoutAllConfirmOpen(true);
+  };
+
+  const closeLogoutAllConfirm = () => {
+    setIsLogoutAllConfirmOpen(false);
+  };
+
+  const confirmLogoutAllDevices = () => {
+    setActiveSessions([]);
+    setIsNotificationOpen(false);
+    setIsLogoutAllConfirmOpen(false);
+    try {
+      sessionStorage.removeItem('auth_user_id');
+      sessionStorage.removeItem('auth_roles');
+      localStorage.removeItem('auth_user_id');
+      localStorage.removeItem('auth_roles');
+    } catch {
+      // Ignore storage errors.
+    }
+    showSaveMessage('Logged out on all devices');
+  };
+
+  const openDeleteAccountConfirm = () => {
+    setIsDeleteAccountConfirmOpen(true);
+  };
+
+  const closeDeleteAccountConfirm = () => {
+    setIsDeleteAccountConfirmOpen(false);
+  };
+
+  const confirmDeleteAccount = () => {
+    setTwoFactorEnabled(DEFAULT_SETTINGS.twoFactorEnabled);
+    setPrivacyLevel(DEFAULT_SETTINGS.privacyLevel);
+    setThemeMode(DEFAULT_SETTINGS.themeMode);
+    setAnniversaryReminders(DEFAULT_SETTINGS.anniversaryReminders);
+    setSystemUpdates(DEFAULT_SETTINGS.systemUpdates);
+    setAutoSync(DEFAULT_SETTINGS.autoSync);
+    setLanguage(DEFAULT_SETTINGS.language);
+    setGlobalMute(DEFAULT_SETTINGS.globalMute);
+    setDndEnabled(DEFAULT_SETTINGS.dndEnabled);
+    setDndFromTime(DEFAULT_SETTINGS.dndFromTime);
+    setDndUntilTime(DEFAULT_SETTINGS.dndUntilTime);
+    setRepeatDaily(DEFAULT_SETTINGS.repeatDaily);
+    setSoundPrefs(DEFAULT_SETTINGS.soundPrefs);
+    setEmailPrefs(DEFAULT_SETTINGS.emailPrefs);
+    setActiveSessions(sessions);
+    setNotifications(INITIAL_NOTIFICATIONS);
+    setLastExportAt(null);
+    setLanguageSearch('');
+    setActiveMenu('General');
+    setIsDeleteAccountConfirmOpen(false);
+
+    try {
+      localStorage.removeItem(SETTINGS_STORAGE_KEY);
+      localStorage.removeItem(LAST_EXPORT_STORAGE_KEY);
+      localStorage.removeItem(SUBSCRIPTION_STORAGE_KEY);
+    } catch {
+      // Ignore local storage errors.
+    }
+    showSaveMessage('Account deleted');
+  };
+
+  const closeSubscriptionDialog = () => {
+    setIsSubscriptionDialogOpen(false);
+  };
+
+  const toggleSubscriptionRenewal = () => {
+    setSubscription((current) => {
+      const next = current.autoRenewEnabled
+        ? { ...current, autoRenewEnabled: false, renewingOn: null }
+        : { ...current, autoRenewEnabled: true, renewingOn: getNextRenewalIsoDate() };
+      try {
+        localStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Ignore local storage write issues.
+      }
+      showSaveMessage(next.autoRenewEnabled ? 'Subscription renewal resumed' : 'Subscription renewal paused');
+      return next;
+    });
+  };
+
+  React.useEffect(() => {
+    if (!sessionToDelete) {
+      return;
+    }
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setSessionToDelete(null);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [sessionToDelete]);
+
+  React.useEffect(() => {
+    if (!isSubscriptionDialogOpen) {
+      return;
+    }
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsSubscriptionDialogOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isSubscriptionDialogOpen]);
+
+  React.useEffect(() => {
+    if (!isDeleteAccountConfirmOpen) {
+      return;
+    }
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsDeleteAccountConfirmOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isDeleteAccountConfirmOpen]);
+
+  React.useEffect(() => {
+    if (!isLogoutAllConfirmOpen) {
+      return;
+    }
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsLogoutAllConfirmOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isLogoutAllConfirmOpen]);
+
+  React.useEffect(
+    () => () => {
+      if (soundPreviewTimerRef.current) {
+        window.clearTimeout(soundPreviewTimerRef.current);
+      }
+    },
+    []
+  );
+
   const isDarkTheme =
     themeMode === 'Dark' ||
     (themeMode === 'System' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -261,14 +623,20 @@ const SettingsView = ({
     <div className={`settings-page ${isDarkTheme ? 'dark' : ''}`}>
       <style>{`
         :root {
-          --bg: #f7f8fb;
+          --bg: #f4f7fb;
           --panel: #ffffff;
-          --line: #e6ebf2;
-          --muted: #7788a3;
-          --text: #17233a;
-          --accent: #f03255;
-          --accent-soft: #fff1f4;
+          --line: #dfe6f0;
+          --muted: #6e7f98;
+          --text: #14213d;
+          --accent: #e93f66;
+          --accent-strong: #d93359;
+          --accent-soft: #fff1f5;
           --success: #d8f7e3;
+          --radius-lg: 24px;
+          --radius-md: 16px;
+          --shadow-soft: 0 8px 28px rgba(15, 23, 42, 0.07);
+          --shadow-card: 0 10px 34px rgba(15, 23, 42, 0.06);
+          --gradient-accent: linear-gradient(180deg, #ef4d73, #d8345a);
         }
 
         * {
@@ -278,9 +646,14 @@ const SettingsView = ({
         .settings-page {
           min-height: 100vh;
           margin: 0;
-          background: var(--bg);
+          background:
+            radial-gradient(circle at 100% -10%, rgba(233, 63, 102, 0.08), transparent 38%),
+            radial-gradient(circle at -8% 8%, rgba(80, 124, 232, 0.08), transparent 33%),
+            var(--bg);
           color: var(--text);
-          font-family: Manrope, 'Segoe UI', sans-serif;
+          font-family: 'Plus Jakarta Sans', Manrope, 'Segoe UI', sans-serif;
+          line-height: 1.45;
+          letter-spacing: -0.01em;
         }
 
         .settings-page.dark {
@@ -291,6 +664,8 @@ const SettingsView = ({
           --text: #f3f4f6;
           --accent-soft: #3b1f29;
           --success: #1b3a2a;
+          --shadow-soft: 0 14px 40px rgba(2, 6, 23, 0.42);
+          --shadow-card: 0 16px 46px rgba(2, 6, 23, 0.46);
         }
 
         .settings-page.dark .topbar,
@@ -379,17 +754,19 @@ const SettingsView = ({
         }
 
         .topbar {
-          height: 72px;
-          border-bottom: 1px solid #dde3ec;
-          background: #f4f5f7;
+          height: 74px;
+          border-bottom: 1px solid var(--line);
+          background: rgba(255, 255, 255, 0.86);
+          backdrop-filter: blur(12px);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 24px;
+          padding: 0 28px;
           position: sticky;
           top: 0;
           z-index: 15;
           gap: 18px;
+          box-shadow: var(--shadow-soft);
         }
 
         .brand {
@@ -401,16 +778,16 @@ const SettingsView = ({
         }
 
         .brand-logo {
-          color: #ef2f5a;
+          color: var(--accent);
           font-size: 26px;
           line-height: 1;
         }
 
         .brand-text {
-          color: #0f1934;
-          font-size: 24px;
-          font-weight: 900;
-          letter-spacing: -0.035em;
+          color: var(--text);
+          font-size: 23px;
+          font-weight: 800;
+          letter-spacing: -0.025em;
         }
 
         .main-nav {
@@ -426,56 +803,65 @@ const SettingsView = ({
         .main-nav button {
           border: 0;
           background: transparent;
-          color: #6f7f99;
-          font-size: 15px;
+          color: #667891;
+          font-size: 14px;
           font-weight: 700;
           cursor: pointer;
           padding: 2px 2px 18px;
           position: relative;
           white-space: nowrap;
+          transition: color 0.2s ease;
+        }
+
+        .main-nav button:hover {
+          color: #27344d;
         }
 
         .main-nav button.active {
           color: #ef2f5a;
+          background: #fff4f7;
+          border-radius: 999px;
+          padding: 8px 14px 18px;
         }
 
         .main-nav button.active::after {
           content: '';
           position: absolute;
-          left: 0;
-          right: 0;
+          left: 12px;
+          right: 12px;
           bottom: 2px;
-          height: 2px;
+          height: 3px;
           border-radius: 999px;
-          background: #ef2f5a;
+          background: var(--accent);
         }
 
         .top-actions {
           display: flex;
           align-items: center;
-          gap: 14px;
+          gap: 10px;
           min-width: 206px;
           justify-content: flex-end;
         }
 
         .basket-pill {
-          border: 1.4px solid #ef2f5a;
-          color: #ef2f5a;
+          border: 1px solid #f2c4cf;
+          color: var(--accent);
           border-radius: 999px;
-          padding: 6px 12px;
-          font-size: 11px;
-          font-weight: 900;
+          padding: 7px 13px;
+          font-size: 10px;
+          font-weight: 800;
           letter-spacing: 0.09em;
           text-transform: uppercase;
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          background: #fff3f6;
+          background: #fff6f8;
           line-height: 1;
+          box-shadow: 0 6px 16px rgba(233, 63, 102, 0.14);
         }
 
         .top-icon {
-          color: #61718d;
+          color: #5e708d;
           font-size: 20px;
           line-height: 1;
         }
@@ -485,6 +871,17 @@ const SettingsView = ({
           background: transparent;
           padding: 0;
           cursor: pointer;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .icon-btn:hover {
+          background: #edf2f8;
+          color: var(--accent);
         }
 
         .notification-wrap {
@@ -493,13 +890,25 @@ const SettingsView = ({
 
         .notification-btn {
           border: 0;
-          background: transparent;
+          background: #f1f5fb;
           padding: 0;
           cursor: pointer;
           color: #61718d;
-          font-size: 20px;
+          font-size: 18px;
           line-height: 1;
           position: relative;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+        }
+
+        .notification-btn:hover {
+          background: #e7eef8;
+          color: var(--accent);
+          transform: translateY(-1px);
         }
 
         .notification-btn-badge {
@@ -524,7 +933,9 @@ const SettingsView = ({
           box-shadow: 0 24px 40px rgba(30, 42, 62, 0.16);
           overflow: hidden;
           z-index: 40;
+          animation: panelIn 0.18s ease;
         }
+
 
         .notification-head {
           display: flex;
@@ -581,6 +992,12 @@ const SettingsView = ({
           gap: 12px;
           align-items: flex-start;
           padding: 12px 10px;
+          border-radius: 10px;
+          transition: background 0.2s ease;
+        }
+
+        .notification-item:hover {
+          background: #f8fbff;
         }
 
         .notification-item + .notification-item {
@@ -663,28 +1080,101 @@ const SettingsView = ({
           text-transform: uppercase;
         }
 
-        .avatar {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          border: 1px solid #d4dbe6;
-          object-fit: cover;
+        .session-confirm-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 70;
+          display: grid;
+          place-items: center;
+          padding: 20px;
+          background: rgba(15, 23, 42, 0.45);
+          backdrop-filter: blur(3px);
+        }
+
+        .session-confirm-dialog {
+          width: min(420px, 100%);
+          border-radius: 18px;
+          border: 1px solid #dbe4f1;
+          background: #fff;
+          box-shadow: 0 24px 44px rgba(15, 23, 42, 0.24);
+          padding: 20px;
+        }
+
+        .session-confirm-title {
+          margin: 0;
+          color: #12213f;
+          font-size: 22px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+        }
+
+        .session-confirm-copy {
+          margin: 8px 0 0;
+          color: #5f7695;
+          font-size: 14px;
+          line-height: 1.45;
+          font-weight: 600;
+        }
+
+        .session-confirm-actions {
+          margin-top: 18px;
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        .session-confirm-btn {
+          min-width: 88px;
+          height: 40px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 800;
           cursor: pointer;
         }
 
+        .session-confirm-btn.cancel {
+          border: 1px solid #d2deed;
+          background: #f3f8fd;
+          color: #536b89;
+        }
+
+        .session-confirm-btn.ok {
+          border: 0;
+          background: var(--gradient-accent);
+          color: #fff;
+          box-shadow: 0 8px 18px rgba(233, 63, 102, 0.24);
+        }
+
+        .avatar {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          border: 2px solid #fff;
+          object-fit: cover;
+          cursor: pointer;
+          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+        }
+
         .page-body {
-          max-width: 1320px;
+          max-width: 1380px;
           margin: 0 auto;
-          padding: 34px 22px 24px;
+          padding: 30px 24px 28px;
           display: grid;
-          grid-template-columns: 260px minmax(0, 1fr);
-          gap: 30px;
+          grid-template-columns: 290px minmax(0, 1fr);
+          gap: 24px;
         }
 
         .sidebar {
           min-height: 900px;
           display: flex;
           flex-direction: column;
+          border: 1px solid var(--line);
+          border-radius: var(--radius-lg);
+          background: var(--panel);
+          box-shadow: var(--shadow-card);
+          padding: 22px 18px;
+          position: sticky;
+          top: 96px;
         }
 
         .sidebar-title {
@@ -698,24 +1188,31 @@ const SettingsView = ({
 
         .menu-list {
           display: grid;
-          gap: 8px;
+          gap: 10px;
         }
 
         .menu-btn {
           width: 100%;
-          border: 1px solid transparent;
-          background: transparent;
-          border-radius: 999px;
-          height: 48px;
+          border: 1px solid #e4ebf3;
+          background: #fff;
+          border-radius: 12px;
+          height: 46px;
           padding: 0 14px;
           text-align: left;
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 18px;
+          font-size: 15px;
           font-weight: 700;
-          color: #334965;
+          color: #30445f;
           cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .menu-btn:hover {
+          border-color: #cfd9e6;
+          background: #f8fbff;
+          transform: translateY(-1px);
         }
 
         .menu-btn span:first-child {
@@ -725,16 +1222,17 @@ const SettingsView = ({
 
         .menu-btn.active {
           color: #fff;
-          background: linear-gradient(180deg, #f23857, #eb264b);
+          border-color: transparent;
+          background: linear-gradient(180deg, #ee4a6f, #db3158);
           box-shadow: 0 10px 20px rgba(240, 50, 85, 0.25);
         }
 
         .premium-card {
           margin-top: auto;
-          border: 1px solid #f0cbd3;
-          border-radius: 18px;
-          background: #fff6f7;
-          padding: 16px;
+          border: 1px solid #f1d5db;
+          border-radius: var(--radius-md);
+          background: linear-gradient(170deg, #fff7f9, #fff1f5);
+          padding: 18px;
         }
 
         .premium-card h4 {
@@ -756,11 +1254,12 @@ const SettingsView = ({
           height: 40px;
           border: 0;
           border-radius: 999px;
-          background: linear-gradient(180deg, #f23857, #ea2449);
+          background: var(--gradient-accent);
           color: #fff;
           font-size: 14px;
           font-weight: 800;
           cursor: pointer;
+          box-shadow: 0 10px 22px rgba(233, 63, 102, 0.24);
         }
 
         .content {
@@ -773,6 +1272,7 @@ const SettingsView = ({
           justify-content: space-between;
           gap: 18px;
           margin-bottom: 24px;
+          padding: 4px 2px;
         }
 
         .head-actions {
@@ -787,6 +1287,7 @@ const SettingsView = ({
           font-size: 13px;
           font-weight: 800;
           min-width: 120px;
+          letter-spacing: 0.01em;
         }
 
         .ghost-btn {
@@ -799,6 +1300,13 @@ const SettingsView = ({
           font-size: 14px;
           font-weight: 800;
           cursor: pointer;
+          box-shadow: inset 0 0 0 1px #eef3f9;
+        }
+
+        .ghost-btn:hover {
+          border-color: #c7d3e2;
+          background: #edf3fa;
+          color: #30445f;
         }
 
         .save-btn {
@@ -806,12 +1314,17 @@ const SettingsView = ({
           height: 42px;
           border-radius: 999px;
           padding: 0 28px;
-          background: linear-gradient(180deg, #f23857, #ea2449);
+          background: var(--gradient-accent);
           color: #fff;
           font-size: 14px;
           font-weight: 800;
           box-shadow: 0 8px 18px rgba(240, 50, 85, 0.24);
           cursor: pointer;
+        }
+
+        .save-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 12px 24px rgba(233, 63, 102, 0.32);
         }
 
         .crumbs {
@@ -867,10 +1380,18 @@ const SettingsView = ({
         }
 
         .general-card {
-          border: 1px solid #e2e8f1;
-          border-radius: 20px;
-          background: #fff;
+          border: 1px solid var(--line);
+          border-radius: var(--radius-md);
+          background: var(--panel);
           padding: 24px;
+          box-shadow: var(--shadow-card);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .general-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+          border-color: #d3deeb;
         }
 
         .general-card h3 {
@@ -889,7 +1410,7 @@ const SettingsView = ({
         .theme-switch {
           margin-top: 18px;
           width: min(100%, 620px);
-          background: #edf2f8;
+          background: #eaf0f8;
           border-radius: 999px;
           padding: 6px;
           display: flex;
@@ -913,13 +1434,14 @@ const SettingsView = ({
         .theme-switch button.active {
           background: #fff;
           color: var(--accent);
-          box-shadow: 0 2px 8px rgba(16, 30, 54, 0.08);
+          box-shadow: 0 6px 16px rgba(16, 30, 54, 0.1);
         }
 
         .setting-row {
           margin-top: 16px;
-          background: #f5f8fc;
-          border-radius: 999px;
+          background: #f7f9fc;
+          border: 1px solid #e8eef6;
+          border-radius: 14px;
           padding: 10px 14px;
           display: flex;
           align-items: center;
@@ -974,15 +1496,21 @@ const SettingsView = ({
         .search-input {
           margin-top: 18px;
           height: 48px;
-          border: 0;
+          border: 1px solid #d9e3ef;
           width: 100%;
           border-radius: 999px;
-          background: #edf2f8;
+          background: #f7faff;
           color: #7d8ea8;
           font-size: 15px;
           font-weight: 600;
           padding: 0 16px;
           outline: none;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .search-input:focus {
+          border-color: #99afd0;
+          box-shadow: 0 0 0 3px rgba(153, 175, 208, 0.2);
         }
 
         .language-list {
@@ -993,7 +1521,7 @@ const SettingsView = ({
 
         .language-btn {
           border: 0;
-          background: transparent;
+          background: #f7fafe;
           color: #6d7f99;
           font-size: 16px;
           font-weight: 700;
@@ -1001,6 +1529,12 @@ const SettingsView = ({
           border-radius: 10px;
           padding: 10px 12px;
           cursor: pointer;
+          border: 1px solid #edf2f8;
+        }
+
+        .language-btn:hover {
+          border-color: #d9e3ef;
+          background: #f1f6fd;
         }
 
         .language-btn.active {
@@ -1020,10 +1554,11 @@ const SettingsView = ({
 
         .data-box {
           margin-top: 18px;
-          border: 2px dashed #f2c1ca;
+          border: 1px solid #f3cad3;
           border-radius: 18px;
           padding: 18px;
-          background: #fff8f9;
+          background: linear-gradient(180deg, #fff8fa, #fffdfd);
+          box-shadow: inset 0 0 0 1px #ffe6ec;
         }
 
         .data-top {
@@ -1063,22 +1598,28 @@ const SettingsView = ({
           border: 0;
           background: transparent;
           color: var(--accent);
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 800;
           text-align: center;
           cursor: pointer;
           padding: 10px 0 0;
+          letter-spacing: 0.01em;
+        }
+
+        .download-btn:hover {
+          color: var(--accent-strong);
         }
 
         .danger-card {
-          border: 1px solid #f2ccd3;
-          border-radius: 20px;
-          background: #fff;
+          border: 1px solid #f4d6dd;
+          border-radius: var(--radius-md);
+          background: linear-gradient(180deg, #ffffff, #fff8fa);
           padding: 20px 24px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 14px;
+          box-shadow: var(--shadow-card);
         }
 
         .danger-title {
@@ -1101,9 +1642,9 @@ const SettingsView = ({
           background: #fff;
           color: var(--accent);
           border-radius: 999px;
-          height: 48px;
+          height: 44px;
           padding: 0 26px;
-          font-size: 20px;
+          font-size: 15px;
           font-weight: 800;
           cursor: pointer;
         }
@@ -1123,8 +1664,16 @@ const SettingsView = ({
 
         .card {
           border: 1px solid var(--line);
-          border-radius: 28px;
+          border-radius: var(--radius-lg);
           background: var(--panel);
+          box-shadow: var(--shadow-card);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 18px 36px rgba(15, 23, 42, 0.11);
+          border-color: #d5dfeb;
         }
 
         .two-factor {
@@ -1178,11 +1727,12 @@ const SettingsView = ({
         .toggle {
           width: 44px;
           height: 26px;
-          border: 1px solid #d6dfec;
+          border: 1px solid #ccd8e7;
           border-radius: 999px;
-          background: #e9eef5;
+          background: #e7edf6;
           position: relative;
           cursor: pointer;
+          transition: all 0.2s ease;
         }
 
         .toggle::after {
@@ -1199,8 +1749,8 @@ const SettingsView = ({
         }
 
         .toggle.on {
-          background: #f24361;
-          border-color: #f24361;
+          background: var(--accent);
+          border-color: var(--accent);
         }
 
         .toggle.on::after {
@@ -1212,11 +1762,17 @@ const SettingsView = ({
           height: 46px;
           border-radius: 999px;
           padding: 0 20px;
-          background: linear-gradient(180deg, #f23857, #ea2449);
+          background: var(--gradient-accent);
           color: #fff;
-          font-size: 20px;
+          font-size: 16px;
           font-weight: 800;
           cursor: pointer;
+          box-shadow: 0 10px 22px rgba(233, 63, 102, 0.23);
+        }
+
+        .wizard-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 14px 26px rgba(233, 63, 102, 0.3);
         }
 
         .sessions {
@@ -1410,12 +1966,17 @@ const SettingsView = ({
 
         .security-screen {
           position: relative;
-          padding: 2px 2px 10px;
+          padding: 8px 8px 14px;
+          border-radius: 24px;
+          background:
+            radial-gradient(circle at 100% 0, rgba(59, 130, 246, 0.08), transparent 38%),
+            radial-gradient(circle at 0 100%, rgba(233, 63, 102, 0.08), transparent 36%);
         }
 
         .security-screen .crumbs {
           margin-bottom: 12px;
-          color: #7e8faa;
+          color: #6f819d;
+          letter-spacing: 0.01em;
         }
 
         .security-screen .heading {
@@ -1423,49 +1984,65 @@ const SettingsView = ({
           line-height: 1.03;
           letter-spacing: -0.032em;
           margin-bottom: 8px;
+          color: #10213f;
         }
 
         .security-screen .subheading {
           margin: 0 0 24px;
           max-width: 860px;
-          color: #6f839e;
+          color: #5d7392;
           font-size: 16px;
         }
 
         .security-screen .main-grid {
           grid-template-columns: minmax(0, 1fr) 340px;
-          gap: 26px;
+          gap: 22px;
         }
 
         .security-screen .left-stack,
         .security-screen .right-stack {
-          gap: 18px;
+          gap: 16px;
         }
 
         .security-screen .card {
-          border: 1px solid #e3e9f2;
+          border: 1px solid #dbe5f1;
           border-radius: 24px;
-          background: linear-gradient(180deg, #ffffff, #fbfcff);
-          box-shadow: 0 12px 26px rgba(30, 53, 96, 0.08);
-          transition: box-shadow 0.2s ease, transform 0.2s ease;
+          background: linear-gradient(180deg, #ffffff, #f9fbff);
+          box-shadow: 0 14px 30px rgba(30, 53, 96, 0.09);
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
         }
 
         .security-screen .card:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 16px 30px rgba(23, 44, 82, 0.1);
+          transform: translateY(-2px);
+          border-color: #cddbeb;
+          box-shadow: 0 20px 36px rgba(23, 44, 82, 0.14);
         }
 
         .security-screen .two-factor {
-          padding: 24px;
+          padding: 28px 26px;
+          align-items: center;
+          gap: 20px;
+          border: 1px solid #d9e4f2;
+          border-radius: 22px;
+          background:
+            linear-gradient(180deg, #ffffff, #f7faff),
+            linear-gradient(90deg, rgba(233, 63, 102, 0.08), rgba(59, 130, 246, 0.05));
+          box-shadow: 0 16px 30px rgba(20, 38, 68, 0.1);
+        }
+
+        .security-screen .two-factor .inline {
+          flex: 1 1 auto;
+          min-width: 0;
           align-items: flex-start;
-          gap: 22px;
+          gap: 14px;
         }
 
         .security-screen .shield {
-          width: 52px;
-          height: 52px;
-          background: linear-gradient(180deg, #fff2f6, #ffe9ef);
-          box-shadow: inset 0 0 0 1px #ffd5df;
+          width: 56px;
+          height: 56px;
+          border-radius: 16px;
+          background: linear-gradient(180deg, #fff1f6, #ffe7ee);
+          box-shadow: inset 0 0 0 1px #ffc9d6, 0 10px 18px rgba(233, 63, 102, 0.16);
         }
 
         .security-screen .two-factor h3,
@@ -1473,91 +2050,125 @@ const SettingsView = ({
         .security-screen .side-panel h3 {
           font-size: 22px;
           color: #12213f;
-          letter-spacing: -0.02em;
+          letter-spacing: -0.018em;
         }
 
         .security-screen .two-factor p {
-          margin-top: 8px;
-          color: #657a96;
+          margin-top: 6px;
+          color: #5a7292;
           font-size: 15px;
           line-height: 1.5;
+          max-width: 560px;
         }
 
         .security-screen .action-row {
-          gap: 10px;
+          gap: 12px;
           align-self: center;
+          flex: 0 0 auto;
         }
 
         .security-screen .toggle {
-          width: 48px;
-          height: 28px;
-          border: 1px solid #d6dfec;
-          background: #e8edf5;
+          width: 52px;
+          height: 30px;
+          border: 1px solid #cfd9e8;
+          background: #e6edf7;
+          box-shadow: inset 0 0 0 1px #dde6f3;
+        }
+
+        .security-screen .toggle.on {
+          background: var(--accent);
+          border-color: var(--accent);
+          box-shadow: 0 8px 16px rgba(233, 63, 102, 0.25);
         }
 
         .security-screen .toggle::after {
-          width: 22px;
-          height: 22px;
+          width: 24px;
+          height: 24px;
         }
 
         .security-screen .toggle.on::after {
-          transform: translateX(20px);
+          transform: translateX(22px);
         }
 
         .security-screen .wizard-btn {
-          height: 42px;
-          padding: 0 18px;
+          height: 50px;
+          min-width: 146px;
+          padding: 0 22px;
+          border-radius: 999px;
+          background: linear-gradient(180deg, #f14f75, #dc345b);
           font-size: 14px;
+          line-height: 1;
+          font-weight: 800;
           letter-spacing: 0.01em;
-          box-shadow: 0 10px 20px rgba(240, 50, 85, 0.23);
+          box-shadow: 0 12px 24px rgba(233, 63, 102, 0.28);
+        }
+
+        .security-screen .wizard-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 16px 28px rgba(233, 63, 102, 0.34);
         }
 
         .security-screen .sessions {
-          padding: 22px 22px 12px;
+          padding: 22px 22px 14px;
         }
 
         .security-screen .sessions-head {
-          margin-bottom: 6px;
+          margin-bottom: 8px;
         }
 
         .security-screen .logout-link {
+          border: 1px solid #d8e2f0;
+          border-radius: 999px;
+          background: #f4f8fd;
+          color: #516a8a;
+          padding: 7px 12px;
           font-size: 13px;
           text-transform: uppercase;
           letter-spacing: 0.04em;
+          transition: all 0.2s ease;
+        }
+
+        .security-screen .logout-link:hover {
+          border-color: #bdcde3;
+          background: #ebf2fb;
+          color: #334c6d;
         }
 
         .security-screen .session-item {
           margin-top: 10px;
-          border: 0;
+          border: 1px solid #e4ebf4;
           border-radius: 16px;
-          background: #f4f7fb;
+          background: linear-gradient(180deg, #f7faff, #f2f7fd);
           padding: 12px;
-          transition: background 0.2s ease;
+          transition: border-color 0.2s ease, background 0.2s ease;
         }
 
         .security-screen .session-item:hover {
-          background: #eef3fa;
+          border-color: #d4dfed;
+          background: #eef4fb;
         }
 
         .security-screen .device {
           width: 44px;
           height: 44px;
           background: #fff;
-          box-shadow: inset 0 0 0 1px #dfe6f0;
+          box-shadow: inset 0 0 0 1px #d9e3ef, 0 4px 10px rgba(15, 23, 42, 0.08);
         }
 
         .security-screen .session-name {
           font-size: 18px;
+          color: #10213f;
         }
 
         .security-screen .badge {
-          background: #dff9e8;
-          color: #2f9f5d;
+          background: #dcf7e7;
+          color: #1f8b4e;
+          border: 1px solid #b8eccd;
         }
 
         .security-screen .session-meta {
           font-size: 13px;
-          color: #6f839f;
+          color: #617a98;
         }
 
         .security-screen .open-btn {
@@ -1565,79 +2176,95 @@ const SettingsView = ({
           height: 34px;
           border-radius: 10px;
           background: #fff;
-          color: #6c7f9a;
-          box-shadow: inset 0 0 0 1px #d9e2ee;
+          color: #5f7695;
+          box-shadow: inset 0 0 0 1px #d3deeb;
+        }
+
+        .security-screen .open-btn:hover {
+          background: #edf3fb;
+          color: #344e71;
         }
 
         .security-screen .side-panel {
           padding: 22px;
+          background: linear-gradient(180deg, #ffffff, #f8fbff);
         }
 
         .security-screen .side-panel p {
           margin-top: 8px;
           font-size: 14px;
-          color: #68809d;
+          color: #5f7898;
         }
 
         .security-screen .vault-scale {
           margin-top: 18px;
-          border: 1px solid #e7ecf4;
+          border: 1px solid #dfe8f4;
           border-radius: 16px;
-          background: #f8faff;
+          background: linear-gradient(180deg, #f9fbff, #f3f8ff);
           padding: 14px 14px 10px;
         }
 
         .security-screen .scale-line {
           height: 7px;
-          background: #dfe6f0;
+          background: linear-gradient(90deg, #d8e2ef, #e7edf6);
         }
 
         .security-screen .scale-tabs button {
           font-size: 10px;
-          color: #8b9cb3;
+          color: #8093ad;
         }
 
         .security-screen .scale-tabs button.active {
-          color: #ef2f5a;
+          color: var(--accent);
         }
 
         .security-screen .info-box {
-          border: 1px solid #e2e9f3;
+          border: 1px solid #d8e4f2;
           border-radius: 16px;
-          background: #f6f9ff;
-          color: #6f84a0;
+          background: linear-gradient(180deg, #f8fbff, #f2f7ff);
+          color: #607997;
           margin-top: 14px;
+          box-shadow: inset 0 0 0 1px #edf3fb;
         }
 
         .security-screen .data-card {
-          border-color: #f3d8de;
-          background: linear-gradient(180deg, #fff9fa, #fff6f8);
+          border-color: #f1d2da;
+          background: linear-gradient(180deg, #fffafb, #fff5f8);
         }
 
         .security-screen .export-btn {
           height: 44px;
-          border: 1px solid #f0b9c5;
-          color: #eb2f58;
-          transition: background 0.2s ease, color 0.2s ease;
+          border: 1px solid #efb5c2;
+          color: #df2f56;
+          background: #fff;
+          box-shadow: 0 8px 18px rgba(223, 47, 86, 0.1);
+          transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .security-screen .export-btn:hover {
-          background: #ef2f5a;
+          transform: translateY(-1px);
+          background: var(--accent);
           color: #fff;
+          box-shadow: 0 12px 22px rgba(233, 63, 102, 0.24);
         }
 
         .help-screen {
-          padding: 6px 6px 14px;
-          border-radius: 24px;
-          background: radial-gradient(circle at 90% 0, #fff2f6 0, transparent 36%), transparent;
+          padding: 14px 14px 24px;
+          border-radius: 28px;
+          border: 1px solid rgba(210, 223, 240, 0.75);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 251, 255, 0.9)),
+            radial-gradient(circle at 95% -6%, rgba(233, 63, 102, 0.2), transparent 38%),
+            radial-gradient(circle at -8% 110%, rgba(59, 130, 246, 0.14), transparent 44%);
+          box-shadow: 0 20px 38px rgba(20, 38, 68, 0.08);
         }
 
         .help-head {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          gap: 18px;
-          margin-bottom: 20px;
+          gap: 20px;
+          margin-bottom: 22px;
         }
 
         .help-title {
@@ -1645,12 +2272,13 @@ const SettingsView = ({
           font-size: clamp(34px, 3.2vw, 50px);
           line-height: 1.04;
           letter-spacing: -0.03em;
-          color: #121f3a;
+          color: #10213f;
+          text-wrap: balance;
         }
 
         .help-subtitle {
           margin: 8px 0 0;
-          color: #647a97;
+          color: #5f7390;
           font-size: 16px;
           font-weight: 600;
           max-width: 740px;
@@ -1658,59 +2286,79 @@ const SettingsView = ({
 
         .help-save-btn {
           border: 0;
-          height: 50px;
+          height: 52px;
           border-radius: 999px;
-          padding: 0 30px;
-          background: linear-gradient(180deg, #f23857, #ea2449);
+          padding: 0 32px;
+          background: linear-gradient(180deg, #f25a7d, #de355f);
           color: #fff;
           font-size: 14px;
           font-weight: 800;
-          box-shadow: 0 10px 22px rgba(240, 50, 85, 0.24);
+          letter-spacing: 0.01em;
+          box-shadow: 0 14px 28px rgba(233, 63, 102, 0.3);
           cursor: pointer;
           line-height: 1;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
         }
 
         .help-save-btn:hover {
           transform: translateY(-1px);
-          box-shadow: 0 14px 26px rgba(240, 50, 85, 0.28);
+          box-shadow: 0 18px 32px rgba(233, 63, 102, 0.34);
+          filter: saturate(1.03);
         }
 
         .help-card {
-          border: 1px solid #e3e9f2;
-          border-radius: 22px;
-          background: linear-gradient(180deg, #ffffff, #fcfdff);
-          padding: 16px 18px;
+          border: 1px solid #d7e3f2;
+          border-radius: 24px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 252, 255, 0.95));
+          padding: 18px 20px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 14px;
-          box-shadow: 0 8px 18px rgba(24, 43, 74, 0.06);
+          gap: 16px;
+          box-shadow: 0 14px 30px rgba(24, 43, 74, 0.09);
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .help-card::before {
+          content: '';
+          position: absolute;
+          inset: 0 0 auto 0;
+          height: 4px;
+          background: linear-gradient(90deg, rgba(233, 63, 102, 0.45), rgba(80, 124, 232, 0.25));
+          pointer-events: none;
+        }
+
+        .help-card:hover {
+          transform: translateY(-2px);
+          border-color: #c3d3e6;
+          box-shadow: 0 20px 36px rgba(24, 43, 74, 0.14);
         }
 
         .help-left {
           display: flex;
           align-items: center;
-          gap: 14px;
+          gap: 16px;
           min-width: 0;
         }
 
         .help-icon {
-          width: 50px;
-          height: 50px;
+          width: 52px;
+          height: 52px;
           border-radius: 16px;
-          background: linear-gradient(180deg, #fff2f6, #ffecef);
+          background: linear-gradient(180deg, #fff3f7, #ffe9f0);
           color: var(--accent);
           display: grid;
           place-items: center;
           font-size: 24px;
           flex: 0 0 auto;
-          box-shadow: inset 0 0 0 1px #ffd7df;
+          box-shadow: inset 0 0 0 1px #ffcfd9, 0 10px 20px rgba(233, 63, 102, 0.17);
         }
 
         .help-name {
           margin: 0;
-          font-size: 24px;
+          font-size: 21px;
           font-weight: 800;
           letter-spacing: -0.02em;
           color: #17243f;
@@ -1719,56 +2367,57 @@ const SettingsView = ({
 
         .help-copy {
           margin: 6px 0 0;
-          color: #6f839f;
-          font-size: 15px;
+          color: #5d7697;
+          font-size: 14px;
           font-weight: 600;
         }
 
         .help-grid {
-          margin-top: 18px;
+          margin-top: 22px;
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 342px;
-          gap: 20px;
+          grid-template-columns: minmax(0, 1fr) 360px;
+          gap: 22px;
           align-items: start;
         }
 
         .help-section-title {
-          margin: 12px 0;
+          margin: 14px 0;
           display: flex;
           align-items: center;
-          gap: 10px;
-          font-size: 34px;
+          gap: 11px;
+          font-size: clamp(26px, 2.6vw, 34px);
           color: #17243f;
           font-weight: 800;
-          letter-spacing: -0.02em;
+          letter-spacing: -0.025em;
         }
 
         .help-section-title span {
           color: var(--accent);
-          font-size: 24px;
+          font-size: 22px;
         }
 
         .sound-list {
           display: grid;
-          gap: 10px;
+          gap: 12px;
         }
 
         .sound-row {
-          border: 1px solid #e5ebf4;
-          background: linear-gradient(180deg, #ffffff, #fbfcff);
-          border-radius: 22px;
-          padding: 12px 14px;
+          border: 1px solid #d8e3f1;
+          background: linear-gradient(180deg, #ffffff, #f7fbff);
+          border-radius: 20px;
+          padding: 14px 16px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          gap: 12px;
-          box-shadow: 0 8px 18px rgba(24, 43, 74, 0.05);
-          transition: border-color 0.2s ease, transform 0.2s ease;
+          gap: 14px;
+          box-shadow: 0 12px 24px rgba(24, 43, 74, 0.08);
+          transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .sound-row:hover {
-          border-color: #d8e1ee;
-          transform: translateY(-1px);
+          border-color: #bdcfe4;
+          transform: translateY(-2px);
+          box-shadow: 0 18px 30px rgba(24, 43, 74, 0.12);
         }
 
         .sound-row-main {
@@ -1781,49 +2430,78 @@ const SettingsView = ({
         .sound-dot {
           width: 40px;
           height: 40px;
-          border-radius: 12px;
-          background: #fff1f4;
+          border-radius: 13px;
+          background: linear-gradient(180deg, #fff2f6, #ffe9ef);
           color: var(--accent);
           display: grid;
           place-items: center;
           font-size: 17px;
           flex: 0 0 auto;
+          box-shadow: inset 0 0 0 1px #ffd5de;
+        }
+
+        .sound-play-btn {
+          border: 0;
+          cursor: pointer;
+          font-family: inherit;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sound-play-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: inset 0 0 0 1px #ffc8d4, 0 8px 14px rgba(233, 63, 102, 0.16);
+        }
+
+        .sound-play-btn.playing {
+          box-shadow: inset 0 0 0 1px #ffbfd0, 0 0 0 3px rgba(233, 63, 102, 0.2);
         }
 
         .sound-title {
           margin: 0;
-          font-size: 16px;
+          font-size: 17px;
           color: #192742;
           font-weight: 800;
+          line-height: 1.1;
         }
 
         .sound-sub {
-          margin: 3px 0 0;
-          color: #8192aa;
+          margin: 4px 0 0;
+          color: #7388a6;
           font-size: 13px;
           font-weight: 600;
         }
 
         .sound-select {
-          border: 1px solid #dde5f1;
+          border: 1px solid #cedced;
           border-radius: 999px;
-          background: #f5f8fc;
-          color: #31445f;
+          background: #edf4fc;
+          color: #243651;
           font-size: 13px;
           font-weight: 700;
-          height: 36px;
-          padding: 0 12px;
+          height: 40px;
+          min-width: 110px;
+          padding: 0 14px;
           font-family: inherit;
           cursor: pointer;
           outline: none;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+          transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+
+        .sound-select:hover {
+          border-color: #b8cce3;
+          background: #e9f1fb;
+          color: #1a2d4a;
         }
 
         .dnd-card {
-          border: 1px solid #e3e9f3;
+          border: 1px solid #d6e2f1;
           border-radius: 24px;
-          background: linear-gradient(180deg, #ffffff, #fbfcff);
-          padding: 18px;
-          box-shadow: 0 12px 24px rgba(20, 38, 68, 0.08);
+          background: linear-gradient(180deg, #ffffff, #f6fbff);
+          padding: 20px;
+          box-shadow: 0 18px 32px rgba(20, 38, 68, 0.12);
+          position: sticky;
+          top: 92px;
         }
 
         .dnd-head {
@@ -1835,10 +2513,10 @@ const SettingsView = ({
 
         .dnd-title {
           margin: 0;
-          font-size: 30px;
+          font-size: clamp(24px, 2.7vw, 30px);
           color: #17243f;
           font-weight: 800;
-          letter-spacing: -0.02em;
+          letter-spacing: -0.025em;
         }
 
         .dnd-labels {
@@ -1851,7 +2529,7 @@ const SettingsView = ({
         .dnd-label {
           font-size: 12px;
           letter-spacing: 0.1em;
-          color: #7d90aa;
+          color: #6f86a4;
           font-weight: 800;
           text-transform: uppercase;
         }
@@ -1864,11 +2542,11 @@ const SettingsView = ({
         }
 
         .dnd-time {
-          height: 44px;
+          height: 46px;
           border-radius: 999px;
-          border: 1px solid #dbe4f0;
-          background: #eef3f8;
-          color: #212f49;
+          border: 1px solid #c7d7ea;
+          background: #ebf2fb;
+          color: #132542;
           font-size: 15px;
           font-weight: 900;
           display: flex;
@@ -1876,25 +2554,40 @@ const SettingsView = ({
           justify-content: center;
         }
 
+        .dnd-time-input {
+          font-family: inherit;
+          text-align: center;
+          padding: 0 12px;
+          outline: none;
+          cursor: pointer;
+          appearance: none;
+          -webkit-appearance: none;
+        }
+
+        .dnd-time-input::-webkit-calendar-picker-indicator {
+          opacity: 0.65;
+          cursor: pointer;
+        }
+
         .repeat-row {
           margin-top: 14px;
           display: flex;
           align-items: center;
           gap: 9px;
-          color: #3a4f6c;
+          color: #314a6b;
           font-size: 15px;
           font-weight: 700;
         }
 
         .repeat-mark {
-          width: 22px;
-          height: 22px;
+          width: 23px;
+          height: 23px;
           border-radius: 50%;
-          border: 1px solid #d5dfec;
+          border: 1px solid #c5d4e6;
           display: grid;
           place-items: center;
           color: transparent;
-          background: #fff;
+          background: #f7fbff;
           font-size: 13px;
           cursor: pointer;
           transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
@@ -1907,12 +2600,12 @@ const SettingsView = ({
         }
 
         .dnd-note {
-          margin-top: 16px;
+          margin-top: 18px;
           border-radius: 16px;
-          background: #fff3f5;
-          border: 1px solid #ffd9e0;
-          padding: 12px 13px;
-          color: #e44863;
+          background: linear-gradient(180deg, #fff2f6, #ffeaf0);
+          border: 1px solid #ffc5d2;
+          padding: 13px 14px;
+          color: #da3b5f;
           font-size: 13px;
           line-height: 1.4;
           font-weight: 600;
@@ -1922,30 +2615,31 @@ const SettingsView = ({
         }
 
         .email-wrap {
-          margin-top: 22px;
+          margin-top: 28px;
         }
 
         .email-card {
           margin-top: 10px;
-          border: 1px solid #e2e8f1;
+          border: 1px solid #d8e3f2;
           border-radius: 24px;
-          background: #fff;
+          background: linear-gradient(180deg, #ffffff, #f8fcff);
           overflow: hidden;
-          box-shadow: 0 10px 22px rgba(24, 43, 74, 0.06);
+          box-shadow: 0 16px 30px rgba(24, 43, 74, 0.1);
         }
 
         .email-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 10px;
-          padding: 16px 18px;
-          border-top: 1px solid #edf2f8;
-          transition: background 0.2s ease;
+          gap: 12px;
+          padding: 18px 18px;
+          border-top: 1px solid #e3ebf6;
+          transition: background 0.2s ease, border-color 0.2s ease;
         }
 
         .email-row:hover {
-          background: #fafcff;
+          background: #f2f8ff;
+          border-top-color: #d8e5f5;
         }
 
         .email-row:first-child {
@@ -1961,30 +2655,35 @@ const SettingsView = ({
 
         .email-row p {
           margin: 5px 0 0;
-          color: #7588a2;
+          color: #6f85a4;
           font-size: 13px;
           font-weight: 600;
         }
 
         .email-toggle {
-          width: 32px;
-          height: 32px;
+          width: 34px;
+          height: 34px;
           border-radius: 50%;
-          border: 1px solid #c9d4e3;
-          background: #fff;
+          border: 1px solid #b8cce3;
+          background: #f6faff;
           color: transparent;
           display: grid;
           place-items: center;
           font-size: 16px;
           cursor: pointer;
           flex: 0 0 auto;
-          transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+          transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
         }
 
         .email-toggle.on {
           border-color: var(--accent);
           background: var(--accent);
           color: #fff;
+        }
+
+        .email-toggle:hover {
+          transform: translateY(-1px);
         }
 
         .help-save-btn:focus-visible,
@@ -1997,13 +2696,14 @@ const SettingsView = ({
 
         .footer {
           margin-top: 20px;
-          border-top: 1px solid #dfe7f0;
-          padding: 18px 32px 28px;
-          color: #9aabc1;
+          border-top: 1px solid #d6e0ec;
+          padding: 20px 32px 30px;
+          color: #8ea1ba;
           font-size: 13px;
           display: flex;
           justify-content: space-between;
           gap: 14px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(242, 247, 253, 0.9));
         }
 
         .footer-links {
@@ -2014,10 +2714,300 @@ const SettingsView = ({
         .footer-links button {
           border: 0;
           background: transparent;
-          color: #9aabc1;
+          color: #7f93ad;
           font-size: 13px;
           cursor: pointer;
           padding: 0;
+        }
+
+        .footer-links button:hover {
+          color: #4a627f;
+        }
+
+        button,
+        input,
+        select {
+          transition: all 0.2s ease;
+        }
+
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible {
+          outline: 0;
+          box-shadow: 0 0 0 3px rgba(233, 63, 102, 0.24);
+        }
+
+        .settings-page.dark .sidebar,
+        .settings-page.dark .menu-btn,
+        .settings-page.dark .premium-card {
+          background: var(--panel);
+          border-color: var(--line);
+        }
+
+        .settings-page.dark .menu-btn {
+          color: #d0d8e6;
+        }
+
+        .settings-page.dark .menu-btn:hover {
+          background: #243244;
+          border-color: #334155;
+        }
+
+        .settings-page.dark .menu-btn.active {
+          border-color: transparent;
+        }
+
+        .settings-page.dark .icon-btn:hover {
+          background: #243244;
+        }
+
+        .settings-page.dark .notification-btn {
+          background: #253244;
+          color: #d3deec;
+        }
+
+        .settings-page.dark .notification-btn:hover {
+          background: #314158;
+          color: #ffd0dc;
+        }
+
+        .settings-page.dark .session-confirm-dialog {
+          background: #1f2b3d;
+          border-color: #32465f;
+          box-shadow: 0 24px 48px rgba(2, 6, 23, 0.58);
+        }
+
+        .settings-page.dark .session-confirm-title {
+          color: #edf2fb;
+        }
+
+        .settings-page.dark .session-confirm-copy {
+          color: #acbdd2;
+        }
+
+        .settings-page.dark .session-confirm-btn.cancel {
+          border-color: #3f546f;
+          background: #293950;
+          color: #d6e1f1;
+        }
+
+
+        .settings-page.dark .main-nav button:hover {
+          color: #f8b3c2;
+        }
+
+        .settings-page.dark .main-nav button.active {
+          background: #2a3344;
+          color: #ffd0dc;
+        }
+
+        .settings-page.dark .general-card:hover,
+        .settings-page.dark .card:hover {
+          border-color: #445269;
+          box-shadow: 0 22px 44px rgba(2, 6, 23, 0.55);
+        }
+
+        .settings-page.dark .security-screen {
+          background:
+            radial-gradient(circle at 100% 0, rgba(59, 130, 246, 0.18), transparent 40%),
+            radial-gradient(circle at 0 100%, rgba(233, 63, 102, 0.16), transparent 38%);
+        }
+
+        .settings-page.dark .security-screen .heading {
+          color: #f1f5ff;
+        }
+
+        .settings-page.dark .security-screen .subheading,
+        .settings-page.dark .security-screen .session-meta,
+        .settings-page.dark .security-screen .side-panel p {
+          color: #a9b7cb;
+        }
+
+        .settings-page.dark .security-screen .card,
+        .settings-page.dark .security-screen .session-item,
+        .settings-page.dark .security-screen .vault-scale,
+        .settings-page.dark .security-screen .info-box {
+          background: #1d293a;
+          border-color: #2f4058;
+        }
+
+        .settings-page.dark .security-screen .two-factor {
+          background: linear-gradient(180deg, #212f43, #1b2739);
+          border-color: #32465f;
+          box-shadow: 0 18px 32px rgba(2, 6, 23, 0.5);
+        }
+
+        .settings-page.dark .security-screen .shield {
+          background: linear-gradient(180deg, #3b2330, #31202a);
+          box-shadow: inset 0 0 0 1px #5d3243;
+        }
+
+        .settings-page.dark .security-screen .toggle {
+          border-color: #445973;
+          background: #2c3d54;
+          box-shadow: inset 0 0 0 1px #3d516b;
+        }
+
+        .settings-page.dark .security-screen .toggle.on {
+          border-color: #ef4d73;
+          background: #ef4d73;
+          box-shadow: 0 8px 16px rgba(239, 77, 115, 0.32);
+        }
+
+        .settings-page.dark .security-screen .wizard-btn {
+          background: linear-gradient(180deg, #ef4f75, #cf2f57);
+          box-shadow: 0 14px 24px rgba(207, 47, 87, 0.35);
+        }
+
+        .settings-page.dark .security-screen .two-factor h3,
+        .settings-page.dark .security-screen .sessions h3,
+        .settings-page.dark .security-screen .side-panel h3,
+        .settings-page.dark .security-screen .session-name {
+          color: #e9eef8;
+        }
+
+        .settings-page.dark .security-screen .logout-link,
+        .settings-page.dark .security-screen .open-btn {
+          background: #263449;
+          border-color: #3a4c67;
+          color: #c5d3e7;
+          box-shadow: none;
+        }
+
+        .settings-page.dark .security-screen .logout-link:hover,
+        .settings-page.dark .security-screen .open-btn:hover {
+          background: #304058;
+          color: #edf2fb;
+        }
+
+        .settings-page.dark .security-screen .device {
+          background: #2a3a50;
+          box-shadow: inset 0 0 0 1px #3a4e69;
+          color: #dbe6f7;
+        }
+
+        .settings-page.dark .security-screen .badge {
+          background: #1f4733;
+          border-color: #2c6b4a;
+          color: #8be2b0;
+        }
+
+        .settings-page.dark .security-screen .scale-line {
+          background: linear-gradient(90deg, #33475f, #3b4f66);
+        }
+
+        .settings-page.dark .security-screen .scale-tabs button {
+          color: #98a8bf;
+        }
+
+        .settings-page.dark .help-screen {
+          background:
+            linear-gradient(180deg, rgba(21, 33, 50, 0.92), rgba(16, 26, 40, 0.96)),
+            radial-gradient(circle at 92% 0, rgba(233, 63, 102, 0.22), transparent 38%),
+            radial-gradient(circle at 0 100%, rgba(59, 130, 246, 0.2), transparent 38%);
+          border-color: #314258;
+        }
+
+        .settings-page.dark .help-title,
+        .settings-page.dark .help-section-title,
+        .settings-page.dark .help-name,
+        .settings-page.dark .dnd-title,
+        .settings-page.dark .sound-title,
+        .settings-page.dark .email-row h4 {
+          color: #e8eef9;
+        }
+
+        .settings-page.dark .help-subtitle,
+        .settings-page.dark .help-copy,
+        .settings-page.dark .sound-sub,
+        .settings-page.dark .dnd-note,
+        .settings-page.dark .email-row p,
+        .settings-page.dark .footer,
+        .settings-page.dark .footer-links button {
+          color: #a9b9ce;
+        }
+
+        .settings-page.dark .help-card,
+        .settings-page.dark .sound-row,
+        .settings-page.dark .dnd-card,
+        .settings-page.dark .email-card {
+          border-color: #33465e;
+          background: linear-gradient(180deg, #1e2b3f, #192537);
+          box-shadow: 0 18px 36px rgba(2, 6, 23, 0.56);
+        }
+
+        .settings-page.dark .sound-dot,
+        .settings-page.dark .help-icon {
+          background: linear-gradient(180deg, #323f55, #28364a);
+          box-shadow: inset 0 0 0 1px #455975;
+          color: #ffb8c8;
+        }
+
+        .settings-page.dark .sound-select,
+        .settings-page.dark .dnd-time {
+          border-color: #405675;
+          background: #26364d;
+          color: #dce6f5;
+        }
+
+        .settings-page.dark .email-row {
+          border-top-color: #32445c;
+        }
+
+        .settings-page.dark .email-row:hover,
+        .settings-page.dark .sound-row:hover,
+        .settings-page.dark .help-card:hover {
+          background: #25344a;
+          border-color: #45607f;
+        }
+
+        .settings-page.dark .email-toggle {
+          border-color: #44607f;
+          background: #25364d;
+        }
+
+        .settings-page.dark .email-toggle.on {
+          border-color: var(--accent);
+          background: var(--accent);
+        }
+
+        .settings-page.dark .dnd-note {
+          background: linear-gradient(180deg, #402734, #33202b);
+          border-color: #6d3c52;
+          color: #ffc5d2;
+        }
+
+        .settings-page.dark .footer {
+          border-top-color: #2f4159;
+          background: linear-gradient(180deg, rgba(17, 24, 39, 0), rgba(19, 30, 48, 0.75));
+        }
+
+        .settings-page.dark .footer-links button:hover {
+          color: #dce6f6;
+        }
+
+        @keyframes panelIn {
+          from {
+            opacity: 0;
+            transform: translateY(4px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .general-card,
+          .card,
+          .save-btn,
+          .wizard-btn,
+          .notification-panel,
+          .notification-item,
+          .notification-btn {
+            animation: none !important;
+            transition: none !important;
+          }
         }
 
         @media (max-width: 1200px) {
@@ -2042,6 +3032,10 @@ const SettingsView = ({
             padding: 4px 0 10px;
           }
 
+          .main-nav button.active {
+            padding: 4px 12px 10px;
+          }
+
           .main-nav button.active::after {
             bottom: 0;
           }
@@ -2059,6 +3053,7 @@ const SettingsView = ({
           .sidebar {
             min-height: auto;
             order: 2;
+            position: static;
           }
 
           .content {
@@ -2077,6 +3072,10 @@ const SettingsView = ({
             grid-template-columns: 1fr;
           }
 
+          .dnd-card {
+            position: static;
+          }
+
           .help-save-btn {
             height: 52px;
             font-size: 14px;
@@ -2093,17 +3092,49 @@ const SettingsView = ({
         }
 
         @media (max-width: 640px) {
+          .security-screen {
+            padding: 2px 0 8px;
+            border-radius: 0;
+            background: transparent;
+          }
+
+          .security-screen .heading {
+            font-size: clamp(30px, 8vw, 36px);
+          }
+
+          .security-screen .two-factor {
+            padding: 18px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+          }
+
+          .security-screen .action-row {
+            width: 100%;
+            justify-content: flex-end;
+          }
+
+          .security-screen .sessions,
+          .security-screen .side-panel {
+            padding: 18px;
+          }
+
+          .security-screen .logout-link {
+            padding: 6px 10px;
+            font-size: 11px;
+          }
+
           .help-head {
             flex-direction: column;
             align-items: flex-start;
           }
 
           .help-name {
-            font-size: 17px;
+            font-size: 19px;
           }
 
           .help-copy {
-            font-size: 14px;
+            font-size: 13px;
           }
 
           .help-save-btn {
@@ -2113,11 +3144,20 @@ const SettingsView = ({
 
           .help-card,
           .sound-row {
-            border-radius: 20px;
+            border-radius: 18px;
           }
 
           .dnd-card {
             border-radius: 24px;
+          }
+
+          .sound-title {
+            font-size: 16px;
+          }
+
+          .sound-sub,
+          .email-row p {
+            font-size: 12px;
           }
 
           .dnd-time {
@@ -2163,7 +3203,7 @@ const SettingsView = ({
         </div>
 
         <nav className="main-nav" aria-label="Main">
-          <button type="button">Couple Shop</button>
+          <button type="button">Dashbroad</button>
           <button type="button">Ring Scan</button>
           <button type="button">My Ring</button>
           <button type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
@@ -2245,9 +3285,9 @@ const SettingsView = ({
           </div>
 
           <section className="premium-card">
-            <h4>Premium Plan</h4>
-            <p>Renewing on Dec 12, 2024</p>
-            <button type="button">Manage Subscription</button>
+            <h4>{subscription.planName}</h4>
+            <p>{formatRenewingDate(subscription.renewingOn)}</p>
+            <button type="button" onClick={() => setIsSubscriptionDialogOpen(true)}>Manage Subscription</button>
           </section>
         </aside>
 
@@ -2373,7 +3413,7 @@ const SettingsView = ({
                     <h3 className="danger-title">Account Deactivation</h3>
                     <p className="danger-sub">Permanently delete your account and all associated shared memories. This action is irreversible.</p>
                   </div>
-                  <button type="button" className="danger-btn">Delete Account</button>
+                  <button type="button" className="danger-btn" onClick={openDeleteAccountConfirm}>Delete Account</button>
                 </article>
               </section>
             </>
@@ -2410,10 +3450,10 @@ const SettingsView = ({
                     <article className="card sessions">
                       <div className="sessions-head">
                         <h3>{'\u{1F5A5}'} Active Sessions</h3>
-                        <button type="button" className="logout-link">Log out all devices</button>
+                        <button type="button" className="logout-link" onClick={openLogoutAllConfirm}>Log out all devices</button>
                       </div>
 
-                      {sessions.map((session) => (
+                      {activeSessions.map((session) => (
                         <div className="session-item" key={session.name}>
                           <div className="session-left">
                             <div className="device">{session.icon}</div>
@@ -2425,9 +3465,20 @@ const SettingsView = ({
                               <p className="session-meta">{session.location} - {session.status}</p>
                             </div>
                           </div>
-                          <button className="open-btn" type="button" aria-label={`View ${session.name}`}>{'\u21AA'}</button>
+                          <button
+                            className="open-btn"
+                            type="button"
+                            aria-label={`Delete ${session.name}`}
+                            title="Delete session"
+                            onClick={() => openDeleteSessionConfirm(session.name)}
+                          >
+                            {'\u21AA'}
+                          </button>
                         </div>
                       ))}
+                      {activeSessions.length === 0 ? (
+                        <p className="session-meta">No active sessions.</p>
+                      ) : null}
                     </article>
                   </div>
 
@@ -2462,8 +3513,10 @@ const SettingsView = ({
                       <p>
                         Download a complete archive of your relationships, gallery assets, and activity history in a secure ZIP format.
                       </p>
-                      <button type="button" className="export-btn">Export Data Archive {'\u21E9'}</button>
-                      <div className="last-export">Last export: never</div>
+                      <button type="button" className="export-btn" onClick={handleExportData}>
+                        Export Data Archive {'\u21E9'}
+                      </button>
+                      <div className="last-export">{formatExportTime(lastExportAt)}</div>
                     </article>
                   </div>
                 </section>
@@ -2502,13 +3555,26 @@ const SettingsView = ({
                     <div className="sound-list">
                       <article className="sound-row">
                         <div className="sound-row-main">
-                          <div className="sound-dot">{'\u25B7'}</div>
+                          <button
+                            type="button"
+                            className={`sound-dot sound-play-btn ${playingSoundId === 'anniversary' ? 'playing' : ''}`}
+                            aria-label="Play anniversary sound preview"
+                            onClick={() => playSoundPreview('anniversary')}
+                          >
+                            {'\u25B7'}
+                          </button>
                           <div>
                             <h4 className="sound-title">The Ringing (Anniversary)</h4>
                             <p className="sound-sub">Elegant chime for your most important dates</p>
                           </div>
                         </div>
-                        <select className="sound-select" defaultValue="Bell Chime">
+                        <select
+                          className="sound-select"
+                          value={soundPrefs.anniversary}
+                          onChange={(event) =>
+                            setSoundPrefs((current) => ({ ...current, anniversary: event.target.value }))
+                          }
+                        >
                           <option>Bell Chime</option>
                           <option>Crystal Bell</option>
                           <option>Warm Piano</option>
@@ -2517,13 +3583,26 @@ const SettingsView = ({
 
                       <article className="sound-row">
                         <div className="sound-row-main">
-                          <div className="sound-dot">{'\u25B7'}</div>
+                          <button
+                            type="button"
+                            className={`sound-dot sound-play-btn ${playingSoundId === 'reminders' ? 'playing' : ''}`}
+                            aria-label="Play reminder sound preview"
+                            onClick={() => playSoundPreview('reminders')}
+                          >
+                            {'\u25B7'}
+                          </button>
                           <div>
                             <h4 className="sound-title">The Whisper (Reminders)</h4>
                             <p className="sound-sub">A soft nudge for daily relationship goals</p>
                           </div>
                         </div>
-                        <select className="sound-select" defaultValue="Soft Hum">
+                        <select
+                          className="sound-select"
+                          value={soundPrefs.reminders}
+                          onChange={(event) =>
+                            setSoundPrefs((current) => ({ ...current, reminders: event.target.value }))
+                          }
+                        >
                           <option>Soft Hum</option>
                           <option>Wind Bell</option>
                           <option>Gentle Pop</option>
@@ -2532,13 +3611,26 @@ const SettingsView = ({
 
                       <article className="sound-row">
                         <div className="sound-row-main">
-                          <div className="sound-dot">{'\u25B7'}</div>
+                          <button
+                            type="button"
+                            className={`sound-dot sound-play-btn ${playingSoundId === 'messages' ? 'playing' : ''}`}
+                            aria-label="Play message sound preview"
+                            onClick={() => playSoundPreview('messages')}
+                          >
+                            {'\u25B7'}
+                          </button>
                           <div>
                             <h4 className="sound-title">The Spark (Messages)</h4>
                             <p className="sound-sub">Instant notification for new shared messages</p>
                           </div>
                         </div>
-                        <select className="sound-select" defaultValue="Digital Pop">
+                        <select
+                          className="sound-select"
+                          value={soundPrefs.messages}
+                          onChange={(event) =>
+                            setSoundPrefs((current) => ({ ...current, messages: event.target.value }))
+                          }
+                        >
                           <option>Digital Pop</option>
                           <option>Pulse Beat</option>
                           <option>Soft Tick</option>
@@ -2565,8 +3657,20 @@ const SettingsView = ({
                         <span className="dnd-label">Until</span>
                       </div>
                       <div className="dnd-times">
-                        <div className="dnd-time">10:00PM</div>
-                        <div className="dnd-time">07:00AM</div>
+                        <input
+                          className="dnd-time dnd-time-input"
+                          type="time"
+                          value={dndFromTime}
+                          onChange={(event) => setDndFromTime(event.target.value)}
+                          aria-label="Do not disturb start time"
+                        />
+                        <input
+                          className="dnd-time dnd-time-input"
+                          type="time"
+                          value={dndUntilTime}
+                          onChange={(event) => setDndUntilTime(event.target.value)}
+                          aria-label="Do not disturb end time"
+                        />
                       </div>
 
                       <div className="repeat-row">
@@ -2664,6 +3768,88 @@ const SettingsView = ({
           )}
         </main>
       </div>
+
+      {sessionToDelete ? (
+        <div className="session-confirm-overlay" role="presentation" onClick={closeDeleteSessionConfirm}>
+          <section
+            className="session-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm delete session"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="session-confirm-title">Are you sure delete?</h2>
+            <p className="session-confirm-copy">This will remove this active device session.</p>
+            <div className="session-confirm-actions">
+              <button type="button" className="session-confirm-btn cancel" onClick={closeDeleteSessionConfirm}>Cancel</button>
+              <button type="button" className="session-confirm-btn ok" onClick={confirmDeleteSession}>OK</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {isSubscriptionDialogOpen ? (
+        <div className="session-confirm-overlay" role="presentation" onClick={closeSubscriptionDialog}>
+          <section
+            className="session-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Manage subscription"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="session-confirm-title">Manage Subscription</h2>
+            <p className="session-confirm-copy">{subscription.planName} - {formatRenewingDate(subscription.renewingOn)}</p>
+            <div className="session-confirm-actions">
+              <button type="button" className="session-confirm-btn cancel" onClick={closeSubscriptionDialog}>Close</button>
+              <button type="button" className="session-confirm-btn ok" onClick={toggleSubscriptionRenewal}>
+                {subscription.autoRenewEnabled ? 'Pause renewal' : 'Resume renewal'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {isDeleteAccountConfirmOpen ? (
+        <div className="session-confirm-overlay" role="presentation" onClick={closeDeleteAccountConfirm}>
+          <section
+            className="session-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm delete account"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="session-confirm-title">Delete your account?</h2>
+            <p className="session-confirm-copy">
+              This will remove local account settings and cannot be undone.
+            </p>
+            <div className="session-confirm-actions">
+              <button type="button" className="session-confirm-btn cancel" onClick={closeDeleteAccountConfirm}>Cancel</button>
+              <button type="button" className="session-confirm-btn ok" onClick={confirmDeleteAccount}>Delete</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {isLogoutAllConfirmOpen ? (
+        <div className="session-confirm-overlay" role="presentation" onClick={closeLogoutAllConfirm}>
+          <section
+            className="session-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm logout all devices"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="session-confirm-title">Log out all devices?</h2>
+            <p className="session-confirm-copy">
+              This will clear your active sessions on this Settings screen and remove local login state.
+            </p>
+            <div className="session-confirm-actions">
+              <button type="button" className="session-confirm-btn cancel" onClick={closeLogoutAllConfirm}>Cancel</button>
+              <button type="button" className="session-confirm-btn ok" onClick={confirmLogoutAllDevices}>Log out</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       <footer className="footer">
         <span>{'\u00A9'} 2024 Eternal Rings App. Designed for forever.</span>
