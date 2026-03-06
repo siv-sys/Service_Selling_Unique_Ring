@@ -1,0 +1,660 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+interface RingData {
+  id: string;
+  name: string;
+  material: string;
+  size: string;
+  identifier: string;
+  status: string;
+  batteryLevel: number;
+  lastPing: string;
+  location: string;
+}
+
+interface EmergencyContact {
+  name: string;
+  phone: string;
+}
+
+const CoupleProfileView: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // State
+  const [coupleName, setCoupleName] = useState<string>('Alex & Jamie');
+  const [memberName, setMemberName] = useState<string>('Alex');
+  const [cartCount, setCartCount] = useState<number>(4);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [searchEmail, setSearchEmail] = useState<string>('');
+  const [proximityThreshold, setProximityThreshold] = useState<number>(50);
+  const [visibilityMode, setVisibilityMode] = useState<string>('partners');
+  const [cloudStorageUsed, setCloudStorageUsed] = useState<number>(6.5);
+  const [cloudStorageTotal, setCloudStorageTotal] = useState<number>(10);
+  
+  // Emergency contact state
+  const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>({
+    name: 'Sam Richards',
+    phone: '+1 (555) 000-9999'
+  });
+
+  // Ring data
+  const [ringData, setRingData] = useState<RingData>({
+    id: 'TSS-002',
+    name: 'Twin Souls Silver B',
+    material: 'Sterling Silver',
+    size: '7',
+    identifier: 'SHOP-TSS-002',
+    status: 'SYSTEM ONLINE',
+    batteryLevel: 88,
+    lastPing: '2m ago',
+    location: 'WAREHOUSE: Main WH'
+  });
+
+  // Load dark mode preference
+  // Load dark mode preference
+useEffect(() => {
+  const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+  setIsDarkMode(savedDarkMode);
+  if (savedDarkMode) {
+    document.documentElement.classList.add('dark');
+  }
+
+  // Show certification notification (replacing alert)
+  if (ringData?.id === 'TSS-002') {
+    showCertificationNotification();
+  }
+}, [ringData?.id]);
+
+// Certification notification function
+const showCertificationNotification = () => {
+  // Check if already shown to prevent duplicates
+  if (document.getElementById('cert-notification')) return;
+  
+  const notification = document.createElement('div');
+  notification.id = 'cert-notification';
+  notification.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
+  
+  notification.innerHTML = `
+    <div class="bg-primary text-white px-5 py-4 rounded-xl shadow-lg shadow-primary/30 flex items-start gap-3 max-w-md border border-white/20">
+      <div class="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+        <span class="material-symbols-outlined text-lg">info</span>
+      </div>
+      <div class="flex-1">
+        <p class="font-bold text-sm mb-1">Ring Certification Update</p>
+        <p class="text-xs opacity-90 leading-relaxed">
+          Your ring is currently in the certification process. 
+          <span class="font-bold block mt-1">Estimated completion: 2 weeks</span>
+        </p>
+        <p class="text-xs opacity-80 mt-2">Thank you for your patience!</p>
+      </div>
+      <button 
+        class="flex-shrink-0 w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
+        onclick="this.closest('.fixed').remove()"
+      >
+        <span class="material-symbols-outlined text-sm">close</span>
+      </button>
+    </div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Auto remove after 8 seconds (longer for important message)
+  setTimeout(() => {
+    const notif = document.getElementById('cert-notification');
+    if (notif) {
+      notif.style.animation = 'slide-down-bottom 0.3s ease-out forwards';
+      setTimeout(() => {
+        if (notif.parentNode) {
+          notif.remove();
+        }
+      }, 300);
+    }
+  }, 8000);
+};
+
+  // Load cart count
+  useEffect(() => {
+    try {
+      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      setCartCount(cart.length);
+    } catch {
+      setCartCount(0);
+    }
+
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        setCartCount(cart.length);
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, []);
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    localStorage.setItem('darkMode', String(newDarkMode));
+    
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
+  // Handle notification click
+  const handleNotificationClick = () => {
+    alert('No new notifications');
+  };
+
+  // Handle navigation (for placeholder links)
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, page: string) => {
+    e.preventDefault();
+    alert(`${page} page coming soon!`);
+  };
+
+  // Handle search
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchEmail.trim()) {
+      alert(`Searching for partner with email: ${searchEmail}`);
+    }
+  };
+
+  // Handle emergency contact update
+  const handleEmergencyContactUpdate = () => {
+    alert('Emergency contact updated successfully!');
+  };
+
+  // Handle test connection
+  const handleTestConnection = () => {
+    alert('Testing connection to your ring...');
+  };
+
+  // Handle unpair device
+  const handleUnpairDevice = () => {
+    if (window.confirm('Are you sure you want to unpair this device?')) {
+      alert('Device unpaired successfully');
+    }
+  };
+
+  // Handle initialize link
+  const handleInitializeLink = () => {
+    alert('Initializing pair link...');
+  };
+
+  // Handle set reminder
+  const handleSetReminder = () => {
+    alert('Reminder set for your anniversary!');
+  };
+
+  // Handle update contact
+  const handleUpdateContact = () => {
+    handleEmergencyContactUpdate();
+  };
+
+  return (
+    <div className="min-h-screen bg-cream dark:bg-charcoal">
+      {/* STICKY HEADER - Full navbar with diamond logo */}
+      <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+        <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+          {/* left logo + navigation */}
+          <div className="flex items-center gap-12">
+            <Link to="/dashboard" className="flex items-center gap-2 group">
+              <span className="material-symbols-outlined text-primary text-3xl">diamond</span>
+              <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+              <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
+              <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
+              <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
+              <Link to="/profile" className="text-primary border-b border-primary/40 pb-1">Couple Profile</Link>
+            </nav>
+          </div>
+          {/* right icons & member */}
+          <div className="flex items-center gap-6">
+            <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined">notifications_none</span>
+            </button>
+            <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
+            </button>
+            <Link to="/cart" className="relative">
+              <button className="text-charcoal/60 hover:text-primary">
+                <span className="material-symbols-outlined">shopping_cart</span>
+              </button>
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+            <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
+              <span className="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
+              <Link to="/profile">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+                  <span className="material-symbols-outlined">favorite</span>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="pb-24">
+        {/* Welcome Section */}
+        <section className="px-4 py-6">
+          <div className="max-w-7xl mx-auto px-6 pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-900 text-primary">Welcome back, {memberName}</h2>
+              <p className="text-slate-400 dark:text-slate-500 mt-1">Everything looks great today.</p>
+            </div>
+            <div className="w-full max-w-md">
+              <form onSubmit={handleSearch}>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                  <input 
+                    type="text"
+                    value={searchEmail}
+                    onChange={(e) => setSearchEmail(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-80 border-none rounded-2xl pl-12 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 shadow-sm placeholder-slate-400 dark:placeholder-slate-500 dark:text-white"
+                    placeholder="Find Email Partner"
+                  />
+                </div>
+                <p className="text-[10px] italic text-slate-400 dark:text-slate-500 px-1 mt-1 text-right md:text-left">
+                  Search by registered email address
+                </p>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        {/* Relationship chronicle */}
+        <section className="px-4 gap-4 mb-6">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="bg-gradient-to-br from-white to-primary/5 dark:from-surface-dark dark:to-primary/10 rounded-3xl p-9 border border-primary/10 shadow-premium mb-16">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-9">
+                <h2 className="heading-serif text-4xl font-light flex items-center gap-3">
+                  <span className="text-primary">✦</span> Relationship chronicle
+                </h2>
+                <a 
+                  href="#" 
+                  onClick={(e) => handleNavClick(e, 'Full Relationship Hub')}
+                  className="group flex items-center gap-2 text-primary border border-primary/30 rounded-full px-6 py-3 hover:bg-primary/5 transition-all"
+                >
+                  <span>Open full hub</span>
+                  <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">chevron_right</span>
+                </a>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="flex gap-5 items-start">
+                  <span className="material-symbols-outlined text-primary/70 text-3xl">timeline</span>
+                  <div>
+                    <p className="text-sm uppercase tracking-widest text-charcoal/40 dark:text-cream/40">Milestones</p>
+                    <p className="text-lg font-medium mt-1 dark:text-white">Engagement · 06.09.2022</p>
+                    <p className="text-lg font-medium dark:text-white">First ring scan · 12.2023</p>
+                    <p className="text-sm text-charcoal/50 mt-2">➕ 3 more moments</p>
+                  </div>
+                </div>
+                <div className="flex gap-5 items-start">
+                  <span className="material-symbols-outlined text-primary/70 text-3xl">links</span>
+                  <div>
+                    <p className="text-sm uppercase tracking-widest text-charcoal/40 dark:text-cream/40">Linked rings</p>
+                    <p className="text-lg font-medium mt-1 dark:text-white">Hers: Elysian Halo</p>
+                    <p className="text-lg font-medium dark:text-white">His: Midnight Sapphire</p>
+                    <p className="ring-ID text-xs text-primary mt-2">Ring ID: {ringData.id}</p>
+                    <p className="text-xs text-primary/70 mt-2">both certified · bond active</p>
+                  </div>
+                </div>
+                <div className="flex gap-5 items-start">
+                  <span className="material-symbols-outlined text-primary/70 text-3xl">celebration</span>
+                  <div>
+                    <p className="text-sm uppercase tracking-widest text-charcoal/40 dark:text-cream/40">Upcoming</p>
+                    <p className="text-lg font-medium mt-1 dark:text-white">3rd anniversary</p>
+                    <p className="text-lg text-primary">in 94 days</p>
+                    <a 
+                      href="#" 
+                      onClick={handleSetReminder}
+                      className="text-sm text-primary/70 underline-offset-2 hover:underline"
+                    >
+                      set reminder
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Ring Status Card + Pairing Management (two columns) */}
+        <section className="max-w-7xl mx-auto px-6 my-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left large card: Ring Main */}
+            <div className="lg:col-span-2 bg-white dark:bg-slate-80 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
+              <div className="flex justify-between items-start mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="size-14 bg-slate-100 dark:bg-pink-200 rounded-2xl flex items-center justify-center">
+                    <span className="material-symbols-outlined text-slate-800 dark:text-pink-600 text-3xl">circle</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-black">{ringData.name}</h3>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-1">
+                      {ringData.material} | Size {ringData.size} | {ringData.identifier}
+                    </p>
+                  </div>
+                </div>
+                <span className="bg-green-100 dark:bg-green-90/30 text-green-600 dark:text-green-400 text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1">
+                  <span className="size-1.5 bg-green-500 rounded-full"></span> {ringData.status}
+                </span>
+              </div>
+              {/* three info cards (location with link, battery, signal) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                {/* location card with link to PNC Cambodia & map directions */}
+                <div className="bg-slate-50/50 dark:bg-pink-200/50 p-4 rounded-3xl">
+                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-3">Current Location</p>
+                  <div className="flex gap-3 mb-3">
+                    <span className="material-symbols-outlined text-primary">location_on</span>
+                    <a 
+                      href="https://cambodia.passerellesnumeriques.org" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-sm font-bold hover:text-primary hover:underline transition-colors dark:text-pink"
+                    >
+                      {ringData.location}
+                    </a>
+                  </div>
+                  <a 
+                    href="https://www.google.com/maps/dir//Passerelles+num%C3%A9riques+Cambodia+(PNC),+BP+511,+Phum+Tropeang+Chhuk+(Borey+Sorla)+Sangtak,+Street+371,+Phnom+Penh/@11.5592652,104.8828671,15z/data=!4m8!4m7!1m0!1m5!1m1!1s0x310951add5e2cd81:0x171e0b69c7c6f7ba!2m2!1d104.8830826!2d11.5508551?entry=ttu&g_ep=EgoyMDI2MDIyNC4wIKXMDSoASAFQAw%3D%3D" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="block aspect-video bg-slate-200 dark:bg-slate-600 rounded-xl overflow-hidden relative group"
+                  >
+                    <img 
+                      className="w-full h-full object-cover opacity-50 group-hover:opacity-70 transition-opacity" 
+                      src="https://lh3.googleusercontent.com/gps-cs-s/AHVAweoqxMyOcpkmy2qL3HifLkO_pQ6UWZKgcaR59hJRfkXa6Bie_a8RZJ1Y1QlGdf-uXfpYIsdhQXee9GYkqgB59UTfyqLCuMsm6-O879zZRbbYJKFOuTPNXhm7WyROJf_0UgQL4ynF5g=s1360-w1360-h1020-rw" 
+                      alt="cambodia map"
+                    />
+                    <span className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">
+                      passerellesnumeriques.org ↗
+                    </span>
+                  </a>
+                </div>
+                <div className="bg-slate-50/50 dark:bg-pink-200/50 p-4 rounded-3xl">
+                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-4">Battery Level</p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="material-symbols-outlined text-green-500">battery_charging_80</span>
+                    <p className="text-2xl font-bold dark:text-pink">{ringData.batteryLevel}%</p>
+                  </div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Approx. 14 hours left</p>
+                </div>
+                <div className="bg-slate-50/50 dark:bg-pink-200/50 p-4 rounded-3xl">
+                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-4">Signal Strength</p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="material-symbols-outlined text-primary rotate-45">signal_cellular_4_bar</span>
+                    <p className="text-xl font-bold dark:text-pink">Excellent</p>
+                  </div>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Last ping: {ringData.lastPing}</p>
+                </div>
+              </div>
+              {/* two action buttons */}
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={handleTestConnection}
+                  className="w-full bg-primary/10 text-primary py-4 rounded-2xl font-bold text-sm hover:bg-primary/20 transition-colors border border-primary/30"
+                >
+                  Test Connection
+                </button>
+                <button 
+                  onClick={handleUnpairDevice}
+                  className="w-full bg-primary/10 text-primary py-4 rounded-2xl font-bold text-sm hover:bg-primary/30 transition-colors border border-primary/30"
+                >
+                  Unpair Device
+                </button>
+              </div>
+            </div>
+            {/* Right card: Pairing Management */}
+            <div className="bg-white  dark:bg-black-80 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
+              <h3 className="text-lg font-bold mb-6 text-primary ">Pairing Management</h3>
+              <div className="space-y-4 mb-10">
+                <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Pair Selection</span>
+                  <span className="text-sm font-bold text-primary ">No pair linked</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Pair Code</span>
+                  <span className="text-sm font-bold text-primary ">N/A</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Status</span>
+                  <span className="text-sm font-bold text-primary">N/A</span>
+                </div>
+                <div className="flex justify-between items-center pb-4">
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Established</span>
+                  <span className="text-sm font-bold text-primary ">N/A</span>
+                </div>
+              </div>
+              <button 
+                onClick={handleInitializeLink}
+                className="w-full border-2 border-dashed border-primary/30 text-primary py-4 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors"
+              >
+                Initialize Link
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* SHARED SAFEGUARDS (single card) */}
+        <div className="max-w-7xl mx-auto px-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-primary">Shared Safeguards</h3>
+                <span className="material-symbols-outlined text-primary"></span>
+              </div>
+              <div className="bg-white dark:bg-slate-80 p-6 rounded-3xl border border-slate-50 dark:border-pink-200 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <p className="text-sm font-bold dark:text-white">Proximity Awareness</p>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      defaultChecked 
+                      className="sr-only peer"
+                    />
+                    <div className="w-12 h-6 bg-slate-200 dark:bg-blue-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <p className="text-[10px] font-black text-slate-40 dark:text-slate-500 uppercase tracking-widest">Sensitivity Threshold</p>
+                    <span className="text-xs font-bold text-primary">{proximityThreshold}m</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={proximityThreshold}
+                    onChange={(e) => setProximityThreshold(parseInt(e.target.value))}
+                    className="w-full h-1 bg-slate-100 dark:bg-slate-70 rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+                <br />
+                <a 
+                  href="#" 
+                  onClick={(e) => handleNavClick(e, 'Pair New Device')}
+                  className="flex items-center gap-1 font-bold hover:underline dark:text-white"
+                >
+                  <span className="material-symbols-outlined text-lg">add_circle</span>Pair New Device
+                </a>
+                <br />
+                <div className="w-full">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Cloud Storage</p>
+                    <p className="text-[10px] font-bold text-primary">{cloudStorageUsed}GB / {cloudStorageTotal}GB</p>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-200 rounded-full h-1.5">
+                    <div 
+                      className="bg-primary h-1.5 rounded-full" 
+                      style={{ width: `${(cloudStorageUsed / cloudStorageTotal) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Empty placeholder for symmetry */}
+            <div></div>
+          </div>
+        </div>
+
+        {/* TWO COLUMN LAYOUT: EMERGENCY CONTACT (left) + VISIBILITY SETTINGS (right) */}
+        <div className="max-w-7xl mx-auto px-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* LEFT: Emergency Contact card */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-xl">emergency</span>
+                  <h3 className="text-lg font-bold text-primary">Emergency Contact</h3>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-slate-80 p-8 rounded-[2rem] border border-slate-50 dark:border-pink-200 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">
+                      Contact Name
+                    </label>
+                    <input 
+                      type="text" 
+                      value={emergencyContact.name}
+                      onChange={(e) => setEmergencyContact({...emergencyContact, name: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-pink-200 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20 text-primary  "
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">
+                      Phone Number
+                    </label>
+                    <input 
+                      type="text" 
+                      value={emergencyContact.phone}
+                      onChange={(e) => setEmergencyContact({...emergencyContact, phone: e.target.value})}
+                      className="w-full bg-slate-50 dark:bg-pink-200 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20 text-primary  "
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-5 md:grid-cols-2 items-center gap-6">
+                  <button 
+                    onClick={handleUpdateContact}
+                    className="w-full border-2 border-primary text-primary py-3 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors"
+                  >
+                    Update Contact
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT: Visibility Settings */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-primary">Visibility Settings</h3>
+              <div className="bg-white dark:bg-slate-80 rounded-3xl border border-slate-50 dark:border-pink-200 overflow-hidden">
+                <label className="flex items-center px-6 py-5 border-b border-slate-50 dark:border-slate-700 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="visibility" 
+                    value="public"
+                    checked={visibilityMode === 'public'}
+                    onChange={(e) => setVisibilityMode(e.target.value)}
+                    className="text-primary focus:ring-primary h-4 w-4 border-pink-200 rounded-full"
+                  />
+                  <div className="ml-4">
+                    <p className="text-sm font-bold dark:text-white">Public Presence</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Visible to all users in range</p>
+                  </div>
+                </label>
+                <label className="flex items-center px-6 py-5 border-2 border-primary/20 bg-primary/[0.02] cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="visibility" 
+                    value="partners"
+                    checked={visibilityMode === 'partners'}
+                    onChange={(e) => setVisibilityMode(e.target.value)}
+                    className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
+                  />
+                  <div className="ml-4">
+                    <p className="text-sm font-bold dark:text-white">Partners Only</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Only your linked partner can see you</p>
+                  </div>
+                </label>
+                <label className="flex items-center px-6 py-5 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="visibility" 
+                    value="private"
+                    checked={visibilityMode === 'private'}
+                    onChange={(e) => setVisibilityMode(e.target.value)}
+                    className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
+                  />
+                  <div className="ml-4">
+                    <p className="text-sm font-bold dark:text-white">Private Ghost Mode</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Invisible to everyone, even your partner</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-20 pt-16 pb-12">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+          <div>
+            <div className="flex items-center gap-2 mb-6">
+              <span className="material-symbols-outlined text-primary">diamond</span>
+              <span className="heading-serif text-xl font-semibold">BondKeeper</span>
+            </div>
+            <p className="text-sm text-charcoal/60 dark:text-cream/60 leading-relaxed">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
+          </div>
+          <div>
+            <h4 className="heading-serif text-lg font-medium mb-5">Experience</h4>
+            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
+              <li><Link to="/shop" className="hover:text-primary transition-colors">Browse rings</Link></li>
+              <li><Link to="/myring" className="hover:text-primary transition-colors">My ring</Link></li>
+              <li><Link to="/profile" className="hover:text-primary transition-colors">Couple profile</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="heading-serif text-lg font-medium mb-5">Support</h4>
+            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
+              <li><Link to="/sizing" className="hover:text-primary transition-colors">Sizing guide</Link></li>
+              <li><Link to="/returns" className="hover:text-primary transition-colors">Shipping & returns</Link></li>
+              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQ / help</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="heading-serif text-lg font-medium mb-5">Mailing list</h4>
+            <div className="flex gap-2">
+              <input className="flex-1 bg-transparent border border-primary/20 rounded-full px-5 py-2.5 text-sm placeholder:text-charcoal/40 dark:placeholder:text-cream/40 focus:border-primary/70" placeholder="your@email.com" />
+              <button className="bg-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-primary-dark transition-colors">join</button>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 mt-16 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-charcoal/40 dark:text-cream/40">
+          <p>© BondKeeper · Eternal Rings. All rights reserved.</p>
+          <div className="flex gap-6">
+            <Link to="/privacy" className="hover:text-primary transition">Privacy</Link>
+            <Link to="/terms" className="hover:text-primary transition">Terms</Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default CoupleProfileView;
