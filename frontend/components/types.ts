@@ -1,4 +1,10 @@
-export type AuthScreen = 'login' | 'register' | 'google-select' | 'reset-password';
+export type AuthScreen =
+  | 'login'
+  | 'register'
+  | 'google-select'
+  | 'reset-password'
+  | 'dashboard-user'
+  | 'dashboard-admin';
 
 export interface UserAccount {
   id: string;

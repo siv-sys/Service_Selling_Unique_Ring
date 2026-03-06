@@ -4,6 +4,10 @@ import { GoogleLoginButton } from '../components/GoogleLoginButton';
 interface ResetPasswordScreenProps {
   onBackToLogin: () => void;
   onGoogleLogin: () => void;
+  onResetPassword: (payload: { email: string; newPassword: string }) => Promise<void>;
+  isSubmitting?: boolean;
+  errorMessage?: string | null;
+  successMessage?: string | null;
 }
 
 const EyeIcon = ({ className }: { className?: string }) => (
@@ -22,7 +26,15 @@ const EyeOffIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export function ResetPasswordScreen({ onBackToLogin, onGoogleLogin }: ResetPasswordScreenProps) {
+export function ResetPasswordScreen({
+  onBackToLogin,
+  onGoogleLogin,
+  onResetPassword,
+  isSubmitting = false,
+  errorMessage = null,
+  successMessage = null,
+}: ResetPasswordScreenProps) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +43,13 @@ export function ResetPasswordScreen({ onBackToLogin, onGoogleLogin }: ResetPassw
   const hasMinLength = password.length >= 8;
   const hasNumber = /\d/.test(password);
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
-  const canSubmit = hasMinLength && hasNumber && hasSpecial && password === confirmPassword && password.length > 0;
+  const canSubmit =
+    email.trim().length > 0 &&
+    hasMinLength &&
+    hasNumber &&
+    hasSpecial &&
+    password === confirmPassword &&
+    password.length > 0;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-10">
@@ -41,7 +59,25 @@ export function ResetPasswordScreen({ onBackToLogin, onGoogleLogin }: ResetPassw
           <p className="text-slate-500">Your new password must be different from previously used passwords.</p>
         </div>
 
-        <form className="space-y-5" onSubmit={(event) => event.preventDefault()}>
+        <form
+          className="space-y-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!canSubmit) return;
+            onResetPassword({ email, newPassword: password });
+          }}
+        >
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Email Address</label>
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              placeholder="Enter your email"
+              className="block w-full rounded-lg border border-slate-200 bg-white py-3 pl-4 pr-4 transition-all focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none"
+            />
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">New Password</label>
             <div className="relative w-full">
@@ -84,12 +120,24 @@ export function ResetPasswordScreen({ onBackToLogin, onGoogleLogin }: ResetPassw
             </div>
           </div>
 
+          {errorMessage && (
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
+              {errorMessage}
+            </p>
+          )}
+
+          {successMessage && (
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+              {successMessage}
+            </p>
+          )}
+
           <button
             type="submit"
-            disabled={!canSubmit}
+            disabled={!canSubmit || isSubmitting}
             className="w-full rounded-xl bg-brand px-4 py-4 font-bold text-white shadow-lg shadow-brand/25 transition-all enabled:hover:bg-brand-dark enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Reset Password
+            {isSubmitting ? 'Resetting...' : 'Reset Password'}
           </button>
         </form>
 

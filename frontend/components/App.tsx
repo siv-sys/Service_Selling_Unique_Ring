@@ -3,37 +3,173 @@ import { AuthScreen } from './types';
 import { LoginScreen } from '../views/LoginView';
 import { RegisterScreen } from '../views/RegisterView';
 import { ResetPasswordScreen } from '../views/ResetPasswordView';
+import { DashboardView } from '../views/DashboardView';
 import { GoogleAccountSelector } from './GoogleAccountSelector';
+import { api, type AuthUser } from '../lib/api';
 
 export default function App() {
   const [screen, setScreen] = useState<AuthScreen>('login');
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [registerError, setRegisterError] = useState<string | null>(null);
+  const [registerSuccess, setRegisterSuccess] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  const handleRegisterClick = () => setScreen('register');
-  const handleLoginClick = () => setScreen('login');
+  const goToDashboardByRole = (role: AuthUser['role']) => {
+    setScreen(role === 'admin' ? 'dashboard-admin' : 'dashboard-user');
+  };
+
+  const handleRegisterClick = () => {
+    setRegisterError(null);
+    setRegisterSuccess(null);
+    setScreen('register');
+  };
+  const handleLoginClick = () => {
+    setLoginError(null);
+    setScreen('login');
+  };
   const handleGoogleLoginClick = () => setScreen('google-select');
   const handleForgotPasswordClick = () => setScreen('reset-password');
-  const handleBackFromGoogle = () => setScreen('login');
-  
-  const handleAccountSelect = (email: string) => {
-    console.log('Selected account:', email);
-    alert(`Successfully signed in with ${email}`);
+  const handleBackFromGoogle = () => {
+    setLoginError(null);
     setScreen('login');
+  };
+  
+  const persistAuth = (user: AuthUser) => {
+    sessionStorage.setItem('auth_user_id', String(user.id));
+    sessionStorage.setItem('auth_roles', user.role);
+    sessionStorage.setItem('auth_email', user.email);
+    sessionStorage.setItem('auth_name', user.name || '');
+  };
+
+  const clearAuth = () => {
+    sessionStorage.removeItem('auth_user_id');
+    sessionStorage.removeItem('auth_roles');
+    sessionStorage.removeItem('auth_email');
+    sessionStorage.removeItem('auth_name');
+    localStorage.removeItem('auth_remember_token');
+  };
+
+  const handleLogin = async (payload: { email: string; password: string; remember: boolean }) => {
+    try {
+      setIsLoggingIn(true);
+      setLoginError(null);
+      const response = await api.login(payload);
+      setAuthUser(response.user);
+      persistAuth(response.user);
+      goToDashboardByRole(response.user.role);
+
+      if (payload.remember && response.rememberToken) {
+        localStorage.setItem('auth_remember_token', response.rememberToken);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed.';
+      setLoginError(message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleAccountSelect = async (email: string) => {
+    try {
+      setIsGoogleLoggingIn(true);
+      setLoginError(null);
+      const response = await api.googleLogin({
+        email,
+        providerId: email,
+        name: email.split('@')[0],
+      });
+      setAuthUser(response.user);
+      persistAuth(response.user);
+      goToDashboardByRole(response.user.role);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Google login failed.';
+      setLoginError(message);
+      setScreen('login');
+    } finally {
+      setIsGoogleLoggingIn(false);
+    }
+  };
+
+  const handleRegister = async (payload: { name: string; email: string; password: string }) => {
+    try {
+      setIsRegistering(true);
+      setRegisterError(null);
+      setRegisterSuccess(null);
+      const response = await api.register(payload);
+      setRegisterSuccess(response.message);
+      setAuthUser(response.user);
+      persistAuth(response.user);
+      goToDashboardByRole(response.user.role);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Register failed.';
+      setRegisterError(message);
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const handleBackToLogin = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Ignore logout API failures and continue local sign-out.
+    }
+    clearAuth();
+    setAuthUser(null);
+    setLoginError(null);
+    setScreen('login');
+  };
+
+  const handleResetPassword = async (payload: { email: string; newPassword: string }) => {
+    try {
+      setIsResettingPassword(true);
+      setResetError(null);
+      setResetSuccess(null);
+      const response = await api.resetPassword(payload);
+      setResetSuccess(response.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Reset password failed.';
+      setResetError(message);
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   return (
     <div className="min-h-screen">
+      {authUser && (
+        <div className="mx-auto max-w-3xl px-4 pt-4">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            Logged in as {authUser.email} ({authUser.role})
+          </div>
+        </div>
+      )}
+
       {screen === 'login' && (
         <LoginScreen 
           onRegister={handleRegisterClick} 
           onGoogleLogin={handleGoogleLoginClick}
           onForgotPassword={handleForgotPasswordClick}
+          onLogin={handleLogin}
+          isLoggingIn={isLoggingIn || isGoogleLoggingIn}
+          errorMessage={loginError}
         />
       )}
       
       {screen === 'register' && (
         <RegisterScreen 
           onLogin={handleLoginClick} 
-          onGoogleLogin={handleGoogleLoginClick} 
+          onGoogleLogin={handleGoogleLoginClick}
+          onRegister={handleRegister}
+          isSubmitting={isRegistering}
+          errorMessage={registerError}
+          successMessage={registerSuccess}
         />
       )}
       
@@ -48,7 +184,19 @@ export default function App() {
         <ResetPasswordScreen
           onBackToLogin={handleLoginClick}
           onGoogleLogin={handleGoogleLoginClick}
+          onResetPassword={handleResetPassword}
+          isSubmitting={isResettingPassword}
+          errorMessage={resetError}
+          successMessage={resetSuccess}
         />
+      )}
+
+      {screen === 'dashboard-user' && (
+        <DashboardView role="user" onBackToLogin={handleBackToLogin} />
+      )}
+
+      {screen === 'dashboard-admin' && (
+        <DashboardView role="admin" onBackToLogin={handleBackToLogin} />
       )}
     </div>
   );

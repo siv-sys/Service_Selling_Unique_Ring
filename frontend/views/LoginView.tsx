@@ -8,6 +8,9 @@ interface LoginScreenProps {
   onRegister: () => void;
   onGoogleLogin: () => void;
   onForgotPassword: () => void;
+  onLogin: (payload: { email: string; password: string; remember: boolean }) => Promise<void>;
+  isLoggingIn?: boolean;
+  errorMessage?: string | null;
 }
 
 const MailIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
@@ -28,8 +31,13 @@ export function LoginScreen({
   onRegister,
   onGoogleLogin,
   onForgotPassword,
+  onLogin,
+  isLoggingIn = false,
+  errorMessage = null,
 }: LoginScreenProps) {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
 
   return (
     <AuthLayout
@@ -48,7 +56,13 @@ export function LoginScreen({
         <p className="text-sm text-slate-500">Welcome back! Please enter your details.</p>
       </div>
 
-      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onLogin({ email, password, remember });
+        }}
+      >
         <InputField
           label="Email Address"
           placeholder="name@company.com"
@@ -62,6 +76,8 @@ export function LoginScreen({
           type="password"
           placeholder="Enter your password "
           icon={LockIcon}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           rightElement={
             <button
               type="button"
@@ -77,6 +93,8 @@ export function LoginScreen({
           <input
             type="checkbox"
             id="remember"
+            checked={remember}
+            onChange={(event) => setRemember(event.target.checked)}
             className="size-4 cursor-pointer rounded border-slate-300 text-brand focus:ring-brand"
           />
           <label htmlFor="remember" className="cursor-pointer text-xs font-semibold text-slate-600">
@@ -84,11 +102,18 @@ export function LoginScreen({
           </label>
         </div>
 
+        {errorMessage && (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
+            {errorMessage}
+          </p>
+        )}
+
         <button
           type="submit"
-          className="w-full rounded-xl bg-brand px-4 py-3 font-bold text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-dark active:scale-[0.98]"
+          disabled={isLoggingIn}
+          className="w-full rounded-xl bg-brand px-4 py-3 font-bold text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
         >
-          Sign In
+          {isLoggingIn ? 'Signing In...' : 'Sign In'}
         </button>
       </form>
 

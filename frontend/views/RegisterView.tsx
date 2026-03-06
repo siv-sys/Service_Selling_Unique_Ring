@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AuthLayout } from '../components/AuthLayout';
 import { InputField } from '../components/InputField';
 import { GoogleLoginButton } from '../components/GoogleLoginButton';
@@ -5,9 +6,26 @@ import { GoogleLoginButton } from '../components/GoogleLoginButton';
 interface RegisterScreenProps {
   onLogin: () => void;
   onGoogleLogin: () => void;
+  onRegister: (payload: { name: string; email: string; password: string }) => Promise<void>;
+  isSubmitting?: boolean;
+  errorMessage?: string | null;
+  successMessage?: string | null;
 }
 
-export function RegisterScreen({ onLogin, onGoogleLogin }: RegisterScreenProps) {
+export function RegisterScreen({
+  onLogin,
+  onGoogleLogin,
+  onRegister,
+  isSubmitting = false,
+  errorMessage = null,
+  successMessage = null,
+}: RegisterScreenProps) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const passwordMatch = password.length > 0 && password === confirmPassword;
+
   return (
     <AuthLayout
       title="Begin Your Legacy"
@@ -19,24 +37,69 @@ export function RegisterScreen({ onLogin, onGoogleLogin }: RegisterScreenProps) 
         <p className="text-sm text-slate-500">Please fill in your details to get started.</p>
       </div>
 
-      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-        <InputField label="Full Name" placeholder="Enter your full name" />
-
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!passwordMatch) return;
+          onRegister({ name, email, password });
+        }}
+      >
         <InputField
-          label="Email or Phone Number"
-          placeholder="name@example.com or +1 (555) 000-0000"
+          label="Full Name"
+          placeholder="Enter your full name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
         />
 
-        <InputField label="Password" type="password" placeholder="........" />
+        <InputField
+          label="Email Address"
+          placeholder="name@example.com"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
 
-        <InputField label="Confirm Password" type="password" placeholder="........" />
+        <InputField
+          label="Password"
+          type="password"
+          placeholder="........"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+
+        <InputField
+          label="Confirm Password"
+          type="password"
+          placeholder="........"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+        />
+
+        {!passwordMatch && confirmPassword.length > 0 && (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
+            Password and confirm password do not match.
+          </p>
+        )}
+
+        {errorMessage && (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
+            {errorMessage}
+          </p>
+        )}
+
+        {successMessage && (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+            {successMessage}
+          </p>
+        )}
 
         <div className="pt-2">
           <button
             type="submit"
-            className="w-full rounded-xl bg-brand px-4 py-3 font-bold text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-dark active:scale-[0.98]"
+            disabled={isSubmitting || !passwordMatch}
+            className="w-full rounded-xl bg-brand px-4 py-3 font-bold text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
           >
-            Register
+            {isSubmitting ? 'Registering...' : 'Register'}
           </button>
         </div>
       </form>
