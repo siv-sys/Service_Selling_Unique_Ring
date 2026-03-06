@@ -43,7 +43,10 @@ const RelationshipView = ({
       <style>{`
         .relationship-page {
           min-height: 100vh;
-          background: #f3f5f8;
+          background:
+            radial-gradient(circle at 100% -8%, rgba(234, 63, 104, 0.12), transparent 36%),
+            radial-gradient(circle at -10% 110%, rgba(71, 125, 236, 0.14), transparent 34%),
+            #f3f6fb;
           color: #101b38;
           font-family: Manrope, 'Segoe UI', sans-serif;
         }
@@ -56,8 +59,10 @@ const RelationshipView = ({
 
         .relationship-topbar {
           height: 72px;
-          border-bottom: 1px solid #dde3ec;
-          background: #f4f5f7;
+          border-bottom: 1px solid #d8e1ee;
+          background: rgba(248, 251, 255, 0.85);
+          backdrop-filter: blur(10px);
+          box-shadow: 0 8px 20px rgba(19, 38, 72, 0.07);
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -109,19 +114,27 @@ const RelationshipView = ({
           padding: 2px 2px 18px;
           position: relative;
           white-space: nowrap;
+          transition: color 0.2s ease, background 0.2s ease;
+        }
+
+        .top-link:hover {
+          color: #2d3f61;
         }
 
         .top-link.active {
           color: #ef2f5a;
+          background: #fff1f5;
+          border-radius: 999px;
+          padding: 8px 12px 18px;
         }
 
         .top-link.active::after {
           content: '';
           position: absolute;
-          left: 0;
-          right: 0;
+          left: 12px;
+          right: 12px;
           bottom: 2px;
-          height: 2px;
+          height: 3px;
           background: #ef2f5a;
           border-radius: 999px;
         }
@@ -147,6 +160,7 @@ const RelationshipView = ({
           align-items: center;
           gap: 6px;
           background: #fff3f6;
+          box-shadow: 0 8px 16px rgba(239, 47, 90, 0.12);
           line-height: 1;
         }
 
@@ -162,18 +176,24 @@ const RelationshipView = ({
           object-fit: cover;
           border: 1px solid #d4dbe6;
           cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .mini-avatar:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 16px rgba(24, 45, 81, 0.2);
         }
 
         .relationship-wrap {
-          max-width: 1140px;
+          max-width: 1120px;
           margin: 0 auto;
-          padding: 72px 20px 56px;
+          padding: 58px 20px 56px;
         }
         
 
         .hero {
           text-align: center;
-          margin-bottom: 54px;
+          margin-bottom: 40px;
         }
 
         .label {
@@ -192,29 +212,30 @@ const RelationshipView = ({
         }
 
         .hero h1 {
-          margin: 18px 0 10px;
-          font-size: clamp(36px, 5.1vw, 56px);
+          margin: 16px 0 10px;
+          font-size: clamp(38px, 5.2vw, 58px);
           letter-spacing: -0.04em;
-          font-weight: 700;
+          font-weight: 800;
           color: #0f1935;
           line-height: 1.06;
+          text-wrap: balance;
         }
 
         .hero p {
           margin: 0;
           color: #6d7e9a;
-          font-size: 22px;
+          font-size: 18px;
           font-weight: 600;
-          line-height: 1.5;
+          line-height: 1.45;
         }
 
         .pair-code {
           margin-top: 18px;
           display: inline-block;
-          border: 1px solid #d7deea;
-          border-radius: 8px;
-          background: #f5f8fc;
-          color: #8d9cb4;
+          border: 1px solid #d3dfee;
+          border-radius: 999px;
+          background: #f8fbff;
+          color: #7d8ea8;
           padding: 7px 14px;
           font-size: 10px;
           font-weight: 900;
@@ -223,11 +244,23 @@ const RelationshipView = ({
         }
 
         .certificate {
-          background: #f9fbfd;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 251, 255, 0.95));
           border-radius: 28px;
-          border: 1px solid #e4eaf2;
-          box-shadow: 0 14px 34px rgba(37, 63, 105, 0.08);
+          border: 1px solid #dbe5f2;
+          box-shadow: 0 20px 42px rgba(29, 54, 94, 0.11);
           padding: 44px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .certificate::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, rgba(239, 47, 90, 0.45), rgba(70, 125, 236, 0.35));
         }
 
         .identity {
@@ -237,6 +270,10 @@ const RelationshipView = ({
           align-items: start;
           justify-items: center;
           margin-bottom: 52px;
+          border: 1px solid #dfe8f3;
+          border-radius: 22px;
+          background: linear-gradient(180deg, #ffffff, #f8fbff);
+          padding: 24px 18px;
         }
 
         .user {
@@ -244,18 +281,19 @@ const RelationshipView = ({
         }
 
         .avatar {
-          width: 96px;
-          height: 96px;
+          width: 104px;
+          height: 104px;
           border-radius: 50%;
-          border: 3px solid #f7f9fc;
-          box-shadow: 0 0 0 1px #d6deeb;
+          border: 4px solid #f8fbff;
+          box-shadow: 0 0 0 1px #d2ddec, 0 10px 18px rgba(23, 45, 81, 0.18);
           object-fit: cover;
           margin-bottom: 14px;
         }
 
+        .user h2,
         .user h3 {
           margin: 0;
-          font-size: 34px;
+          font-size: 32px;
           font-weight: 900;
           color: #131e3a;
           letter-spacing: -0.03em;
@@ -285,6 +323,8 @@ const RelationshipView = ({
           color: #ef2f5a;
           margin: 0 auto 12px;
           font-size: 30px;
+          background: linear-gradient(180deg, #fff4f7, #ffeff3);
+          box-shadow: inset 0 0 0 1px #f8ccd7, 0 10px 20px rgba(239, 47, 90, 0.12);
         }
 
         .center-info .kicker {
@@ -299,7 +339,7 @@ const RelationshipView = ({
         .center-info .date {
           margin: 7px 0 0;
           color: #17223e;
-          font-size: 30px;
+          font-size: 34px;
           font-weight: 900;
           line-height: 1.2;
         }
@@ -313,24 +353,33 @@ const RelationshipView = ({
         .grid-cards {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 26px;
+          gap: 22px;
           margin-bottom: 42px;
         }
 
         .card {
-          border: 1px solid #e3e8f0;
+          border: 1px solid #dbe5f1;
           border-radius: 24px;
-          background: #f3f6fa;
+          background: linear-gradient(180deg, #ffffff, #f7faff);
           min-height: 360px;
           padding: 32px;
+          box-shadow: 0 14px 28px rgba(23, 45, 81, 0.08);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+          transform: translateY(-2px);
+          border-color: #cbd9ea;
+          box-shadow: 0 18px 36px rgba(23, 45, 81, 0.13);
         }
 
         .card h4 {
           margin: 0;
-          font-size: 30px;
+          font-size: 34px;
           font-weight: 900;
           color: #141f39;
-          margin-bottom: 8px;
+          margin-bottom: 10px;
+          letter-spacing: -0.03em;
         }
 
         .meta {
@@ -356,15 +405,22 @@ const RelationshipView = ({
         .field-input,
         .field-select {
           flex: 1;
-          height: 38px;
+          height: 42px;
           border-radius: 9px;
           border: 1px solid #cfdae8;
           background: #fbfdff;
           color: #1f2c47;
           padding: 0 10px;
           font-size: 13px;
-          font-weight: 700;
+          font-weight: 800;
           font-family: inherit;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .field-input:hover,
+        .field-select:hover {
+          background: #ffffff;
+          border-color: #bfcee3;
         }
 
         .field-input:focus,
@@ -377,27 +433,30 @@ const RelationshipView = ({
         .outline-btn,
         .solid-btn {
           margin-top: 22px;
-          border-radius: 10px;
+          border-radius: 12px;
           font-weight: 900;
-          padding: 10px 20px;
+          padding: 11px 22px;
           cursor: pointer;
           font-size: 14px;
           font-family: inherit;
+          transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
         }
 
         .outline-btn {
           border: 1.5px solid #ef2f5a;
           color: #ef2f5a;
-          background: transparent;
+          background: #fff2f6;
           width: 180px;
+          box-shadow: inset 0 0 0 1px #ffd6e0;
         }
 
         .helper {
           margin: 6px 0 0;
           color: #a0aec2;
           text-transform: uppercase;
-          letter-spacing: 0.07em;
-          font-size: 13px;
+          letter-spacing: 0.08em;
+          font-size: 11px;
+          font-weight: 800;
         }
 
         .options {
@@ -408,8 +467,8 @@ const RelationshipView = ({
 
         .option {
           position: relative;
-          height: 44px;
-          border-radius: 10px;
+          height: 46px;
+          border-radius: 12px;
           border: 1px solid #cfd9e7;
           background: #f8fbff;
           display: flex;
@@ -420,6 +479,12 @@ const RelationshipView = ({
           font-size: 14px;
           font-weight: 700;
           cursor: pointer;
+          transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .option:hover {
+          border-color: #bacce3;
+          background: #f3f8ff;
         }
 
         .option input {
@@ -440,6 +505,8 @@ const RelationshipView = ({
         .option.active {
           border-color: #ef2f5a;
           color: #1b2642;
+          background: #fff4f8;
+          box-shadow: inset 0 0 0 1px #ffd3de;
         }
 
         .option.active .dot {
@@ -465,8 +532,8 @@ const RelationshipView = ({
         .ring-input {
           flex: 1;
           min-width: 0;
-          height: 40px;
-          border-radius: 10px;
+          height: 44px;
+          border-radius: 12px;
           border: 1px solid #cfd9e7;
           background: #f8fbff;
           padding: 0 12px;
@@ -485,13 +552,14 @@ const RelationshipView = ({
           border: 1px solid #ef2f5a;
           background: #fff2f6;
           color: #ef2f5a;
-          height: 40px;
-          border-radius: 10px;
-          padding: 0 14px;
+          height: 44px;
+          border-radius: 12px;
+          padding: 0 16px;
           font-size: 13px;
           font-weight: 800;
           cursor: pointer;
           font-family: inherit;
+          box-shadow: inset 0 0 0 1px #ffd5de;
         }
 
         .ring-list {
@@ -534,6 +602,13 @@ const RelationshipView = ({
           box-shadow: 0 9px 20px rgba(239, 47, 90, 0.28);
         }
 
+        .outline-btn:hover,
+        .solid-btn:hover,
+        .ring-add-btn:hover {
+          transform: translateY(-1px);
+          filter: saturate(1.03);
+        }
+
         .divider {
           height: 1px;
           background: #e0e7f0;
@@ -552,10 +627,12 @@ const RelationshipView = ({
           border-radius: 22px;
           border: 1px dashed #d2dce9;
           color: #a0aec4;
+          background: #f7faff;
           display: grid;
           place-items: center;
           font-size: 15px;
           font-weight: 600;
+          margin-bottom: 10px;
         }
 
         .footer {
@@ -621,6 +698,7 @@ const RelationshipView = ({
             grid-template-columns: 1fr;
             gap: 16px;
             margin-bottom: 32px;
+            padding: 18px 14px;
           }
 
           
@@ -649,8 +727,13 @@ const RelationshipView = ({
           }
 
           .card h4 {
-            font-size: 30px;
+            font-size: 28px;
             margin-bottom: 8px;
+          }
+
+          .user h2,
+          .user h3 {
+            font-size: 26px;
           }
 
           .row {
@@ -722,7 +805,7 @@ const RelationshipView = ({
         </div>
 
         <div className="top-links" aria-label="Primary navigation">
-          <button className="top-link">Couple Shop</button>
+          <button className="top-link">Dashboard</button>
           <button className="top-link">Ring Scan</button>
           <button className="top-link">My Ring</button>
           <button className="top-link" type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
