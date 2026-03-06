@@ -6,6 +6,9 @@ interface InputFieldProps {
   placeholder?: string;
   icon?: React.ComponentType<{ className?: string }>;
   rightElement?: React.ReactNode;
+  autoFocus?: boolean;
+  value?: string;
+  onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const EyeIcon = ({ className }: { className?: string }) => (
@@ -24,7 +27,16 @@ const EyeOffIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export function InputField({ label, type = 'text', placeholder, icon: Icon, rightElement }: InputFieldProps) {
+export function InputField({
+  label,
+  type = 'text',
+  placeholder,
+  icon: Icon,
+  rightElement,
+  autoFocus = false,
+  value,
+  onChange,
+}: InputFieldProps) {
   const [showPassword, setShowPassword] = React.useState(false);
   const isPasswordField = type === 'password';
   const inputType = isPasswordField ? (showPassword ? 'text' : 'password') : type;
@@ -46,6 +58,9 @@ export function InputField({ label, type = 'text', placeholder, icon: Icon, righ
         <input
           type={inputType}
           placeholder={placeholder}
+          autoFocus={autoFocus}
+          value={value}
+          onChange={onChange}
           className={`
             block w-full rounded-lg border border-slate-200 bg-white py-3 pr-4 transition-all
             focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none

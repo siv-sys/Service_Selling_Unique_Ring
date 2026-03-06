@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { FC, SVGProps } from 'react';
 import { AuthLayout } from '../components/AuthLayout';
 import { InputField } from '../components/InputField'; 
@@ -23,7 +24,13 @@ const LockIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
-export function LoginScreen({ onRegister, onGoogleLogin, onForgotPassword }: LoginScreenProps) {
+export function LoginScreen({
+  onRegister,
+  onGoogleLogin,
+  onForgotPassword,
+}: LoginScreenProps) {
+  const [email, setEmail] = useState('');
+
   return (
     <AuthLayout
       title="A Promise of Forever"
@@ -42,7 +49,13 @@ export function LoginScreen({ onRegister, onGoogleLogin, onForgotPassword }: Log
       </div>
 
       <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-        <InputField label="Email Address" placeholder="name@company.com" icon={MailIcon} />
+        <InputField
+          label="Email Address"
+          placeholder="name@company.com"
+          icon={MailIcon}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
 
         <InputField
           label="Password"

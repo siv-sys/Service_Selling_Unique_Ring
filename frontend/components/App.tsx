@@ -40,7 +40,7 @@ export default function App() {
       {screen === 'google-select' && (
         <GoogleAccountSelector 
           onBack={handleBackFromGoogle} 
-          onSelect={handleAccountSelect} 
+          onSelect={handleAccountSelect}
         />
       )}
 

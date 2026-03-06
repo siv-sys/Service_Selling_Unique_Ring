@@ -1,4 +1,5 @@
-import type { FC, SVGProps } from 'react';
+import { useState } from 'react';
+import type { FC, FormEvent, SVGProps } from 'react';
 import { ACCOUNTS } from './constants';
 import { GoogleIcon } from './GoogleIcon';
 
@@ -30,6 +31,24 @@ const UserPlusIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
 );
 
 export function GoogleAccountSelector({ onBack, onSelect }: GoogleAccountSelectorProps) {
+  const [isCustomEmailMode, setIsCustomEmailMode] = useState(false);
+  const [customEmail, setCustomEmail] = useState('');
+  const [showEmailError, setShowEmailError] = useState(false);
+
+  const handleCustomEmailSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const value = customEmail.trim();
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+    if (!isEmailValid) {
+      setShowEmailError(true);
+      return;
+    }
+
+    setShowEmailError(false);
+    onSelect(value);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-10">
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-10 shadow-sm">
@@ -75,14 +94,61 @@ export function GoogleAccountSelector({ onBack, onSelect }: GoogleAccountSelecto
               </button>
             ))}
 
-            <button className="group flex w-full items-center gap-5 px-6 py-5 text-left transition-all hover:bg-neutral-50">
-              <div className="flex size-12 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50">
-                <UserPlusIcon className="size-5 text-neutral-400" />
-              </div>
-              <div className="flex-grow">
-                <div className="text-base font-medium text-neutral-700">Use another account</div>
-              </div>
-            </button>
+            {!isCustomEmailMode && (
+              <button
+                onClick={() => {
+                  setIsCustomEmailMode(true);
+                  setShowEmailError(false);
+                }}
+                className="group flex w-full items-center gap-5 border-t border-slate-100 bg-gradient-to-r from-brand/[0.08] to-transparent px-6 py-5 text-left transition-all hover:from-brand/[0.14]"
+              >
+                <div className="flex size-12 items-center justify-center rounded-full border border-brand/25 bg-white">
+                  <UserPlusIcon className="size-5 text-brand" />
+                </div>
+                <div className="flex-grow">
+                  <div className="text-base font-semibold text-slate-800">Use another account</div>
+                  <div className="text-sm text-slate-500">Sign in with a different email</div>
+                </div>
+                <ChevronRightIcon className="size-5 text-brand transition-transform group-hover:translate-x-1" />
+              </button>
+            )}
+
+            {isCustomEmailMode && (
+              <form onSubmit={handleCustomEmailSubmit} className="space-y-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">Email Address</label>
+                <input
+                  type="email"
+                  value={customEmail}
+                  onChange={(event) => {
+                    setCustomEmail(event.target.value);
+                    if (showEmailError) setShowEmailError(false);
+                  }}
+                  placeholder="Enter another email"
+                  autoFocus
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-brand focus:ring-2 focus:ring-brand/10"
+                />
+                {showEmailError && <p className="text-xs font-medium text-rose-500">Please enter a valid email address.</p>}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-dark"
+                  >
+                    Continue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomEmailMode(false);
+                      setCustomEmail('');
+                      setShowEmailError(false);
+                    }}
+                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>
