@@ -1,33 +1,34 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Header from '../components/Header';
-import { 
-  Users, 
-  ShoppingBag, 
-  Heart, 
-  TrendingUp, 
-  AlertCircle, 
-  CheckCircle2, 
+import { api } from '../lib/api';
+import {
+  Users,
+  ShoppingBag,
+  Heart,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
   Info
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   Cell
 } from 'recharts';
 
 const data = [
-  { name: 'MON', value: 480 },
+  { name: 'MON', value: 380 },
   { name: 'TUE', value: 550 },
   { name: 'WED', value: 420 },
-  { name: 'THU', value: 620 },
+  { name: 'THU', value: 580 },
   { name: 'FRI', value: 380 },
-  { name: 'SAT', value: 450 },
-  { name: 'SUN', value: 300 },
+  { name: 'SAT', value: 610 },
+  { name: 'SUN', value: 680 },
 ];
 
 type RecentAlert = {
@@ -64,9 +65,56 @@ type RelationshipFollow = {
   lastInteraction: string;
   reminderAt: string;
 };
-
+type WeeklyConnectivityPoint = {
+  name: string;
+  value: number;
+};
+type PairingRequest = {
+  users: [string, string];
+  model: string;
+  date: string;
+  status: 'Pending' | 'Approved';
+};
+type RelationshipUserAlert = {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  type: 'new' | 'returning' | 'active' | 'anniversary';
+};
+type DashboardResponse = {
+  stats: {
+    totalUsers: number;
+    totalRingsSold: number;
+    activeRelationships: number;
+    usersChange: string;
+    ringsSoldChange: string;
+    relationshipsChange: string;
+    connectivityPercent: number;
+    connectivityChange: string;
+  };
+  systemUsers: SystemUser[];
+  ringSales: RingSale[];
+  relationshipFollows: RelationshipFollow[];
+  pairingRequests: PairingRequest[];
+  relationshipUserAlerts: RelationshipUserAlert[];
+  weeklyConnectivity: WeeklyConnectivityPoint[];
+};
 const Dashboard = () => {
   const [lastExport, setLastExport] = useState('');
+  const [dashboardError, setDashboardError] = useState('');
+  const [dbConnected, setDbConnected] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalUsers: -1,
+    totalRingsSold: -1,
+    activeRelationships: -1,
+    usersChange: '+12%',
+    ringsSoldChange: '+5%',
+    relationshipsChange: '+2%',
+    connectivityPercent: 94,
+    connectivityChange: '+1.2%',
+  });
+  const [weeklyConnectivity, setWeeklyConnectivity] = useState<WeeklyConnectivityPoint[]>(data);
   const [activeManagePanel, setActiveManagePanel] = useState<'users' | 'rings' | 'relationships' | null>(null);
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([
     { id: 'usr-1001', name: 'Alex Rivera', email: 'alex@smartring.com', role: 'Admin', status: 'Active', lastActive: '2 minutes ago' },
@@ -87,55 +135,114 @@ const Dashboard = () => {
     { id: 'rel-004', pair: 'Nika & Dara', stage: 'New', lastInteraction: 'just now', reminderAt: 'Today 10:00 PM' }
   ]);
 
-  const totalUsersValue = String(systemUsers.length);
-  const totalRingsSoldValue = String(ringSales.filter((sale) => sale.status === 'Sold').length);
-  const activeRelationshipsValue = String(
-    relationshipFollows.filter((item) => item.stage === 'Active' || item.stage === 'Anniversary').length
-  );
+  const getTotalUsers = () =>
+    dashboardStats.totalUsers >= 0 ? dashboardStats.totalUsers : systemUsers.length;
 
-  const pairingRequests = useMemo(
-    () => [
-      { users: ['Alex', 'Jordan'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 10:45 AM', status: 'Pending' },
-      { users: ['Sam', 'Casey'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 09:12 AM', status: 'Approved' },
-      { users: ['Taylor', 'Morgan'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 08:30 AM', status: 'Pending' }
-    ],
-    []
-  );
+  const getTotalRingsSold = () =>
+    dashboardStats.totalRingsSold >= 0
+      ? dashboardStats.totalRingsSold
+      : ringSales.filter((sale) => sale.status === 'Sold').length;
 
-  const relationshipUserAlerts = useMemo(
-    () => [
-      {
-        id: 'rel-new-001',
-        title: 'New User Registered',
-        description: 'Nika & Dara created a new relationship account and completed website registration.',
-        time: '2 minutes ago',
-        type: 'new' as const
-      },
-      {
-        id: 'rel-return-001',
-        title: 'Returning User Activity',
-        description: 'Alex (existing user) returned and linked relationship profile with Jordan.',
-        time: '18 minutes ago',
-        type: 'returning' as const
-      },
-      {
-        id: 'rel-active-001',
-        title: 'Active User Session',
-        description: 'Sam is active now and updated ring sync settings.',
-        time: 'just now',
-        type: 'active' as const
-      },
-      {
-        id: 'rel-anniv-001',
-        title: 'Anniversary Reminder',
-        description: 'Taylor & Morgan have relationship anniversary today.',
-        time: 'Today 8:00 PM',
-        type: 'anniversary' as const
+  const getActiveRelationships = () =>
+    dashboardStats.activeRelationships >= 0
+      ? dashboardStats.activeRelationships
+      : relationshipFollows.filter((item) => item.stage === 'Active' || item.stage === 'Anniversary').length;
+
+  const totalUsersValue = String(getTotalUsers());
+  const totalRingsSoldValue = String(getTotalRingsSold());
+  const activeRelationshipsValue = String(getActiveRelationships());
+
+  const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([
+    { users: ['Alex', 'Jordan'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 10:45 AM', status: 'Pending' },
+    { users: ['Sam', 'Casey'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 09:12 AM', status: 'Approved' },
+    { users: ['Taylor', 'Morgan'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 08:30 AM', status: 'Pending' }
+  ]);
+
+  const [relationshipUserAlerts, setRelationshipUserAlerts] = useState<RelationshipUserAlert[]>([
+    {
+      id: 'rel-new-001',
+      title: 'New User Registered',
+      description: 'Nika & Dara created a new relationship account and completed website registration.',
+      time: '2 minutes ago',
+      type: 'new'
+    },
+    {
+      id: 'rel-return-001',
+      title: 'Returning User Activity',
+      description: 'Alex (existing user) returned and linked relationship profile with Jordan.',
+      time: '18 minutes ago',
+      type: 'returning'
+    },
+    {
+      id: 'rel-active-001',
+      title: 'Active User Session',
+      description: 'Sam is active now and updated ring sync settings.',
+      time: 'just now',
+      type: 'active'
+    },
+    {
+      id: 'rel-anniv-001',
+      title: 'Anniversary Reminder',
+      description: 'Taylor & Morgan have relationship anniversary today.',
+      time: 'Today 8:00 PM',
+      type: 'anniversary'
+    }
+  ]);
+
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+    return fallback;
+  };
+
+  const applyDashboardResponse = (response: DashboardResponse) => {
+    setDashboardStats((prev) => response.stats || prev);
+    if (Array.isArray(response.weeklyConnectivity)) {
+      setWeeklyConnectivity(response.weeklyConnectivity);
+    }
+    if (Array.isArray(response.systemUsers)) {
+      setSystemUsers(response.systemUsers);
+    }
+    if (Array.isArray(response.ringSales)) {
+      setRingSales(response.ringSales);
+    }
+    if (Array.isArray(response.relationshipFollows)) {
+      setRelationshipFollows(response.relationshipFollows);
+    }
+    if (Array.isArray(response.pairingRequests)) {
+      setPairingRequests(response.pairingRequests);
+    }
+    if (Array.isArray(response.relationshipUserAlerts)) {
+      setRelationshipUserAlerts(response.relationshipUserAlerts);
+    }
+  };
+
+  const reloadDashboardFromBackend = async () => {
+    const response = await api.get<DashboardResponse>('/dashboard');
+    applyDashboardResponse(response);
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadDashboard = async () => {
+      try {
+        const response = await api.get<DashboardResponse>('/dashboard');
+        if (!isMounted) return;
+        applyDashboardResponse(response);
+        setDashboardError('');
+        setDbConnected(true);
+      } catch (_error) {
+        if (!isMounted) return;
+        setDashboardError('Failed to load dashboard data from backend. Showing local data.');
+        setDbConnected(false);
       }
-    ],
-    []
-  );
-
+    };
+    loadDashboard();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const recentAlerts = useMemo<RecentAlert[]>(() => {
     const pendingRequests = pairingRequests.filter((item) => item.status === 'Pending');
     const approvedRequests = pairingRequests.filter((item) => item.status === 'Approved');
@@ -145,23 +252,23 @@ const Dashboard = () => {
     return [
       pendingRequests.length
         ? {
-            id: 'pending-pairing',
-            title: 'Pending Pairing Request',
-            desc: `${pendingRequests[0].users.join(' & ')} are waiting for approval.`,
-            time: pendingRequests[0].date,
-            color: 'red',
-            icon: 'alert'
-          }
+          id: 'pending-pairing',
+          title: 'Pending Pairing Request',
+          desc: `${pendingRequests[0].users.join(' & ')} are waiting for approval.`,
+          time: pendingRequests[0].date,
+          color: 'red',
+          icon: 'alert'
+        }
         : null,
       approvedRequests.length
         ? {
-            id: 'approved-pairing',
-            title: 'Approved Pairings',
-            desc: `${approvedRequests.length} pairing request(s) approved successfully.`,
-            time: 'Updated from latest request list',
-            color: 'green',
-            icon: 'check'
-          }
+          id: 'approved-pairing',
+          title: 'Approved Pairings',
+          desc: `${approvedRequests.length} pairing request(s) approved successfully.`,
+          time: 'Updated from latest request list',
+          color: 'green',
+          icon: 'check'
+        }
         : null,
       {
         id: 'active-users',
@@ -184,48 +291,44 @@ const Dashboard = () => {
 
   const getTimestamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
-  const handleToggleUserStatus = (userId: string) => {
-    setSystemUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId
-          ? { ...user, status: user.status === 'Active' ? 'Suspended' : 'Active', lastActive: 'just now' }
-          : user
-      )
-    );
+  const handleToggleUserStatus = async (userId: string) => {
+    try {
+      await api.patch<{ user: SystemUser }>(`/dashboard/users/${userId}/status`, {});
+      await reloadDashboardFromBackend();
+      setDashboardError('');
+    } catch (error) {
+      setDashboardError(getErrorMessage(error, 'Failed to update user status in database.'));
+    }
   };
 
-  const handleChangeUserRole = (userId: string) => {
-    const roleOrder: Array<SystemUser['role']> = ['User', 'Manager', 'Admin'];
-    setSystemUsers((prev) =>
-      prev.map((user) => {
-        if (user.id !== userId) return user;
-        const currentIndex = roleOrder.indexOf(user.role);
-        const nextRole = roleOrder[(currentIndex + 1) % roleOrder.length];
-        return { ...user, role: nextRole, lastActive: 'just now' };
-      })
-    );
+  const handleChangeUserRole = async (userId: string) => {
+    try {
+      await api.patch<{ user: SystemUser }>(`/dashboard/users/${userId}/role`, {});
+      await reloadDashboardFromBackend();
+      setDashboardError('');
+    } catch (error) {
+      setDashboardError(getErrorMessage(error, 'Failed to update user role in database.'));
+    }
   };
 
-  const handleCycleSaleStatus = (saleId: string) => {
-    const statusOrder: Array<RingSale['status']> = ['Pending Payment', 'Sold', 'Refunded'];
-    setRingSales((prev) =>
-      prev.map((sale) => {
-        if (sale.id !== saleId) return sale;
-        const nextStatus = statusOrder[(statusOrder.indexOf(sale.status) + 1) % statusOrder.length];
-        return { ...sale, status: nextStatus, soldAt: 'just now' };
-      })
-    );
+  const handleCycleSaleStatus = async (saleId: string) => {
+    try {
+      await api.patch<{ ring: RingSale }>(`/dashboard/rings/${saleId}/status`, {});
+      await reloadDashboardFromBackend();
+      setDashboardError('');
+    } catch (error) {
+      setDashboardError(getErrorMessage(error, 'Failed to update ring status in database.'));
+    }
   };
 
-  const handleCycleRelationshipStage = (relationId: string) => {
-    const stageOrder: Array<RelationshipFollow['stage']> = ['New', 'Active', 'Anniversary', 'Paused'];
-    setRelationshipFollows((prev) =>
-      prev.map((relation) => {
-        if (relation.id !== relationId) return relation;
-        const nextStage = stageOrder[(stageOrder.indexOf(relation.stage) + 1) % stageOrder.length];
-        return { ...relation, stage: nextStage, lastInteraction: 'just now' };
-      })
-    );
+  const handleCycleRelationshipStage = async (relationId: string) => {
+    try {
+      await api.patch<{ relationship: RelationshipFollow }>(`/dashboard/relationships/${relationId}/stage`, {});
+      await reloadDashboardFromBackend();
+      setDashboardError('');
+    } catch (error) {
+      setDashboardError(getErrorMessage(error, 'Failed to update relationship stage in database.'));
+    }
   };
 
   const downloadBlob = (blob: Blob, fileName: string) => {
@@ -304,44 +407,45 @@ const Dashboard = () => {
 
   return (
     <>
-      <Header 
-        title="Dashboard Overview" 
-        subtitle="Platform performance and key metrics at a glance" 
+      <Header
+        title="Dashboard Overview"
+        subtitle={`Platform performance and key metrics at a glance ${dbConnected ? '🟢 Database Connected' : '🔴 Database Offline'}`}
         onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
         notifications={relationshipUserAlerts}
         showExportButton
       />
-      
+
       <main className="flex-1 overflow-y-auto p-8 space-y-8">
+        {dashboardError && <p className="text-xs font-semibold text-rose-600">{dashboardError}</p>}
         {lastExport && <p className="text-xs font-semibold text-slate-600">Last export: {lastExport}</p>}
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard 
-            title="Total Users" 
-            value={totalUsersValue} 
-            change="+12%" 
-            icon={Users} 
+          <StatCard
+            title="Total Users"
+            value={totalUsersValue}
+            change={dashboardStats.usersChange}
+            icon={Users}
             color="primary"
             onClick={() => setActiveManagePanel((prev) => (prev === 'users' ? null : 'users'))}
             active={activeManagePanel === 'users'}
             subtext="Click to manage system users"
           />
-          <StatCard 
-            title="Total Rings Sold" 
-            value={totalRingsSoldValue} 
-            change="+5%" 
-            icon={ShoppingBag} 
+          <StatCard
+            title="Total Rings Sold"
+            value={totalRingsSoldValue}
+            change={dashboardStats.ringsSoldChange}
+            icon={ShoppingBag}
             color="primary"
             onClick={() => setActiveManagePanel((prev) => (prev === 'rings' ? null : 'rings'))}
             active={activeManagePanel === 'rings'}
             subtext="Click to follow ring sales"
           />
-          <StatCard 
-            title="Active Relationships" 
-            value={activeRelationshipsValue} 
-            change="+2%" 
-            icon={Heart} 
+          <StatCard
+            title="Active Relationships"
+            value={activeRelationshipsValue}
+            change={dashboardStats.relationshipsChange}
+            icon={Heart}
             color="primary"
             onClick={() => setActiveManagePanel((prev) => (prev === 'relationships' ? null : 'relationships'))}
             active={activeManagePanel === 'relationships'}
@@ -392,11 +496,10 @@ const Dashboard = () => {
                       </td>
                       <td className="px-6 py-3">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-                            user.status === 'Active'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-rose-50 text-rose-700 border-rose-200'
-                          }`}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${user.status === 'Active'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                            }`}
                         >
                           {user.status}
                         </span>
@@ -406,11 +509,10 @@ const Dashboard = () => {
                         <button
                           type="button"
                           onClick={() => handleToggleUserStatus(user.id)}
-                          className={`text-xs font-bold px-3 py-1.5 rounded border ${
-                            user.status === 'Active'
-                              ? 'border-rose-300 text-rose-700 hover:bg-rose-50'
-                              : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                          }`}
+                          className={`text-xs font-bold px-3 py-1.5 rounded border ${user.status === 'Active'
+                            ? 'border-rose-300 text-rose-700 hover:bg-rose-50'
+                            : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                            }`}
                         >
                           {user.status === 'Active' ? 'Suspend' : 'Activate'}
                         </button>
@@ -458,13 +560,12 @@ const Dashboard = () => {
                       <td className="px-6 py-3 text-sm text-slate-600">{sale.model}</td>
                       <td className="px-6 py-3">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-                            sale.status === 'Sold'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : sale.status === 'Refunded'
-                                ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${sale.status === 'Sold'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : sale.status === 'Refunded'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
                         >
                           {sale.status}
                         </span>
@@ -519,15 +620,14 @@ const Dashboard = () => {
                       <td className="px-6 py-3 text-sm font-semibold text-slate-900">{relation.pair}</td>
                       <td className="px-6 py-3">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-                            relation.stage === 'Active'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : relation.stage === 'Anniversary'
-                                ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200'
-                                : relation.stage === 'Paused'
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                  : 'bg-sky-50 text-sky-700 border-sky-200'
-                          }`}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${relation.stage === 'Active'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : relation.stage === 'Anniversary'
+                              ? 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200'
+                              : relation.stage === 'Paused'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-sky-50 text-sky-700 border-sky-200'
+                            }`}
                         >
                           {relation.stage}
                         </span>
@@ -561,44 +661,44 @@ const Dashboard = () => {
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-primary">94%</span>
-                  <span className="text-xs font-bold px-2 py-1 bg-green-100 text-green-700 rounded-full">+1.2%</span>
+                  <span className="text-2xl font-bold text-primary">{dashboardStats.connectivityPercent}%</span>
+                  <span className="text-xs font-bold px-2 py-1 bg-green-100 text-green-700 rounded-full">{dashboardStats.connectivityChange}</span>
                 </div>
                 <button className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded text-xs font-bold shadow-sm border border-pink-700 transition-colors">
                   Actions
                 </button>
               </div>
             </div>
-            
+
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data}>
+                <BarChart data={weeklyConnectivity}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={{ stroke: '#f9a8d4' }} 
-                    tickLine={false} 
+                  <XAxis
+                    dataKey="name"
+                    axisLine={{ stroke: '#f9a8d4' }}
+                    tickLine={false}
                     tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
                     dy={10}
                   />
-                  <YAxis 
-                    axisLine={{ stroke: '#f9a8d4' }} 
-                    tickLine={false} 
+                  <YAxis
+                    axisLine={{ stroke: '#f9a8d4' }}
+                    tickLine={false}
                     tick={{ fontSize: 10, fontWeight: 500, fill: '#94a3b8' }}
                   />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {data.map((entry, index) => (
+                    {weeklyConnectivity.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 3 ? '#ec1380' : '#ec1380cc'} />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            
+
             <div className="mt-4 flex justify-center gap-8">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-primary"></span>
@@ -733,11 +833,10 @@ const PairingRow = ({ users, model, date, status }: any) => (
     <td className="px-6 py-4 text-sm">{model}</td>
     <td className="px-6 py-4 text-sm text-slate-500">{date}</td>
     <td className="px-6 py-4">
-      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${
-        status === 'Pending' 
-          ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
-          : 'bg-green-50 text-green-700 border-green-200'
-      }`}>
+      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${status === 'Pending'
+        ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+        : 'bg-green-50 text-green-700 border-green-200'
+        }`}>
         {status}
       </span>
     </td>
@@ -750,3 +849,4 @@ const PairingRow = ({ users, model, date, status }: any) => (
 );
 
 export default Dashboard;
+
