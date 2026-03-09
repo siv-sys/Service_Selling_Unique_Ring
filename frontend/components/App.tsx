@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthScreen } from './types';
 import { LoginScreen } from '../views/LoginView';
 import { RegisterScreen } from '../views/RegisterView';
@@ -20,8 +20,17 @@ export default function App() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  const goToDashboardByRole = (role: AuthUser['role']) => {
-    setScreen(role === 'admin' ? 'dashboard-admin' : 'dashboard-user');
+  const normalizeRole = (role: string | null | undefined): AuthUser['role'] => {
+    return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+  };
+
+  const normalizeUser = (user: AuthUser): AuthUser => ({
+    ...user,
+    role: normalizeRole(user.role),
+  });
+
+  const goToDashboardByRole = (role: string | null | undefined) => {
+    setScreen(normalizeRole(role) === 'admin' ? 'dashboard-admin' : 'dashboard-user');
   };
 
   const handleRegisterClick = () => {
@@ -41,10 +50,11 @@ export default function App() {
   };
   
   const persistAuth = (user: AuthUser) => {
+    const normalizedUser = normalizeUser(user);
     sessionStorage.setItem('auth_user_id', String(user.id));
-    sessionStorage.setItem('auth_roles', user.role);
-    sessionStorage.setItem('auth_email', user.email);
-    sessionStorage.setItem('auth_name', user.name || '');
+    sessionStorage.setItem('auth_roles', normalizedUser.role);
+    sessionStorage.setItem('auth_email', normalizedUser.email);
+    sessionStorage.setItem('auth_name', normalizedUser.name || '');
   };
 
   const clearAuth = () => {
@@ -55,14 +65,38 @@ export default function App() {
     localStorage.removeItem('auth_remember_token');
   };
 
+  useEffect(() => {
+    const restoreAuth = async () => {
+      const storedUserId = sessionStorage.getItem('auth_user_id');
+      if (!storedUserId) {
+        return;
+      }
+
+      try {
+        const response = await api.me();
+        const normalizedUser = normalizeUser(response.user);
+        setAuthUser(normalizedUser);
+        persistAuth(normalizedUser);
+        goToDashboardByRole(normalizedUser.role);
+      } catch {
+        clearAuth();
+        setAuthUser(null);
+        setScreen('login');
+      }
+    };
+
+    void restoreAuth();
+  }, []);
+
   const handleLogin = async (payload: { email: string; password: string; remember: boolean }) => {
     try {
       setIsLoggingIn(true);
       setLoginError(null);
       const response = await api.login(payload);
-      setAuthUser(response.user);
-      persistAuth(response.user);
-      goToDashboardByRole(response.user.role);
+      const normalizedUser = normalizeUser(response.user);
+      setAuthUser(normalizedUser);
+      persistAuth(normalizedUser);
+      goToDashboardByRole(normalizedUser.role);
 
       if (payload.remember && response.rememberToken) {
         localStorage.setItem('auth_remember_token', response.rememberToken);
@@ -84,9 +118,10 @@ export default function App() {
         providerId: email,
         name: email.split('@')[0],
       });
-      setAuthUser(response.user);
-      persistAuth(response.user);
-      goToDashboardByRole(response.user.role);
+      const normalizedUser = normalizeUser(response.user);
+      setAuthUser(normalizedUser);
+      persistAuth(normalizedUser);
+      goToDashboardByRole(normalizedUser.role);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Google login failed.';
       setLoginError(message);
@@ -103,9 +138,10 @@ export default function App() {
       setRegisterSuccess(null);
       const response = await api.register(payload);
       setRegisterSuccess(response.message);
-      setAuthUser(response.user);
-      persistAuth(response.user);
-      goToDashboardByRole(response.user.role);
+      const normalizedUser = normalizeUser(response.user);
+      setAuthUser(normalizedUser);
+      persistAuth(normalizedUser);
+      goToDashboardByRole(normalizedUser.role);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Register failed.';
       setRegisterError(message);

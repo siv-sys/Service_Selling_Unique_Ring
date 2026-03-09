@@ -1,17 +1,28 @@
 const crypto = require('crypto');
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { query, pool } = require('../config/db');
 
 const router = express.Router();
+const BCRYPT_ROUNDS = 12;
+const MIN_PASSWORD_LENGTH = 9;
+
+function normalizeRole(role) {
+  return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+}
 
 function buildSafeUser(row) {
   return {
     id: row.id,
     email: row.email,
     name: row.name || '',
-    role: row.role || 'user',
+    role: normalizeRole(row.role),
     provider: row.provider || null,
   };
+}
+
+function isBcryptHash(value) {
+  return /^\$2[aby]\$\d{2}\$/.test(String(value || ''));
 }
 
 router.post('/', async (req, res, next) => {
@@ -20,6 +31,10 @@ router.post('/', async (req, res, next) => {
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required.' });
+    }
+
+    if (String(password).length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ message: 'Password must be more than 8 characters.' });
     }
 
     const users = await query(
@@ -32,7 +47,18 @@ router.post('/', async (req, res, next) => {
     }
 
     const user = users[0];
-    if (String(user.password_hash) !== String(password)) {
+    const providedPassword = String(password);
+    let passwordMatches = false;
+
+    if (isBcryptHash(user.password_hash)) {
+      passwordMatches = await bcrypt.compare(providedPassword, String(user.password_hash));
+    } else if (String(user.password_hash) === providedPassword) {
+      passwordMatches = true;
+      const upgradedHash = await bcrypt.hash(providedPassword, BCRYPT_ROUNDS);
+      await query('UPDATE users SET password_hash = ? WHERE id = ?', [upgradedHash, user.id]);
+    }
+
+    if (!passwordMatches) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
@@ -76,10 +102,11 @@ router.post('/google', async (req, res, next) => {
       userId = userRow.id;
     } else {
       const generatedPassword = `google_${crypto.randomUUID()}`;
+      const generatedPasswordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
       const fallbackName = name || normalizedEmail.split('@')[0];
       const [insertResult] = await connection.execute(
         'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
-        [normalizedEmail, generatedPassword, fallbackName, 'user'],
+        [normalizedEmail, generatedPasswordHash, fallbackName, 'user'],
       );
       userId = insertResult.insertId;
       userRow = {

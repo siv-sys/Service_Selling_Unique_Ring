@@ -1,14 +1,21 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { query } = require('../config/db');
 
 const router = express.Router();
+const BCRYPT_ROUNDS = 12;
+const MIN_PASSWORD_LENGTH = 9;
+
+function normalizeRole(role) {
+  return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+}
 
 function toSafeUser(user) {
   return {
     id: user.id,
     email: user.email,
     name: user.name || '',
-    role: user.role || 'user',
+    role: normalizeRole(user.role),
   };
 }
 
@@ -21,17 +28,22 @@ router.post('/register', async (req, res, next) => {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
+    if (String(password).length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ message: 'Password must be more than 8 characters.' });
+    }
+
     const existingUsers = await query('SELECT id FROM users WHERE email = ? LIMIT 1', [normalizedEmail]);
     if (existingUsers.length) {
       return res.status(409).json({ message: 'Email is already registered.' });
     }
 
-    const safeRole = role === 'admin' ? 'admin' : 'user';
+    const safeRole = normalizeRole(role);
     const displayName = String(name || '').trim() || normalizedEmail.split('@')[0];
+    const passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
 
     const result = await query(
       'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
-      [normalizedEmail, String(password), displayName, safeRole],
+      [normalizedEmail, passwordHash, displayName, safeRole],
     );
 
     const createdUsers = await query('SELECT id, email, name, role FROM users WHERE id = ? LIMIT 1', [result.insertId]);
@@ -91,12 +103,17 @@ router.post('/reset-password', async (req, res, next) => {
       return res.status(400).json({ message: 'Email and new password are required.' });
     }
 
+    if (String(newPassword).length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ message: 'Password must be more than 8 characters.' });
+    }
+
     const users = await query('SELECT id FROM users WHERE email = ? LIMIT 1', [normalizedEmail]);
     if (!users.length) {
       return res.status(404).json({ message: 'User not found for this email.' });
     }
 
-    await query('UPDATE users SET password_hash = ? WHERE id = ?', [String(newPassword), users[0].id]);
+    const passwordHash = await bcrypt.hash(String(newPassword), BCRYPT_ROUNDS);
+    await query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, users[0].id]);
 
     return res.json({ message: 'Password reset successful.' });
   } catch (error) {
