@@ -1,10 +1,10 @@
 
-import React, { useState } from "react";
-import { api } from "../lib/api";
+import React, { useState } from 'react';
+import { api } from '../lib/api';
+import { AppView, Role, ThemeType } from '../types';
+import Header from '../components/Header';
+import Sidebar from '../components/Sidebar';
 
-/* =========================
-   TYPES
-========================= */
 
 interface SeedResult {
   message: string;
@@ -29,37 +29,44 @@ interface CatalogFormState {
 }
 
 const INITIAL_FORM: CatalogFormState = {
-  modelName: "",
-  collectionName: "",
-  material: "",
-  description: "",
-  imageUrl: "",
-  basePrice: "",
-  currencyCode: "",
-  ringNamePrefix: "",
-  ringIdentifierPrefix: "",
-  stockCount: "",
-  startingNumber: "",
-  defaultSize: "",
-  locationLabel: "",
+  modelName: '',
+  collectionName: '',
+  material: '',
+  description: '',
+  imageUrl: '',
+  basePrice: '',
+  currencyCode: '',
+  ringNamePrefix: '',
+  ringIdentifierPrefix: '',
+  stockCount: '',
+  startingNumber: '',
+  defaultSize: '',
+  locationLabel: '',
 };
 
-/* =========================
-   MAIN PAGE
-========================= */
+const AdminSeedView: React.FC = () => {
+  const [currentView, setCurrentView] = useState<AppView>(AppView.ADMIN_SEED);
+  const [theme, setTheme] = useState<ThemeType>(ThemeType.LIGHT);
 
-const CatalogSeedPage: React.FC = () => {
   const [isSeeding, setIsSeeding] = useState(false);
   const [result, setResult] = useState<SeedResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [form, setForm] = useState<CatalogFormState>(INITIAL_FORM);
   const [isInserting, setIsInserting] = useState(false);
-  const [insertSummary, setInsertSummary] = useState<string | null>(null);
 
-  /* =========================
-     API ACTIONS
-  ========================= */
+  const setView = (view: AppView) => {
+    setCurrentView(view);
+  };
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === ThemeType.LIGHT ? ThemeType.DARK : ThemeType.LIGHT));
+  };
+
+  const onSignOut = () => {
+    sessionStorage.removeItem('auth_user_id');
+    localStorage.removeItem('auth_user_id');
+  };
 
   const seedCatalog = async () => {
     setIsSeeding(true);
@@ -67,14 +74,10 @@ const CatalogSeedPage: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      const response = await api.post<SeedResult>(
-        "/admin/migrations/seed-catalog",
-        {}
-      );
+      const response = await api.post<SeedResult>('/admin/migrations/seed-catalog', {});
       setResult(response);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to seed catalog";
+      const message = error instanceof Error ? error.message : 'Failed to seed catalog';
       setErrorMessage(message);
     } finally {
       setIsSeeding(false);
@@ -89,7 +92,6 @@ const CatalogSeedPage: React.FC = () => {
     e.preventDefault();
 
     setIsInserting(true);
-    setInsertSummary(null);
     setErrorMessage(null);
 
     const price = Number(form.basePrice);
@@ -97,227 +99,205 @@ const CatalogSeedPage: React.FC = () => {
     const startingNumber = Number(form.startingNumber);
 
     if (!form.modelName || !form.material || !Number.isFinite(price)) {
-      setErrorMessage("Model name, material, and valid base price required.");
       setIsInserting(false);
+      setErrorMessage('Model name, material, and valid base price are required.');
       return;
     }
 
     if (!Number.isInteger(stockCount) || stockCount < 1) {
-      setErrorMessage("Stock count must be positive.");
       setIsInserting(false);
+      setErrorMessage('Stock count must be a positive integer.');
       return;
     }
 
     try {
-      const response = await api.post<SeedResult>(
-        "/admin/migrations/seed-catalog",
-        {
-          modelName: form.modelName.trim(),
-          collectionName: form.collectionName.trim() || null,
-          material: form.material.trim(),
-          description: form.description.trim() || null,
-          imageUrl: form.imageUrl.trim() || null,
-          basePrice: price,
-          currencyCode: form.currencyCode.trim() || "USD",
-          ringNamePrefix: form.ringNamePrefix.trim(),
-          ringIdentifierPrefix: form.ringIdentifierPrefix.trim(),
-          stockCount,
-          startingNumber,
-          defaultSize: form.defaultSize.trim() || null,
-          locationLabel: form.locationLabel.trim() || null,
-        }
-      );
+      const response = await api.post<SeedResult>('/admin/migrations/seed-catalog', {
+        modelName: form.modelName.trim(),
+        collectionName: form.collectionName.trim() || null,
+        material: form.material.trim(),
+        description: form.description.trim() || null,
+        imageUrl: form.imageUrl.trim() || null,
+        basePrice: price,
+        currencyCode: form.currencyCode.trim() || 'USD',
+        ringNamePrefix: form.ringNamePrefix.trim(),
+        ringIdentifierPrefix: form.ringIdentifierPrefix.trim(),
+        stockCount,
+        startingNumber,
+        defaultSize: form.defaultSize.trim() || null,
+        locationLabel: form.locationLabel.trim() || null,
+      });
 
-      setInsertSummary(response.message);
       setResult(response);
       setForm(INITIAL_FORM);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Insert failed";
+      const message = error instanceof Error ? error.message : 'Failed to insert catalog data';
       setErrorMessage(message);
     } finally {
       setIsInserting(false);
     }
   };
 
-  /* =========================
-     UI
-  ========================= */
+  const inputClassName =
+    'h-11 px-4 rounded-xl border border-rose-100 dark:border-slate-700 bg-white/90 dark:bg-slate-800/60 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-300/70 dark:focus:ring-rose-500/40 focus:border-transparent transition-all';
 
   return (
     <div className="flex h-screen bg-slate-100">
 
-      {/* ================= SIDEBAR ================= */}
+      {/* Sidebar */}
+      <Sidebar currentView={currentView} setView={setView} role={Role.ADMIN} onSignOut={onSignOut} />
 
-      <aside className="w-64 bg-white border-r flex flex-col justify-between">
-        <div>
-          <div className="h-16 flex items-center px-6 border-b">
-            <h2 className="font-bold text-lg text-rose-600">RingAdmin</h2>
-          </div>
+      {/* Main Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header
+          view={currentView}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          role={Role.ADMIN}
+          setView={setView}
+        />
 
-          <nav className="p-4 space-y-2 text-sm">
+        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-rose-50/30 to-slate-100 dark:from-charcoal dark:via-slate-900 dark:to-slate-950 p-6 md:p-8">
 
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-slate-100">
-              Dashboard
-            </button>
+          <div className="max-w-5xl mx-auto flex flex-col gap-6 animate-in fade-in duration-500">
 
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-slate-100">
-              User & Pair Management
-            </button>
+            <div className="rounded-3xl border border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm shadow-sm px-6 py-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Admin Tools</p>
+                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">Catalog Seed Console</h2>
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-primary-red px-3 py-2 border border-rose-100 dark:border-rose-900/30">
+                  <span className="material-symbols-outlined text-base">verified_user</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Admin Only</span>
+                </div>
+              </div>
+            </div>
 
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-slate-100">
-              Ring Inventory
-            </button>
+            {/* Seed Section */}
+            <div className="bg-white/90 dark:bg-slate-900/85 rounded-3xl border border-rose-100 dark:border-slate-800 shadow-sm p-6 md:p-8">
 
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-slate-100">
-              Security Logs
-            </button>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="size-12 rounded-2xl bg-rose-50 text-primary-red dark:bg-slate-800/80 flex items-center justify-center">
+                  <span className="material-symbols-outlined">database_upload</span>
+                </div>
 
-            <button className="w-full text-left px-4 py-2 rounded-lg bg-rose-50 text-rose-600 font-semibold">
-              Catalog Seed
-            </button>
+                <div>
+                  <h3 className="text-xl font-bold">Couple Shop Seed Data</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Insert starter products and stock into `ring_models` and `rings`.
+                  </p>
+                </div>
+              </div>
 
-            <button className="w-full text-left px-4 py-2 rounded-lg hover:bg-slate-100">
-              Settings
-            </button>
-
-          </nav>
-        </div>
-
-        <div className="p-4 border-t text-sm">
-          <p className="font-semibold">Alex Rivera</p>
-          <p className="text-slate-400">System Admin</p>
-        </div>
-      </aside>
-
-      {/* ================= MAIN ================= */}
-
-      <div className="flex-1 flex flex-col">
-
-        {/* HEADER */}
-
-        <header className="h-16 bg-white border-b flex items-center justify-between px-6">
-
-          <div>
-            <h1 className="text-lg font-bold">Catalog Seed</h1>
-            <p className="text-xs text-slate-400">
-              Insert starter products into catalog
-            </p>
-          </div>
-
-          <input
-            className="h-10 px-4 rounded-xl border border-slate-200 text-sm"
-            placeholder="Search..."
-          />
-
-        </header>
-
-        {/* CONTENT */}
-
-        <main className="flex-1 overflow-y-auto p-8">
-
-          <div className="max-w-4xl mx-auto flex flex-col gap-8">
-
-            {/* SEED BUTTON */}
-
-            <div className="bg-white rounded-3xl border p-8">
-              <h3 className="text-xl font-bold mb-4">
-                Couple Shop Seed Data
-              </h3>
+              <ul className="text-sm text-slate-500 dark:text-slate-400 list-disc pl-5 space-y-1 mb-5">
+                <li>Creates missing ring models for Couple Shop.</li>
+                <li>Inserts available stock rings using safe re-run migration behavior.</li>
+                <li>Admin-only action, protected by auth role.</li>
+              </ul>
 
               <button
                 onClick={seedCatalog}
                 disabled={isSeeding}
-                className="h-12 px-8 rounded-xl bg-rose-600 text-white font-bold"
+                className="h-12 px-8 rounded-2xl bg-primary-red hover:bg-rose-700 text-white font-bold text-sm shadow-lg shadow-rose-500/25 disabled:opacity-50 transition-all"
               >
-                {isSeeding ? "Seeding..." : "Seed Couple Shop Data"}
+                {isSeeding ? 'Seeding Catalog...' : 'Seed Couple Shop Data'}
               </button>
+
             </div>
 
-            {/* FORM */}
-
+            {/* Insert Form */}
             <form
               onSubmit={insertFromForm}
-              className="bg-white rounded-3xl border p-8 space-y-6"
+              className="bg-white/90 dark:bg-slate-900/85 rounded-3xl border border-rose-100 dark:border-slate-800 shadow-sm p-6 md:p-8 space-y-6"
             >
 
-              <h4 className="text-lg font-bold">
-                Insert Custom Catalog Data
-              </h4>
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary-red">edit_note</span>
+                <h4 className="text-lg font-bold">Insert Custom Catalog Data</h4>
+              </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                <input
+                <input className={inputClassName}
                   placeholder="Model Name"
                   value={form.modelName}
-                  onChange={(e) =>
-                    updateForm("modelName", e.target.value)
-                  }
-                  className="h-11 px-3 border rounded-lg"
+                  onChange={(e) => updateForm('modelName', e.target.value)}
                 />
 
-                <input
+                <input className={inputClassName}
+                  placeholder="Collection Name"
+                  value={form.collectionName}
+                  onChange={(e) => updateForm('collectionName', e.target.value)}
+                />
+
+                <input className={inputClassName}
                   placeholder="Material"
                   value={form.material}
-                  onChange={(e) =>
-                    updateForm("material", e.target.value)
-                  }
-                  className="h-11 px-3 border rounded-lg"
+                  onChange={(e) => updateForm('material', e.target.value)}
                 />
 
-                <input
-                  type="number"
+                <input className={inputClassName}
+                  placeholder="Image URL"
+                  value={form.imageUrl}
+                  onChange={(e) => updateForm('imageUrl', e.target.value)}
+                />
+
+                <input className={inputClassName}
                   placeholder="Base Price"
+                  type="number"
                   value={form.basePrice}
-                  onChange={(e) =>
-                    updateForm("basePrice", e.target.value)
-                  }
-                  className="h-11 px-3 border rounded-lg"
+                  onChange={(e) => updateForm('basePrice', e.target.value)}
                 />
 
-                <input
-                  type="number"
+                <input className={inputClassName}
+                  placeholder="Currency (USD)"
+                  value={form.currencyCode}
+                  onChange={(e) => updateForm('currencyCode', e.target.value)}
+                />
+
+                <input className={inputClassName}
                   placeholder="Stock Count"
+                  type="number"
                   value={form.stockCount}
-                  onChange={(e) =>
-                    updateForm("stockCount", e.target.value)
-                  }
-                  className="h-11 px-3 border rounded-lg"
+                  onChange={(e) => updateForm('stockCount', e.target.value)}
+                />
+
+                <input className={inputClassName}
+                  placeholder="Starting Number"
+                  type="number"
+                  value={form.startingNumber}
+                  onChange={(e) => updateForm('startingNumber', e.target.value)}
                 />
 
               </div>
 
               <textarea
+                className="w-full min-h-[100px] p-4 rounded-xl border border-rose-100 dark:border-slate-700 bg-white/90 dark:bg-slate-800/60 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-300/70 dark:focus:ring-rose-500/40 focus:border-transparent transition-all"
                 placeholder="Description"
                 value={form.description}
-                onChange={(e) =>
-                  updateForm("description", e.target.value)
-                }
-                className="w-full border rounded-lg p-3"
+                onChange={(e) => updateForm('description', e.target.value)}
               />
 
               <button
                 type="submit"
                 disabled={isInserting}
-                className="h-12 px-8 bg-slate-900 text-white rounded-xl font-bold"
+                className="h-12 px-8 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md transition-all disabled:opacity-50"
               >
-                {isInserting ? "Inserting..." : "Insert Product + Stock"}
+                {isInserting ? 'Inserting...' : 'Insert Product + Stock'}
               </button>
 
             </form>
 
-            {/* RESULT */}
-
             {result && (
-              <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700">
+              <div className="px-4 py-4 rounded-xl bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-100">
                 <p>{result.message}</p>
-                <p>Created Models: {result.createdModels}</p>
+                <p className="mt-1">Created Models: {result.createdModels}</p>
                 <p>Created Rings: {result.createdRings}</p>
               </div>
             )}
 
             {errorMessage && (
-              <div className="p-4 rounded-xl bg-rose-50 text-rose-600">
+              <div className="px-4 py-4 rounded-xl bg-rose-50 text-primary-red text-sm font-semibold border border-rose-100">
                 {errorMessage}
               </div>
             )}
@@ -332,4 +312,4 @@ const CatalogSeedPage: React.FC = () => {
   );
 };
 
-export default CatalogSeedPage;
+export default AdminSeedView;
