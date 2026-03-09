@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(190) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   avatar_url VARCHAR(500) NULL,
+  phone_number VARCHAR(30) NULL,
   city VARCHAR(120) NULL,
   is_public_discovery TINYINT(1) NOT NULL DEFAULT 1,
   account_status ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
@@ -25,6 +26,9 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30) NULL AFTER avatar_url;
+
 CREATE TABLE IF NOT EXISTS user_roles (
   user_id BIGINT UNSIGNED NOT NULL,
   role_id TINYINT UNSIGNED NOT NULL,
@@ -32,6 +36,21 @@ CREATE TABLE IF NOT EXISTS user_roles (
   PRIMARY KEY (user_id, role_id),
   CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT fk_user_roles_role FOREIGN KEY (role_id) REFERENCES roles(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  session_token VARCHAR(255) NOT NULL UNIQUE,
+  device_name VARCHAR(120) NULL,
+  ip_address VARCHAR(45) NULL,
+  user_agent VARCHAR(255) NULL,
+  last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  revoked_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id) REFERENCES users(id),
+  KEY idx_user_sessions_user (user_id),
+  KEY idx_user_sessions_revoked (revoked_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS relationship_pairs (
@@ -55,6 +74,19 @@ CREATE TABLE IF NOT EXISTS pair_members (
   UNIQUE KEY uq_pair_members_user (user_id),
   CONSTRAINT fk_pair_members_pair FOREIGN KEY (pair_id) REFERENCES relationship_pairs(id),
   CONSTRAINT fk_pair_members_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS couple_profiles (
+  pair_id BIGINT UNSIGNED PRIMARY KEY,
+  title VARCHAR(160) NOT NULL,
+  slug VARCHAR(80) NOT NULL UNIQUE,
+  headline VARCHAR(180) NULL,
+  hero_avatar_url VARCHAR(500) NULL,
+  linked_partner_label VARCHAR(160) NULL,
+  is_public TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_couple_profiles_pair FOREIGN KEY (pair_id) REFERENCES relationship_pairs(id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS pair_invitations (
@@ -234,10 +266,10 @@ ON DUPLICATE KEY UPDATE
 ____________________________________________
 
 INSERT INTO users 
-(username, full_name, email, password_hash, city)
+(username, full_name, email, password_hash, phone_number, city)
 VALUES
-('john123', 'John Carter', 'john@example.com', 'hashed_password_1', 'New York'),
-('anna456', 'Anna Lee', 'anna@example.com', 'hashed_password_2', 'Los Angeles');
+('john123', 'John Carter', 'john@example.com', 'hashed_password_1', '+1 555-0101', 'New York'),
+('anna456', 'Anna Lee', 'anna@example.com', 'hashed_password_2', '+1 555-0102', 'Los Angeles');
 
 
 INSERT INTO user_roles (user_id, role_id)
@@ -258,6 +290,20 @@ INSERT INTO pair_members
 VALUES
 (1, 1, 'OWNER'),
 (1, 2, 'PARTNER');
+
+
+INSERT INTO couple_profiles
+(pair_id, title, slug, headline, hero_avatar_url, linked_partner_label, is_public)
+VALUES
+(1, 'Alex & Sam', 'alex_and_sam', 'Together since October 12, 2021', NULL, 'Linked to Sam Peterson', 1),
+(2, 'Future Pair', 'future_pair', 'A shared space for two', NULL, NULL, 0)
+ON DUPLICATE KEY UPDATE
+  title = VALUES(title),
+  slug = VALUES(slug),
+  headline = VALUES(headline),
+  hero_avatar_url = VALUES(hero_avatar_url),
+  linked_partner_label = VALUES(linked_partner_label),
+  is_public = VALUES(is_public);
 
 
 INSERT INTO pair_invitations

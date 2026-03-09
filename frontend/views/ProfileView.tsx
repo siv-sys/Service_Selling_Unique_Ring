@@ -1,7 +1,5 @@
 import React from 'react';
-
-const PROFILE_STORAGE_KEY = 'eternal_rings_profile_data';
-const PROFILE_AVATAR_STORAGE_KEY = 'eternal_rings_profile_avatar';
+import { api } from '../lib/api';
 
 const ProfileView = ({
   onNavigateRelationship = () => {},
@@ -10,38 +8,57 @@ const ProfileView = ({
 }) => {
   const initialProfile = React.useMemo(() => ({
     title: 'Alex & Sam',
-    togetherSince: 'Together since Oct 12, 2021',
+    togetherSince: 'Together since October 12, 2021',
     handle: 'alex_and_sam',
-    phone: '+1 555-0123'
+    phone: '+1 555-0123',
+    avatarUrl: '',
+    linkedPartnerLabel: 'Linked to your partner',
+    daysTogether: 0
   }), []);
 
-  const [avatarUrl, setAvatarUrl] = React.useState(() => {
-    try {
-      return localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) || '';
-    } catch {
-      return '';
-    }
-  });
+  const [avatarUrl, setAvatarUrl] = React.useState('');
   const [isEditing, setIsEditing] = React.useState(false);
-  const [profile, setProfile] = React.useState(() => {
-    try {
-      const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
-      if (!saved) return initialProfile;
-      return { ...initialProfile, ...JSON.parse(saved) };
-    } catch {
-      return initialProfile;
-    }
-  });
-  const [draftProfile, setDraftProfile] = React.useState(() => {
-    try {
-      const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
-      if (!saved) return initialProfile;
-      return { ...initialProfile, ...JSON.parse(saved) };
-    } catch {
-      return initialProfile;
-    }
-  });
+  const [profile, setProfile] = React.useState(initialProfile);
+  const [draftProfile, setDraftProfile] = React.useState(initialProfile);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
   const fileInputRef = React.useRef(null);
+
+  const applyProfile = React.useCallback((data) => {
+    const next = {
+      ...initialProfile,
+      ...data,
+    };
+    setProfile(next);
+    setDraftProfile(next);
+    setAvatarUrl(next.avatarUrl || '');
+  }, [initialProfile]);
+
+  React.useEffect(() => {
+    let active = true;
+
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const data = await api.get('/profile/me/current');
+        if (!active) return;
+        applyProfile(data);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : 'Failed to load profile.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [applyProfile]);
 
   const handleOpenPicker = () => {
     if (fileInputRef.current) {
@@ -56,6 +73,7 @@ const ProfileView = ({
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setAvatarUrl(reader.result);
+        setDraftProfile((prev) => ({ ...prev, avatarUrl: reader.result }));
       }
     };
     reader.readAsDataURL(file);
@@ -70,16 +88,24 @@ const ProfileView = ({
   };
 
   const handleSaveProfile = () => {
-    setProfile(draftProfile);
-    try {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(draftProfile));
-      if (avatarUrl) {
-        localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, avatarUrl);
+    const saveProfile = async () => {
+      try {
+        setSaving(true);
+        setError('');
+        const data = await api.patch('/profile/me/current', {
+          ...draftProfile,
+          avatarUrl,
+        });
+        applyProfile(data);
+        setIsEditing(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save profile.');
+      } finally {
+        setSaving(false);
       }
-    } catch {
-      // Ignore localStorage quota or browser privacy mode errors.
-    }
-    setIsEditing(false);
+    };
+
+    saveProfile();
   };
 
   const handleCancelEdit = () => {
@@ -95,10 +121,22 @@ const ProfileView = ({
     const nextProfile = { ...profile, phone: value };
     setProfile(nextProfile);
     setDraftProfile(nextProfile);
+  };
+
+  const handleSignOut = async () => {
+    const confirmed = window.confirm('Are you sure you want to sign out from this device?');
+    if (!confirmed) return;
+
     try {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(nextProfile));
+      await api.post('/auth/logout', {});
     } catch {
-      // Ignore storage errors.
+      // Clear client auth state even if the server-side session record is unavailable.
+    } finally {
+      ['auth_user_id', 'auth_roles', 'auth_session_token'].forEach((key) => {
+        sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
+      });
+      window.location.reload();
     }
   };
 
@@ -107,27 +145,47 @@ const ProfileView = ({
       <style>{`
         .profile-page {
           min-height: 100vh;
-          background: #f4f5f7;
+          background:
+            radial-gradient(circle at top right, rgba(239, 47, 90, 0.12), transparent 24%),
+            radial-gradient(circle at bottom left, rgba(61, 119, 228, 0.12), transparent 26%),
+            linear-gradient(180deg, #f8fbff 0%, #eef3fa 100%);
           color: #13213c;
           font-family: Manrope, 'Segoe UI', sans-serif;
+          position: relative;
+          overflow: hidden;
         }
 
         * {
           box-sizing: border-box;
         }
 
+        .profile-page::before {
+          content: '';
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          background-image:
+            linear-gradient(rgba(255, 255, 255, 0.26) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+          background-size: 120px 120px;
+          mask-image: radial-gradient(circle at center, black, transparent 80%);
+          opacity: 0.45;
+        }
+
         .topbar {
-          height: 72px;
-          border-bottom: 1px solid #dde3ec;
-          background: #f4f5f7;
+          height: 76px;
+          border-bottom: 1px solid rgba(221, 227, 236, 0.9);
+          background: rgba(248, 251, 255, 0.78);
+          backdrop-filter: blur(16px);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 24px;
+          padding: 0 28px;
           gap: 18px;
           position: sticky;
           top: 0;
           z-index: 20;
+          box-shadow: 0 10px 30px rgba(23, 41, 73, 0.06);
         }
 
         .brand {
@@ -164,12 +222,19 @@ const ProfileView = ({
           border: 0;
           background: transparent;
           color: #6f7f99;
-          font-size: 15px;
-          font-weight: 700;
+          font-size: 14px;
+          font-weight: 800;
           cursor: pointer;
-          padding: 2px 2px 18px;
-          position: relative;
+          padding: 10px 14px;
           white-space: nowrap;
+          border-radius: 999px;
+          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .main-nav button:hover {
+          background: rgba(255, 255, 255, 0.78);
+          color: #1f2f4d;
+          transform: translateY(-1px);
         }
 
         .top-actions {
@@ -203,76 +268,95 @@ const ProfileView = ({
         }
 
         .mini-avatar {
-          width: 34px;
-          height: 34px;
+          width: 38px;
+          height: 38px;
           border-radius: 50%;
-          border: 1px solid #d4dbe6;
+          border: 2px solid rgba(255, 255, 255, 0.95);
           object-fit: cover;
+          box-shadow: 0 8px 16px rgba(20, 35, 62, 0.14);
         }
 
         .wrap {
-          max-width: 930px;
+          max-width: 980px;
           margin: 0 auto;
-          padding: 86px 16px 54px;
+          padding: 64px 20px 60px;
         }
 
         .hero {
           text-align: center;
-          margin-bottom: 64px;
+          margin-bottom: 48px;
+          padding: 8px 20px 0;
         }
 
         .hero-avatar-wrap {
           position: relative;
-          width: 154px;
-          height: 154px;
+          width: 178px;
+          height: 178px;
           margin: 0 auto;
         }
 
         .hero-avatar {
-          width: 154px;
-          height: 154px;
+          width: 178px;
+          height: 178px;
           border-radius: 50%;
-          background: #bdc6d2;
-          border: 4px solid #edf1f6;
-          box-shadow: 0 14px 28px rgba(18, 33, 59, 0.1);
+          background: linear-gradient(180deg, #c7d0db, #aeb8c7);
+          border: 5px solid rgba(255, 255, 255, 0.9);
+          box-shadow: 0 20px 36px rgba(18, 33, 59, 0.14);
           object-fit: cover;
           display: block;
         }
 
         .avatar-camera {
           position: absolute;
-          right: 0;
-          bottom: 4px;
-          width: 48px;
-          height: 48px;
+          right: -4px;
+          bottom: 10px;
+          width: 58px;
+          height: 58px;
           border-radius: 50%;
           border: 0;
           background: #ef2f5a;
           color: #fff;
-          font-size: 20px;
+          font-size: 22px;
           display: grid;
           place-items: center;
-          box-shadow: 0 8px 18px rgba(239, 47, 90, 0.3);
+          box-shadow: 0 14px 26px rgba(239, 47, 90, 0.34);
           cursor: pointer;
         }
 
         .hero h1 {
-          margin: 26px 0 8px;
-          font-size: clamp(34px, 4vw, 48px);
-          letter-spacing: -0.03em;
-          line-height: 1.06;
+          margin: 20px 0 6px;
+          font-size: clamp(28px, 3.8vw, 40px);
+          letter-spacing: -0.04em;
+          line-height: 1.02;
           color: #15233e;
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          justify-content: center;
         }
 
         .hero p {
           margin: 0;
           color: #ef2f5a;
-          font-size: clamp(22px, 2.5vw, 34px);
-          font-weight: 600;
+          font-size: clamp(16px, 2vw, 24px);
+          font-weight: 700;
+          line-height: 1.2;
         }
 
+        .status-note {
+          margin: 14px 0 0;
+          color: #70829d;
+          font-size: 14px;
+          font-weight: 700;
+        }
+
+        .status-note.error {
+          color: #b43a58;
+        }
+
+
         .edit-actions {
-          margin-top: 18px;
+          margin-top: 22px;
           display: inline-flex;
           gap: 10px;
         }
@@ -282,9 +366,9 @@ const ProfileView = ({
         .cancel-btn {
           border: 0;
           border-radius: 999px;
-          height: 38px;
-          padding: 0 16px;
-          font-size: 13px;
+          height: 42px;
+          padding: 0 22px;
+          font-size: 14px;
           font-weight: 800;
           cursor: pointer;
         }
@@ -293,6 +377,7 @@ const ProfileView = ({
         .save-btn {
           background: linear-gradient(180deg, #f23857, #ea2449);
           color: #fff;
+          box-shadow: 0 12px 22px rgba(239, 47, 90, 0.2);
         }
 
         .cancel-btn {
@@ -324,14 +409,15 @@ const ProfileView = ({
         }
 
         .days-card {
-          border: 1px solid #f2d6dc;
-          border-radius: 38px;
-          background: #fff;
-          padding: 22px 26px;
+          border: 1px solid rgba(242, 214, 220, 0.95);
+          border-radius: 34px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 244, 247, 0.96));
+          padding: 24px 28px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 16px;
+          box-shadow: 0 18px 34px rgba(32, 54, 91, 0.08);
         }
 
         .days-left {
@@ -344,7 +430,7 @@ const ProfileView = ({
           width: 60px;
           height: 60px;
           border-radius: 50%;
-          background: #fff1f4;
+          background: linear-gradient(180deg, #fff1f4, #ffe7ed);
           color: #ef2f5a;
           display: grid;
           place-items: center;
@@ -364,7 +450,7 @@ const ProfileView = ({
         .days-value {
           margin: 3px 0 0;
           color: #ef2f5a;
-          font-size: clamp(42px, 5vw, 64px);
+          font-size: clamp(34px, 4.5vw, 52px);
           line-height: 1;
           font-weight: 900;
           letter-spacing: -0.03em;
@@ -382,7 +468,7 @@ const ProfileView = ({
         .days-link {
           margin-top: 10px;
           color: #4c6280;
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 700;
         }
 
@@ -396,17 +482,18 @@ const ProfileView = ({
         }
 
         .grid {
-          margin-top: 18px;
+          margin-top: 22px;
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           gap: 18px;
         }
 
         .card {
-          border: 1px solid #e5ebf3;
+          border: 1px solid rgba(223, 232, 243, 0.95);
           border-radius: 30px;
-          background: #fff;
-          padding: 22px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96));
+          padding: 24px;
+          box-shadow: 0 16px 32px rgba(28, 50, 87, 0.07);
         }
 
         .card-head {
@@ -447,8 +534,8 @@ const ProfileView = ({
 
         .card h3 {
           margin: 0;
-          font-size: 36px;
-          letter-spacing: -0.02em;
+          font-size: 30px;
+          letter-spacing: -0.03em;
           color: #16243e;
         }
 
@@ -464,7 +551,7 @@ const ProfileView = ({
           min-height: 52px;
           border: 1px solid #d4ddec;
           border-radius: 999px;
-          background: #f4f7fb;
+          background: linear-gradient(180deg, #f8fbff, #eef3fb);
           display: flex;
           align-items: center;
           gap: 8px;
@@ -478,7 +565,7 @@ const ProfileView = ({
 
         .handle-box strong {
           color: #15233e;
-          font-size: 30px;
+          font-size: 24px;
           letter-spacing: -0.02em;
         }
 
@@ -486,7 +573,7 @@ const ProfileView = ({
           border: 0;
           background: transparent;
           color: #15233e;
-          font-size: 30px;
+          font-size: 24px;
           font-weight: 800;
           letter-spacing: -0.02em;
           width: 100%;
@@ -504,7 +591,7 @@ const ProfileView = ({
 
         .phone-value {
           color: #16243e;
-          font-size: 34px;
+          font-size: 28px;
           font-weight: 800;
           letter-spacing: -0.02em;
         }
@@ -528,7 +615,7 @@ const ProfileView = ({
           border-radius: 999px;
           height: 40px;
           padding: 0 16px;
-          background: #ffecef;
+          background: linear-gradient(180deg, #fff0f3, #ffe7ed);
           color: #ef2f5a;
           font-size: 14px;
           font-weight: 800;
@@ -537,14 +624,23 @@ const ProfileView = ({
 
         .signout {
           margin-top: 20px;
-          border: 1px solid #f3d3d9;
+          border: 1px solid rgba(243, 211, 217, 0.95);
           border-radius: 999px;
-          background: #fff;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 246, 248, 0.96));
           padding: 18px 22px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
+          box-shadow: 0 14px 28px rgba(29, 49, 86, 0.06);
+          cursor: pointer;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .signout:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 18px 30px rgba(29, 49, 86, 0.09);
+          border-color: rgba(239, 47, 90, 0.28);
         }
 
         .signout-left {
@@ -566,7 +662,7 @@ const ProfileView = ({
 
         .signout h4 {
           margin: 0;
-          font-size: 34px;
+          font-size: 28px;
           letter-spacing: -0.02em;
           color: #111f39;
         }
@@ -654,7 +750,23 @@ const ProfileView = ({
           }
 
           .hero {
-            margin-bottom: 36px;
+            margin-bottom: 34px;
+          }
+
+          .hero-avatar-wrap {
+            width: 156px;
+            height: 156px;
+          }
+
+          .hero-avatar {
+            width: 156px;
+            height: 156px;
+          }
+
+          .avatar-camera {
+            width: 52px;
+            height: 52px;
+            font-size: 20px;
           }
 
           .days-card {
@@ -761,26 +873,28 @@ const ProfileView = ({
           <div className="edit-actions">
             {isEditing ? (
               <>
-                <button type="button" className="save-btn" onClick={handleSaveProfile}>Save Profile</button>
-                <button type="button" className="cancel-btn" onClick={handleCancelEdit}>Cancel</button>
+                <button type="button" className="save-btn" onClick={handleSaveProfile} disabled={saving}>Save Profile</button>
+                <button type="button" className="cancel-btn" onClick={handleCancelEdit} disabled={saving}>Cancel</button>
               </>
             ) : (
-              <button type="button" className="edit-btn" onClick={handleStartEdit}>Edit Profile</button>
+              <button type="button" className="edit-btn" onClick={handleStartEdit} disabled={loading}>Edit Profile</button>
             )}
           </div>
+          {loading && <p className="status-note">Loading profile...</p>}
+          {error && <p className="status-note error">{error}</p>}
         </section>
 
         <section className="days-card">
           <div className="days-left">
             <div className="days-icon">{'\u2728'}</div>
             <div>
-              <p className="days-label">Days Together</p>
-              <p className="days-value">842 Days</p>
+              <p className="days-label">Shared Journey</p>
+              <p className="days-value">{profile.daysTogether} Days</p>
             </div>
           </div>
           <div className="days-right">
             <div className="days-avatars">{'\u{1F468}\u{1F469}'}</div>
-            <div className="days-link"><span className="days-dot" />Linked to Sam Peterson</div>
+            <div className="days-link"><span className="days-dot" />{profile.linkedPartnerLabel}</div>
           </div>
         </section>
 
@@ -789,8 +903,8 @@ const ProfileView = ({
             <div className="card-head">
               <div className="card-icon link">{'\u{1F517}'}</div>
             </div>
-            <h3>Nickname & Link</h3>
-            <p>Set your custom profile handle for sharing your timeline.</p>
+            <h3>Shared Link</h3>
+            <p>Choose a simple profile handle for your couple page.</p>
             <div className="handle-box">
               <span>eternalrings.app/u/</span>
               {isEditing ? (
@@ -811,8 +925,8 @@ const ProfileView = ({
               <div className="card-icon phone">{'\u26E8'}</div>
               <span className="verified">VERIFIED</span>
             </div>
-            <h3>Phone Settings</h3>
-            <p>Secured with two-factor authentication.</p>
+            <h3>Phone Access</h3>
+            <p>Your number stays protected with two-factor verification.</p>
             <div className="phone-row">
               {isEditing ? (
                 <input
@@ -824,17 +938,22 @@ const ProfileView = ({
               ) : (
                 <div className="phone-value">{profile.phone}</div>
               )}
-              <button type="button" className="change-btn" onClick={handleQuickPhoneChange}>Change Number</button>
+              <button type="button" className="change-btn" onClick={handleQuickPhoneChange}>Update Number</button>
             </div>
           </article>
         </section>
 
-        <section className="signout">
+        <section className="signout" role="button" tabIndex={0} onClick={handleSignOut} onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleSignOut();
+          }
+        }}>
           <div className="signout-left">
             <div className="signout-icon">{'\u21AA'}</div>
             <div>
               <h4>Sign Out</h4>
-              <p>Disconnect from this device securely.</p>
+              <p>Leave this device safely and keep your account protected.</p>
             </div>
           </div>
           <span className="signout-arrow">{'\u203A'}</span>
@@ -846,7 +965,7 @@ const ProfileView = ({
             <button type="button">Terms of Service</button>
             <button type="button">Help Center</button>
           </div>
-          <p>{'\u00A9'} 2025 Eternal Rings. Made for couples everywhere.</p>
+          <p>{'\u00A9'} 2025 Eternal Rings. Crafted for couples who stay connected.</p>
         </footer>
       </main>
     </div>
