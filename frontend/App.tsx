@@ -4,7 +4,6 @@ import Layout from './components/Layout';
 import DashboardView from './views/DashboardView';
 import InventoryView from './views/InventoryView';
 import UserPairMgmt from './views/UserPairMgmt';
-import SecurityLogsView from './views/SecurityLogsView';
 import AdminSeedView from './views/AdminSeedView';
 import SettingsView from './views/SettingsView';
 
@@ -26,7 +25,6 @@ export default function App() {
           <Route path="/users" element={<UserPairMgmt />} />
 
           {/* Intentionally empty pages */}
-          <Route path="/security" element={<SecurityLogsView />} />
           <Route path="/catalog" element={<AdminSeedView />} />
           <Route path="/settings" element={<SettingsView />} />
 

@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Users,
   Package,
-  ShieldAlert,
   Database,
   Heart,
   Settings,
@@ -50,7 +49,6 @@ const Sidebar = () => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'User & Pair Management', path: '/users' },
     { icon: Package, label: 'Ring Inventory', path: '/inventory' },
-    { icon: ShieldAlert, label: 'Security Logs', path: '/security' },
     { icon: Database, label: 'Catalog Seed', path: '/catalog' },
   ];
 
