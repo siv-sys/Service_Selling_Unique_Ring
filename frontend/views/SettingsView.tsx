@@ -1,9 +1,8 @@
 import React from 'react';
+import { api } from '../lib/api';
 
 const PROFILE_AVATAR_STORAGE_KEY = 'eternal_rings_profile_avatar';
-const SETTINGS_STORAGE_KEY = 'eternal_rings_settings';
 const LAST_EXPORT_STORAGE_KEY = 'eternal_rings_last_export';
-const SUBSCRIPTION_STORAGE_KEY = 'eternal_rings_subscription';
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80';
 
@@ -118,6 +117,25 @@ const formatRenewingDate = (isoValue: string | null) => {
   return `Renewing on ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 };
 
+const formatLastSyncedLabel = (message, loading) => {
+  if (loading) return 'Loading sync status...';
+  if (message === 'Saved') return 'Last synced just now';
+  return 'Synced with your account settings';
+};
+
+const formatNotificationDate = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
 const SettingsView = ({
   onNavigateRelationship = () => {},
   onNavigateCoupleProfile = () => {},
@@ -155,6 +173,7 @@ const SettingsView = ({
     }
   });
   const [saveMessage, setSaveMessage] = React.useState('');
+  const [settingsLoading, setSettingsLoading] = React.useState(true);
   const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
   const [notifications, setNotifications] = React.useState(INITIAL_NOTIFICATIONS);
   const notificationPanelRef = React.useRef(null);
@@ -162,20 +181,7 @@ const SettingsView = ({
   const [isDeleteAccountConfirmOpen, setIsDeleteAccountConfirmOpen] = React.useState(false);
   const [isLogoutAllConfirmOpen, setIsLogoutAllConfirmOpen] = React.useState(false);
   const [isSubscriptionDialogOpen, setIsSubscriptionDialogOpen] = React.useState(false);
-  const [subscription, setSubscription] = React.useState(() => {
-    try {
-      const raw = localStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
-      if (!raw) return getDefaultSubscription();
-      const parsed = JSON.parse(raw);
-      return {
-        planName: typeof parsed?.planName === 'string' ? parsed.planName : 'Premium Plan',
-        autoRenewEnabled: Boolean(parsed?.autoRenewEnabled),
-        renewingOn: typeof parsed?.renewingOn === 'string' ? parsed.renewingOn : null
-      };
-    } catch {
-      return getDefaultSubscription();
-    }
-  });
+  const [subscription, setSubscription] = React.useState(getDefaultSubscription());
   const [navAvatar, setNavAvatar] = React.useState(() => {
     try {
       return localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR;
@@ -198,6 +204,28 @@ const SettingsView = ({
     return () => {
       window.removeEventListener('focus', syncAvatar);
       window.removeEventListener('storage', syncAvatar);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    let active = true;
+
+    const loadNotifications = async () => {
+      try {
+        const data = await api.get('/notifications/me');
+        if (!active) return;
+        if (Array.isArray(data) && data.length > 0) {
+          setNotifications(data);
+        }
+      } catch {
+        // Keep UI fallback notifications if backend data is unavailable.
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -230,55 +258,56 @@ const SettingsView = ({
   }, [isNotificationOpen]);
 
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (!raw) {
-        return;
+    let active = true;
+
+    const loadSettings = async () => {
+      try {
+        const data = await api.get('/settings/me');
+        if (!active) return;
+        setTwoFactorEnabled(Boolean(data?.twoFactorEnabled));
+        setPrivacyLevel(typeof data?.privacyLevel === 'string' ? data.privacyLevel : DEFAULT_SETTINGS.privacyLevel);
+        setThemeMode(typeof data?.themeMode === 'string' ? data.themeMode : DEFAULT_SETTINGS.themeMode);
+        setAnniversaryReminders(Boolean(data?.anniversaryReminders));
+        setSystemUpdates(Boolean(data?.systemUpdates));
+        setAutoSync(Boolean(data?.autoSync));
+        setLanguage(typeof data?.language === 'string' ? data.language : DEFAULT_SETTINGS.language);
+        setGlobalMute(Boolean(data?.globalMute));
+        setDndEnabled(Boolean(data?.dndEnabled));
+        setDndFromTime(typeof data?.dndFromTime === 'string' ? data.dndFromTime : DEFAULT_SETTINGS.dndFromTime);
+        setDndUntilTime(typeof data?.dndUntilTime === 'string' ? data.dndUntilTime : DEFAULT_SETTINGS.dndUntilTime);
+        setRepeatDaily(Boolean(data?.repeatDaily));
+        setSoundPrefs({
+          anniversary: typeof data?.soundPrefs?.anniversary === 'string' ? data.soundPrefs.anniversary : DEFAULT_SETTINGS.soundPrefs.anniversary,
+          reminders: typeof data?.soundPrefs?.reminders === 'string' ? data.soundPrefs.reminders : DEFAULT_SETTINGS.soundPrefs.reminders,
+          messages: typeof data?.soundPrefs?.messages === 'string' ? data.soundPrefs.messages : DEFAULT_SETTINGS.soundPrefs.messages,
+        });
+        setEmailPrefs({
+          weeklyWrap: Boolean(data?.emailPrefs?.weeklyWrap),
+          productTips: Boolean(data?.emailPrefs?.productTips),
+          occasionReminders: Boolean(data?.emailPrefs?.occasionReminders),
+          partnerAlerts: Boolean(data?.emailPrefs?.partnerAlerts),
+        });
+        setSubscription(data?.subscription ? {
+          planName: typeof data.subscription.planName === 'string' ? data.subscription.planName : 'Premium Plan',
+          autoRenewEnabled: Boolean(data.subscription.autoRenewEnabled),
+          renewingOn: typeof data.subscription.renewingOn === 'string' || data.subscription.renewingOn === null ? data.subscription.renewingOn : null,
+        } : getDefaultSubscription());
+        setActiveSessions(Array.isArray(data?.activeSessions) ? data.activeSessions : sessions);
+        setLastExportAt(typeof data?.lastExportAt === 'string' || data?.lastExportAt === null ? data.lastExportAt : null);
+      } catch {
+        // Keep defaults if backend data is unavailable.
+      } finally {
+        if (active) {
+          setSettingsLoading(false);
+        }
       }
-      const parsed = JSON.parse(raw);
-      setTwoFactorEnabled(Boolean(parsed?.twoFactorEnabled));
-      setPrivacyLevel(typeof parsed?.privacyLevel === 'string' ? parsed.privacyLevel : DEFAULT_SETTINGS.privacyLevel);
-      setThemeMode(typeof parsed?.themeMode === 'string' ? parsed.themeMode : DEFAULT_SETTINGS.themeMode);
-      setAnniversaryReminders(Boolean(parsed?.anniversaryReminders));
-      setSystemUpdates(Boolean(parsed?.systemUpdates));
-      setAutoSync(Boolean(parsed?.autoSync));
-      setLanguage(typeof parsed?.language === 'string' ? parsed.language : DEFAULT_SETTINGS.language);
-      setGlobalMute(Boolean(parsed?.globalMute));
-      setDndEnabled(Boolean(parsed?.dndEnabled));
-      setDndFromTime(
-        typeof parsed?.dndFromTime === 'string' && /^\d{2}:\d{2}$/.test(parsed.dndFromTime)
-          ? parsed.dndFromTime
-          : DEFAULT_SETTINGS.dndFromTime
-      );
-      setDndUntilTime(
-        typeof parsed?.dndUntilTime === 'string' && /^\d{2}:\d{2}$/.test(parsed.dndUntilTime)
-          ? parsed.dndUntilTime
-          : DEFAULT_SETTINGS.dndUntilTime
-      );
-      setRepeatDaily(Boolean(parsed?.repeatDaily));
-      setSoundPrefs({
-        anniversary:
-          typeof parsed?.soundPrefs?.anniversary === 'string'
-            ? parsed.soundPrefs.anniversary
-            : DEFAULT_SETTINGS.soundPrefs.anniversary,
-        reminders:
-          typeof parsed?.soundPrefs?.reminders === 'string'
-            ? parsed.soundPrefs.reminders
-            : DEFAULT_SETTINGS.soundPrefs.reminders,
-        messages:
-          typeof parsed?.soundPrefs?.messages === 'string'
-            ? parsed.soundPrefs.messages
-            : DEFAULT_SETTINGS.soundPrefs.messages
-      });
-      setEmailPrefs({
-        weeklyWrap: Boolean(parsed?.emailPrefs?.weeklyWrap),
-        productTips: Boolean(parsed?.emailPrefs?.productTips),
-        occasionReminders: Boolean(parsed?.emailPrefs?.occasionReminders),
-        partnerAlerts: Boolean(parsed?.emailPrefs?.partnerAlerts)
-      });
-    } catch {
-      // Ignore invalid saved settings and keep defaults.
-    }
+    };
+
+    loadSettings();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const showSaveMessage = (message) => {
@@ -286,60 +315,96 @@ const SettingsView = ({
     window.setTimeout(() => setSaveMessage(''), 2000);
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     try {
-      localStorage.setItem(
-        SETTINGS_STORAGE_KEY,
-        JSON.stringify({
-          twoFactorEnabled,
-          privacyLevel,
-          themeMode,
-          anniversaryReminders,
-          systemUpdates,
-          autoSync,
-          language,
-          globalMute,
-          dndEnabled,
-          dndFromTime,
-          dndUntilTime,
-          repeatDaily,
-          soundPrefs,
-          emailPrefs
-        })
-      );
+      await api.put('/settings/me', {
+        twoFactorEnabled,
+        privacyLevel,
+        themeMode,
+        anniversaryReminders,
+        systemUpdates,
+        autoSync,
+        language,
+        globalMute,
+        dndEnabled,
+        dndFromTime,
+        dndUntilTime,
+        repeatDaily,
+        soundPrefs,
+        emailPrefs,
+      });
       showSaveMessage('Saved');
     } catch {
       showSaveMessage('Save failed');
     }
   };
 
-  const handleResetSettings = () => {
-    setTwoFactorEnabled(DEFAULT_SETTINGS.twoFactorEnabled);
-    setPrivacyLevel(DEFAULT_SETTINGS.privacyLevel);
-    setThemeMode(DEFAULT_SETTINGS.themeMode);
-    setAnniversaryReminders(DEFAULT_SETTINGS.anniversaryReminders);
-    setSystemUpdates(DEFAULT_SETTINGS.systemUpdates);
-    setAutoSync(DEFAULT_SETTINGS.autoSync);
-    setLanguage(DEFAULT_SETTINGS.language);
-    setGlobalMute(DEFAULT_SETTINGS.globalMute);
-    setDndEnabled(DEFAULT_SETTINGS.dndEnabled);
-    setDndFromTime(DEFAULT_SETTINGS.dndFromTime);
-    setDndUntilTime(DEFAULT_SETTINGS.dndUntilTime);
-    setRepeatDaily(DEFAULT_SETTINGS.repeatDaily);
-    setSoundPrefs(DEFAULT_SETTINGS.soundPrefs);
-    setEmailPrefs(DEFAULT_SETTINGS.emailPrefs);
-    setLanguageSearch('');
+  const handleResetSettings = async () => {
     try {
-      localStorage.removeItem(SETTINGS_STORAGE_KEY);
+      const data = await api.delete('/settings/me');
+      setTwoFactorEnabled(Boolean(data?.twoFactorEnabled));
+      setPrivacyLevel(typeof data?.privacyLevel === 'string' ? data.privacyLevel : DEFAULT_SETTINGS.privacyLevel);
+      setThemeMode(typeof data?.themeMode === 'string' ? data.themeMode : DEFAULT_SETTINGS.themeMode);
+      setAnniversaryReminders(Boolean(data?.anniversaryReminders));
+      setSystemUpdates(Boolean(data?.systemUpdates));
+      setAutoSync(Boolean(data?.autoSync));
+      setLanguage(typeof data?.language === 'string' ? data.language : DEFAULT_SETTINGS.language);
+      setGlobalMute(Boolean(data?.globalMute));
+      setDndEnabled(Boolean(data?.dndEnabled));
+      setDndFromTime(typeof data?.dndFromTime === 'string' ? data.dndFromTime : DEFAULT_SETTINGS.dndFromTime);
+      setDndUntilTime(typeof data?.dndUntilTime === 'string' ? data.dndUntilTime : DEFAULT_SETTINGS.dndUntilTime);
+      setRepeatDaily(Boolean(data?.repeatDaily));
+      setSoundPrefs({
+        anniversary: typeof data?.soundPrefs?.anniversary === 'string' ? data.soundPrefs.anniversary : DEFAULT_SETTINGS.soundPrefs.anniversary,
+        reminders: typeof data?.soundPrefs?.reminders === 'string' ? data.soundPrefs.reminders : DEFAULT_SETTINGS.soundPrefs.reminders,
+        messages: typeof data?.soundPrefs?.messages === 'string' ? data.soundPrefs.messages : DEFAULT_SETTINGS.soundPrefs.messages,
+      });
+      setEmailPrefs({
+        weeklyWrap: Boolean(data?.emailPrefs?.weeklyWrap),
+        productTips: Boolean(data?.emailPrefs?.productTips),
+        occasionReminders: Boolean(data?.emailPrefs?.occasionReminders),
+        partnerAlerts: Boolean(data?.emailPrefs?.partnerAlerts),
+      });
+      setLastExportAt(typeof data?.lastExportAt === 'string' || data?.lastExportAt === null ? data.lastExportAt : null);
+      setLanguageSearch('');
+      showSaveMessage('Reset to defaults');
     } catch {
-      // Ignore local storage errors.
+      showSaveMessage('Reset failed');
     }
-    showSaveMessage('Reset to defaults');
   };
   const unreadCount = notifications.filter((item) => item.unread).length;
 
   const markAllNotificationsAsRead = () => {
     setNotifications((current) => current.map((item) => ({ ...item, unread: false })));
+    api.patch('/notifications/me/read-all', {}).catch(() => {});
+  };
+
+  const handleNotificationClick = (item) => {
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.id === item.id ? { ...notification, unread: false } : notification
+      )
+    );
+
+    api.patch(`/notifications/me/${item.id}/read`, {}).catch(() => {});
+
+    if (item.actionKey === 'couple_profile') {
+      setIsNotificationOpen(false);
+      onNavigateCoupleProfile();
+      return;
+    }
+
+    if (item.actionKey === 'help_support') {
+      setActiveMenu('Help & Support');
+    } else if (item.actionKey === 'general') {
+      setActiveMenu('General');
+    } else if (item.iconClass === 'calendar') {
+      setActiveMenu('Help & Support');
+    } else {
+      setActiveMenu('General');
+    }
+
+    setIsNotificationOpen(false);
   };
 
   const playSoundPreview = (soundId: 'anniversary' | 'reminders' | 'messages') => {
@@ -441,13 +506,14 @@ const SettingsView = ({
       link.remove();
       URL.revokeObjectURL(downloadUrl);
 
+      api.post('/settings/me/export', {}).then((data) => {
+        if (typeof data?.lastExportAt === 'string' || data?.lastExportAt === null) {
+          setLastExportAt(data.lastExportAt);
+        }
+      }).catch(() => {});
+
       const iso = now.toISOString();
       setLastExportAt(iso);
-      try {
-        localStorage.setItem(LAST_EXPORT_STORAGE_KEY, iso);
-      } catch {
-        // Ignore local storage write issues.
-      }
       showSaveMessage('Data exported');
     } catch {
       showSaveMessage('Export failed');
@@ -464,9 +530,16 @@ const SettingsView = ({
 
   const confirmDeleteSession = () => {
     if (!sessionToDelete) return;
-    setActiveSessions((current) => current.filter((session) => session.name !== sessionToDelete));
-    setSessionToDelete(null);
-    showSaveMessage('Session removed');
+    const session = activeSessions.find((item) => item.name === sessionToDelete);
+    if (!session) return;
+    api.delete(`/settings/me/sessions/${session.id}`).then((data) => {
+      setActiveSessions(Array.isArray(data?.activeSessions) ? data.activeSessions : []);
+      setSessionToDelete(null);
+      showSaveMessage('Session removed');
+    }).catch(() => {
+      setSessionToDelete(null);
+      showSaveMessage('Remove failed');
+    });
   };
 
   const openLogoutAllConfirm = () => {
@@ -478,18 +551,15 @@ const SettingsView = ({
   };
 
   const confirmLogoutAllDevices = () => {
-    setActiveSessions([]);
-    setIsNotificationOpen(false);
-    setIsLogoutAllConfirmOpen(false);
-    try {
-      sessionStorage.removeItem('auth_user_id');
-      sessionStorage.removeItem('auth_roles');
-      localStorage.removeItem('auth_user_id');
-      localStorage.removeItem('auth_roles');
-    } catch {
-      // Ignore storage errors.
-    }
-    showSaveMessage('Logged out on all devices');
+    api.post('/settings/me/sessions/logout-all', {}).then(() => {
+      setActiveSessions([]);
+      setIsNotificationOpen(false);
+      setIsLogoutAllConfirmOpen(false);
+      showSaveMessage('Logged out on all devices');
+    }).catch(() => {
+      setIsLogoutAllConfirmOpen(false);
+      showSaveMessage('Logout failed');
+    });
   };
 
   const openDeleteAccountConfirm = () => {
@@ -501,35 +571,13 @@ const SettingsView = ({
   };
 
   const confirmDeleteAccount = () => {
-    setTwoFactorEnabled(DEFAULT_SETTINGS.twoFactorEnabled);
-    setPrivacyLevel(DEFAULT_SETTINGS.privacyLevel);
-    setThemeMode(DEFAULT_SETTINGS.themeMode);
-    setAnniversaryReminders(DEFAULT_SETTINGS.anniversaryReminders);
-    setSystemUpdates(DEFAULT_SETTINGS.systemUpdates);
-    setAutoSync(DEFAULT_SETTINGS.autoSync);
-    setLanguage(DEFAULT_SETTINGS.language);
-    setGlobalMute(DEFAULT_SETTINGS.globalMute);
-    setDndEnabled(DEFAULT_SETTINGS.dndEnabled);
-    setDndFromTime(DEFAULT_SETTINGS.dndFromTime);
-    setDndUntilTime(DEFAULT_SETTINGS.dndUntilTime);
-    setRepeatDaily(DEFAULT_SETTINGS.repeatDaily);
-    setSoundPrefs(DEFAULT_SETTINGS.soundPrefs);
-    setEmailPrefs(DEFAULT_SETTINGS.emailPrefs);
-    setActiveSessions(sessions);
-    setNotifications(INITIAL_NOTIFICATIONS);
-    setLastExportAt(null);
-    setLanguageSearch('');
-    setActiveMenu('General');
-    setIsDeleteAccountConfirmOpen(false);
-
-    try {
-      localStorage.removeItem(SETTINGS_STORAGE_KEY);
-      localStorage.removeItem(LAST_EXPORT_STORAGE_KEY);
-      localStorage.removeItem(SUBSCRIPTION_STORAGE_KEY);
-    } catch {
-      // Ignore local storage errors.
-    }
-    showSaveMessage('Account deleted');
+    api.delete('/settings/me/account').then(() => {
+      setIsDeleteAccountConfirmOpen(false);
+      showSaveMessage('Account deleted');
+    }).catch(() => {
+      setIsDeleteAccountConfirmOpen(false);
+      showSaveMessage('Delete failed');
+    });
   };
 
   const closeSubscriptionDialog = () => {
@@ -537,17 +585,16 @@ const SettingsView = ({
   };
 
   const toggleSubscriptionRenewal = () => {
-    setSubscription((current) => {
-      const next = current.autoRenewEnabled
-        ? { ...current, autoRenewEnabled: false, renewingOn: null }
-        : { ...current, autoRenewEnabled: true, renewingOn: getNextRenewalIsoDate() };
-      try {
-        localStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Ignore local storage write issues.
-      }
-      showSaveMessage(next.autoRenewEnabled ? 'Subscription renewal resumed' : 'Subscription renewal paused');
-      return next;
+    const nextAutoRenewEnabled = !subscription.autoRenewEnabled;
+    api.patch('/settings/me/subscription', { autoRenewEnabled: nextAutoRenewEnabled }).then((data) => {
+      setSubscription({
+        planName: typeof data?.planName === 'string' ? data.planName : 'Premium Plan',
+        autoRenewEnabled: Boolean(data?.autoRenewEnabled),
+        renewingOn: typeof data?.renewingOn === 'string' || data?.renewingOn === null ? data.renewingOn : null,
+      });
+      showSaveMessage(nextAutoRenewEnabled ? 'Subscription renewal resumed' : 'Subscription renewal paused');
+    }).catch(() => {
+      showSaveMessage('Subscription update failed');
     });
   };
 
@@ -987,6 +1034,10 @@ const SettingsView = ({
         }
 
         .notification-item {
+          border: 0;
+          width: 100%;
+          text-align: left;
+          background: transparent;
           display: grid;
           grid-template-columns: 30px minmax(0, 1fr) 8px;
           gap: 12px;
@@ -994,6 +1045,8 @@ const SettingsView = ({
           padding: 12px 10px;
           border-radius: 10px;
           transition: background 0.2s ease;
+          cursor: pointer;
+          font-family: inherit;
         }
 
         .notification-item:hover {
@@ -3243,15 +3296,20 @@ const SettingsView = ({
                 </header>
                 <div className="notification-list">
                   {notifications.map((item) => (
-                    <article key={item.id} className="notification-item">
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="notification-item"
+                      onClick={() => handleNotificationClick(item)}
+                    >
                       <div className={`notification-icon ${item.iconClass}`}>{item.icon}</div>
                       <div>
                         <h3 className="notification-item-title">{item.title}</h3>
                         <p className="notification-item-copy">{item.message}</p>
-                        <div className="notification-time">{item.time}</div>
+                        <div className="notification-time">{item.createdAt ? formatNotificationDate(item.createdAt) : item.time}</div>
                       </div>
                       {item.unread ? <span className="notification-dot" aria-hidden="true" /> : <span />}
-                    </article>
+                    </button>
                   ))}
                 </div>
                 <footer className="notification-footer">View all activity</footer>
@@ -3402,7 +3460,7 @@ const SettingsView = ({
                           aria-label="Toggle auto-sync cloud backup"
                         />
                       </div>
-                      <div className="sync-meta">{'\u21BB'} Last synced 2 minutes ago</div>
+                      <div className="sync-meta">{'\u21BB'} {formatLastSyncedLabel(saveMessage, settingsLoading)}</div>
                     </div>
                     <button type="button" className="download-btn">{'\u2601'} Download All Data (.json)</button>
                   </article>

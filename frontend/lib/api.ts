@@ -7,10 +7,12 @@ function getStoredAuthValue(key: string): string | null {
 function buildAuthHeaders(): HeadersInit {
   const userId = getStoredAuthValue('auth_user_id');
   const roles = getStoredAuthValue('auth_roles');
+  const sessionToken = getStoredAuthValue('auth_session_token');
 
   return {
     ...(userId ? { 'x-auth-user-id': userId } : {}),
     ...(roles ? { 'x-auth-roles': roles } : {}),
+    ...(sessionToken ? { 'x-session-token': sessionToken } : {}),
   };
 }
 
@@ -25,6 +27,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
+    const contentType = response.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const payload = await response.json().catch(() => null);
+      const message =
+        payload && typeof payload === 'object' && 'message' in payload
+          ? String(payload.message)
+          : `Request failed with status ${response.status}`;
+      throw new Error(message);
+    }
+
     const message = await response.text();
     throw new Error(message || `Request failed with status ${response.status}`);
   }
@@ -40,4 +53,5 @@ export const api = {
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
