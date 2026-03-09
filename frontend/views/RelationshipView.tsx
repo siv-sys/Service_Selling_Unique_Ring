@@ -1,41 +1,176 @@
-   import React from 'react';
+import React from 'react';
+import { api } from '../lib/api';
+
+const RELATIONSHIP_ID = 1;
+
+type RelationshipMember = {
+  id: number;
+  role: 'OWNER' | 'PARTNER';
+  fullName: string;
+  username: string;
+  avatarUrl: string | null;
+};
+
+type LinkedRing = {
+  id: number;
+  linkId: number;
+  ringIdentifier: string;
+};
+
+type RelationshipResponse = {
+  pairId: number;
+  pairCode: string;
+  access: 'GRANTED' | 'REVOKED';
+  status: 'PAIRED' | 'UNPAIRED' | 'PUBLIC' | 'PARTNERS' | 'PRIVATE';
+  visibility: 'public' | 'partners' | 'private';
+  establishedAt: string | null;
+  members: RelationshipMember[];
+  linkedRings: LinkedRing[];
+};
+
+const fallbackAvatar =
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80';
 
 const RelationshipView = ({
   onNavigateSettings = () => {},
   onNavigateCoupleProfile = () => {},
-  onNavigateProfile = () => {}
+  onNavigateProfile = () => {},
 }) => {
   const [access, setAccess] = React.useState('REVOKED');
   const [pairCode, setPairCode] = React.useState('PAIR001');
   const [status, setStatus] = React.useState('UNPAIRED');
   const [visibility, setVisibility] = React.useState('partners');
   const [ringInput, setRingInput] = React.useState('');
-  const [linkedRings, setLinkedRings] = React.useState([]);
+  const [linkedRings, setLinkedRings] = React.useState<LinkedRing[]>([]);
+  const [members, setMembers] = React.useState<RelationshipMember[]>([]);
+  const [establishedAt, setEstablishedAt] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
 
-  const handleUnpair = () => {
-    setAccess('REVOKED');
-    setStatus('UNPAIRED');
+  const applyRelationshipData = React.useCallback((data: RelationshipResponse) => {
+    setAccess(data.access);
+    setPairCode(data.pairCode);
+    setStatus(data.status);
+    setVisibility(data.visibility);
+    setLinkedRings(data.linkedRings);
+    setMembers(data.members);
+    setEstablishedAt(data.establishedAt);
+  }, []);
+
+  React.useEffect(() => {
+    let active = true;
+
+    const loadRelationship = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const data = await api.get<RelationshipResponse>(`/relationship/${RELATIONSHIP_ID}`);
+        if (!active) return;
+        applyRelationshipData(data);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : 'Failed to load relationship.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadRelationship();
+
+    return () => {
+      active = false;
+    };
+  }, [applyRelationshipData]);
+
+  const owner = members[0];
+  const partner = members[1];
+
+  const formattedEstablishedAt = establishedAt
+    ? new Date(`${establishedAt}T00:00:00`).toLocaleDateString('en-US')
+    : 'Not set';
+
+  const handleUnpair = async () => {
+    try {
+      setSaving(true);
+      setError('');
+      const data = await api.patch<RelationshipResponse>(`/relationship/${RELATIONSHIP_ID}`, {
+        access: 'REVOKED',
+        pairCode,
+        status: 'UNPAIRED',
+      });
+      applyRelationshipData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unpair relationship.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSaveVisibility = () => {
-    if (visibility === 'public') {
-      setStatus('PUBLIC');
-      return;
+  const handleSaveMetadata = async () => {
+    try {
+      setSaving(true);
+      setError('');
+      const data = await api.patch<RelationshipResponse>(`/relationship/${RELATIONSHIP_ID}`, {
+        access,
+        pairCode,
+        status,
+      });
+      applyRelationshipData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save pair metadata.');
+    } finally {
+      setSaving(false);
     }
-
-    if (visibility === 'partners') {
-      setStatus('PARTNERS');
-      return;
-    }
-
-    setStatus('PRIVATE');
   };
 
-  const handleAddRing = () => {
-    const next = ringInput.trim();
+  const handleSaveVisibility = async () => {
+    try {
+      setSaving(true);
+      setError('');
+      const data = await api.patch<RelationshipResponse>(`/relationship/${RELATIONSHIP_ID}/privacy`, {
+        visibility,
+      });
+      applyRelationshipData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save visibility.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddRing = async () => {
+    const next = ringInput.trim().toUpperCase();
     if (!next) return;
-    setLinkedRings((current) => [...current, next]);
-    setRingInput('');
+
+    try {
+      setSaving(true);
+      setError('');
+      const data = await api.post<RelationshipResponse>(`/relationship/${RELATIONSHIP_ID}/rings`, {
+        ringIdentifier: next,
+      });
+      applyRelationshipData(data);
+      setRingInput('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add ring.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveRing = async (ringId: number) => {
+    try {
+      setSaving(true);
+      setError('');
+      const data = await api.delete<RelationshipResponse>(
+        `/relationship/${RELATIONSHIP_ID}/rings/${ringId}`
+      );
+      applyRelationshipData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove ring.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -101,7 +236,6 @@ const RelationshipView = ({
           gap: 26px;
           flex: 1;
           justify-content: center;
-         
         }
 
         .top-link {
@@ -114,11 +248,6 @@ const RelationshipView = ({
           padding: 2px 2px 18px;
           position: relative;
           white-space: nowrap;
-          transition: color 0.2s ease, background 0.2s ease;
-        }
-
-        .top-link:hover {
-          color: #2d3f61;
         }
 
         .top-link.active {
@@ -126,17 +255,6 @@ const RelationshipView = ({
           background: #fff1f5;
           border-radius: 999px;
           padding: 8px 12px 18px;
-        }
-
-        .top-link.active::after {
-          content: '';
-          position: absolute;
-          left: 12px;
-          right: 12px;
-          bottom: 2px;
-          height: 3px;
-          background: #ef2f5a;
-          border-radius: 999px;
         }
 
         .top-actions {
@@ -160,7 +278,6 @@ const RelationshipView = ({
           align-items: center;
           gap: 6px;
           background: #fff3f6;
-          box-shadow: 0 8px 16px rgba(239, 47, 90, 0.12);
           line-height: 1;
         }
 
@@ -176,12 +293,6 @@ const RelationshipView = ({
           object-fit: cover;
           border: 1px solid #d4dbe6;
           cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .mini-avatar:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 16px rgba(24, 45, 81, 0.2);
         }
 
         .relationship-wrap {
@@ -189,7 +300,6 @@ const RelationshipView = ({
           margin: 0 auto;
           padding: 58px 20px 56px;
         }
-        
 
         .hero {
           text-align: center;
@@ -218,10 +328,10 @@ const RelationshipView = ({
           font-weight: 800;
           color: #0f1935;
           line-height: 1.06;
-          text-wrap: balance;
         }
 
-        .hero p {
+        .hero p,
+        .error-banner {
           margin: 0;
           color: #6d7e9a;
           font-size: 18px;
@@ -243,6 +353,16 @@ const RelationshipView = ({
           text-transform: uppercase;
         }
 
+        .error-banner {
+          margin-bottom: 16px;
+          padding: 12px 16px;
+          border: 1px solid #f1c5cf;
+          border-radius: 14px;
+          background: #fff3f6;
+          color: #a33452;
+          font-size: 14px;
+        }
+
         .certificate {
           background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 251, 255, 0.95));
           border-radius: 28px;
@@ -251,16 +371,6 @@ const RelationshipView = ({
           padding: 44px;
           position: relative;
           overflow: hidden;
-        }
-
-        .certificate::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 4px;
-          background: linear-gradient(90deg, rgba(239, 47, 90, 0.45), rgba(70, 125, 236, 0.35));
         }
 
         .identity {
@@ -290,8 +400,7 @@ const RelationshipView = ({
           margin-bottom: 14px;
         }
 
-        .user h2,
-        .user h3 {
+        .user h2 {
           margin: 0;
           font-size: 32px;
           font-weight: 900;
@@ -324,10 +433,10 @@ const RelationshipView = ({
           margin: 0 auto 12px;
           font-size: 30px;
           background: linear-gradient(180deg, #fff4f7, #ffeff3);
-          box-shadow: inset 0 0 0 1px #f8ccd7, 0 10px 20px rgba(239, 47, 90, 0.12);
         }
 
-        .center-info .kicker {
+        .center-info .kicker,
+        .saving-note {
           margin: 0;
           color: #9aabc1;
           letter-spacing: 0.17em;
@@ -353,138 +462,150 @@ const RelationshipView = ({
         .grid-cards {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 22px;
+          gap: 26px;
           margin-bottom: 42px;
+          align-items: stretch;
         }
 
         .card {
-          border: 1px solid #dbe5f1;
-          border-radius: 24px;
-          background: linear-gradient(180deg, #ffffff, #f7faff);
-          min-height: 360px;
-          padding: 32px;
-          box-shadow: 0 14px 28px rgba(23, 45, 81, 0.08);
-          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-        }
-
-        .card:hover {
-          transform: translateY(-2px);
-          border-color: #cbd9ea;
-          box-shadow: 0 18px 36px rgba(23, 45, 81, 0.13);
+          position: relative;
+          border: 1px solid rgba(209, 220, 236, 0.95);
+          border-radius: 30px;
+          background:
+            radial-gradient(circle at top right, rgba(239, 47, 90, 0.08), transparent 28%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 255, 0.96));
+          min-height: 390px;
+          padding: 34px 34px 30px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 18px 34px rgba(30, 52, 88, 0.08);
+          display: flex;
+          flex-direction: column;
         }
 
         .card h4 {
-          margin: 0;
-          font-size: 34px;
+          margin: 0 0 10px;
+          font-size: clamp(32px, 4vw, 44px);
           font-weight: 900;
           color: #141f39;
-          margin-bottom: 10px;
           letter-spacing: -0.03em;
+          line-height: 0.95;
         }
 
         .meta {
-          margin-top: 18px;
+          margin-top: 22px;
           display: grid;
-          gap: 12px;
+          gap: 16px;
         }
 
         .row {
-          display: flex;
-          justify-content: space-between;
+          display: grid;
+          grid-template-columns: 108px minmax(0, 1fr);
           align-items: center;
           color: #71829c;
           font-size: 14px;
-          gap: 14px;
+          gap: 10px;
         }
 
         .row span {
           min-width: 74px;
           font-weight: 700;
+          color: #587095;
+          font-size: 15px;
         }
 
         .field-input,
-        .field-select {
+        .field-select,
+        .ring-input {
           flex: 1;
-          height: 42px;
-          border-radius: 9px;
-          border: 1px solid #cfdae8;
-          background: #fbfdff;
+          height: 56px;
+          border-radius: 16px;
+          border: 1px solid #cad8ea;
+          background: rgba(252, 253, 255, 0.98);
           color: #1f2c47;
-          padding: 0 10px;
-          font-size: 13px;
+          padding: 0 18px;
+          font-size: 15px;
           font-weight: 800;
           font-family: inherit;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-        }
-
-        .field-input:hover,
-        .field-select:hover {
-          background: #ffffff;
-          border-color: #bfcee3;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+          transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
         }
 
         .field-input:focus,
-        .field-select:focus {
+        .field-select:focus,
+        .ring-input:focus {
           outline: none;
-          border-color: #ef2f5a;
-          box-shadow: 0 0 0 3px rgba(239, 47, 90, 0.14);
+          border-color: rgba(239, 47, 90, 0.55);
+          box-shadow: 0 0 0 4px rgba(239, 47, 90, 0.12);
+          transform: translateY(-1px);
         }
 
         .outline-btn,
-        .solid-btn {
+        .solid-btn,
+        .ring-add-btn {
           margin-top: 22px;
-          border-radius: 12px;
+          border-radius: 18px;
           font-weight: 900;
-          padding: 11px 22px;
+          padding: 14px 24px;
           cursor: pointer;
-          font-size: 14px;
+          font-size: 15px;
           font-family: inherit;
-          transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease,
+            background 0.18s ease;
+        }
+
+        .outline-btn:hover,
+        .solid-btn:hover,
+        .ring-add-btn:hover {
+          transform: translateY(-1px);
+        }
+
+        .outline-btn:disabled,
+        .solid-btn:disabled,
+        .ring-add-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
         }
 
         .outline-btn {
-          border: 1.5px solid #ef2f5a;
+          border: 1.5px solid rgba(239, 47, 90, 0.8);
           color: #ef2f5a;
-          background: #fff2f6;
-          width: 180px;
-          box-shadow: inset 0 0 0 1px #ffd6e0;
+          background: rgba(255, 240, 245, 0.95);
+          min-width: 210px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
         }
 
         .helper {
-          margin: 6px 0 0;
-          color: #a0aec2;
+          margin: 10px 0 0;
+          color: #98a7bc;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
-          font-size: 11px;
+          letter-spacing: 0.11em;
+          font-size: 12px;
           font-weight: 800;
+          line-height: 1.5;
         }
 
         .options {
-          margin-top: 18px;
+          margin-top: 24px;
           display: grid;
-          gap: 11px;
+          gap: 14px;
         }
 
         .option {
           position: relative;
-          height: 46px;
-          border-radius: 12px;
+          min-height: 66px;
+          border-radius: 20px;
           border: 1px solid #cfd9e7;
-          background: #f8fbff;
+          background: rgba(248, 251, 255, 0.9);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 12px 0 14px;
+          padding: 0 18px 0 20px;
           color: #4d5e7a;
-          font-size: 14px;
-          font-weight: 700;
+          font-size: 15px;
+          font-weight: 800;
           cursor: pointer;
-          transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-        }
-
-        .option:hover {
-          border-color: #bacce3;
-          background: #f3f8ff;
+          transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease,
+            transform 0.18s ease;
         }
 
         .option input {
@@ -494,19 +615,26 @@ const RelationshipView = ({
         }
 
         .option .dot {
-          width: 18px;
-          height: 18px;
+          width: 26px;
+          height: 26px;
           border-radius: 50%;
-          border: 1.5px solid #8f9eb5;
+          border: 2px solid #8f9eb5;
           display: grid;
           place-items: center;
+          flex-shrink: 0;
+          background: rgba(255, 255, 255, 0.8);
         }
 
         .option.active {
           border-color: #ef2f5a;
           color: #1b2642;
-          background: #fff4f8;
-          box-shadow: inset 0 0 0 1px #ffd3de;
+          background: linear-gradient(180deg, rgba(255, 244, 248, 0.98), rgba(255, 237, 242, 0.98));
+          box-shadow: 0 12px 22px rgba(239, 47, 90, 0.12);
+        }
+
+        .option:hover {
+          transform: translateY(-1px);
+          border-color: #b9c8dc;
         }
 
         .option.active .dot {
@@ -516,50 +644,45 @@ const RelationshipView = ({
 
         .option.active .dot::after {
           content: '';
-          width: 6px;
-          height: 6px;
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
           background: #fff;
         }
 
         .linked-controls {
-          margin-top: 14px;
+          margin-top: 18px;
           display: flex;
-          gap: 10px;
-          align-items: center;
+          gap: 14px;
+          align-items: stretch;
+          padding: 14px;
+          border: 1px solid #d8e2ef;
+          border-radius: 24px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 250, 255, 0.96));
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+        }
+
+        .ring-add-btn {
+          border: 1px solid #ef2f5a;
+          background: linear-gradient(180deg, rgba(255, 243, 247, 0.98), rgba(255, 236, 242, 0.98));
+          color: #ef2f5a;
+          height: 56px;
+          white-space: nowrap;
+          min-width: 160px;
+          margin-top: 0;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         .ring-input {
           flex: 1;
           min-width: 0;
-          height: 44px;
-          border-radius: 12px;
-          border: 1px solid #cfd9e7;
-          background: #f8fbff;
-          padding: 0 12px;
-          font-size: 14px;
-          color: #1d2a45;
-          font-family: inherit;
+          border-radius: 18px;
+          background: #ffffff;
         }
 
-        .ring-input:focus {
-          outline: none;
-          border-color: #ef2f5a;
-          box-shadow: 0 0 0 3px rgba(239, 47, 90, 0.14);
-        }
-
-        .ring-add-btn {
-          border: 1px solid #ef2f5a;
-          background: #fff2f6;
-          color: #ef2f5a;
-          height: 44px;
-          border-radius: 12px;
-          padding: 0 16px;
-          font-size: 13px;
-          font-weight: 800;
-          cursor: pointer;
-          font-family: inherit;
-          box-shadow: inset 0 0 0 1px #ffd5de;
+        .ring-input::placeholder {
+          color: #7f8ca2;
+          font-weight: 700;
         }
 
         .ring-list {
@@ -598,15 +721,21 @@ const RelationshipView = ({
           border: 1px solid transparent;
           background: linear-gradient(180deg, #ef2f5a, #dd1d49);
           color: #fff;
-          width: 160px;
-          box-shadow: 0 9px 20px rgba(239, 47, 90, 0.28);
+          min-width: 170px;
+          box-shadow: 0 16px 24px rgba(226, 33, 76, 0.24);
         }
 
-        .outline-btn:hover,
-        .solid-btn:hover,
-        .ring-add-btn:hover {
-          transform: translateY(-1px);
-          filter: saturate(1.03);
+        .card-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 14px;
+          margin-top: auto;
+          padding-top: 28px;
+        }
+
+        .card-actions .outline-btn,
+        .card-actions .solid-btn {
+          margin-top: 0;
         }
 
         .divider {
@@ -645,155 +774,55 @@ const RelationshipView = ({
           font-weight: 800;
         }
 
-        @media (max-width: 1024px) {
-          .relationship-topbar {
-            height: auto;
-            min-height: 68px;
-            padding: 10px 14px;
-            flex-wrap: wrap;
-            gap: 10px;
-          }
-
-          .brand-title {
-            transform: none;
-            width: auto;
-            margin-right: 0;
-            font-size: 26px;
-          }
-
-          .top-links {
-            order: 3;
-            justify-content: flex-start;
-            width: 100%;
-            overflow-x: auto;
-            padding-bottom: 4px;
-          }
-
-          .top-link {
-            padding: 4px 0 10px;
-          }
-
-          .top-link.active::after {
-            bottom: 0;
-          }
-
-          .top-actions {
-            min-width: auto;
-            margin-left: auto;
-          }
-
-          .relationship-wrap {
-            padding: 40px 14px 30px;
-          }
-
-          .hero h1 {
-            font-size: clamp(32px, 8.4vw, 56px);
-          }
-
-          .hero p {
-            font-size: 18px;
-          }
-
-          .identity {
-            grid-template-columns: 1fr;
-            gap: 16px;
-            margin-bottom: 32px;
-            padding: 18px 14px;
-          }
-
-          
-          .user span,
-          .center-heart,
-          .center-info .date,
-          .card h4,
-          .row,
-          .outline-btn,
-          .option,
-          .solid-btn,
-          .linked h5 {
-            transform: none;
-            width: auto;
-            margin: 0;
-            font-size: inherit;
-          }
-
+        @media (max-width: 900px) {
           .grid-cards {
             grid-template-columns: 1fr;
           }
 
           .card {
             min-height: auto;
-            padding: 20px 16px;
-          }
-
-          .card h4 {
-            font-size: 28px;
-            margin-bottom: 8px;
-          }
-
-          .user h2,
-          .user h3 {
-            font-size: 26px;
-          }
-
-          .row {
-            font-size: 14px;
-          }
-
-          .helper {
-            font-size: 11px;
-          }
-
-          .option {
-            font-size: 14px;
-            height: 44px;
-            margin-bottom: 0;
-          }
-
-          .outline-btn,
-          .solid-btn {
-            width: 100%;
-            font-size: 15px;
-            margin-top: 14px;
-          }
-
-          .linked h5 {
-            font-size: 28px;
-            margin-bottom: 10px;
           }
         }
 
-        @media (max-width: 640px) {
-          .status-pill,
-          .action-icon {
-            display: none;
+        @media (max-width: 680px) {
+          .relationship-wrap {
+            padding: 34px 14px 48px;
           }
 
           .certificate {
-            border-radius: 18px;
-            padding: 16px 12px;
+            padding: 22px 16px;
           }
 
-          .hero {
-            margin-bottom: 30px;
+          .identity {
+            grid-template-columns: 1fr;
+            gap: 22px;
+            margin-bottom: 28px;
           }
 
-          .label {
-            padding: 6px 10px;
-            font-size: 10px;
-            letter-spacing: 0.13em;
+          .card {
+            padding: 24px 18px 22px;
+            border-radius: 24px;
           }
 
-          .pair-code {
-            margin-top: 12px;
-            font-size: 9px;
-            padding: 6px 10px;
+          .row {
+            grid-template-columns: 1fr;
+            gap: 8px;
           }
 
-          .footer {
-            margin-top: 30px;
-            letter-spacing: 0.18em;
-            font-size: 9px;
+          .card-actions {
+            flex-direction: column;
+          }
+
+          .card-actions .outline-btn,
+          .card-actions .solid-btn,
+          .ring-add-btn {
+            width: 100%;
+          }
+
+          .linked-controls {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 12px;
           }
         }
       `}</style>
@@ -809,17 +838,17 @@ const RelationshipView = ({
           <button className="top-link">Ring Scan</button>
           <button className="top-link">My Ring</button>
           <button className="top-link" type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
-          <button className="top-link active">Relationship</button>
+          <button className="top-link active" type="button">Relationship</button>
           <button className="top-link" type="button" onClick={onNavigateSettings}>Settings</button>
         </div>
 
         <div className="top-actions">
-          <span className="status-pill">{'\u2923'} UNLINKED</span>
+          <span className="status-pill">{'\u2923'} {status}</span>
           <span className="action-icon">{'\u263E'}</span>
           <span className="action-icon">{'\u{1F514}'}</span>
           <img
             className="mini-avatar"
-            src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80"
+            src={owner?.avatarUrl || fallbackAvatar}
             alt="Member"
             onClick={onNavigateProfile}
           />
@@ -827,40 +856,35 @@ const RelationshipView = ({
       </header>
 
       <main className="relationship-wrap">
+        {error && <div className="error-banner">{error}</div>}
+
         <section className="hero">
-          <span className="label">{'\u2726'} Always & Forever</span>
+          <span className="label">{'\u2726'} Relationship Page Connected To Backend</span>
           <h1>Relationship Certificate</h1>
           <p>Live relationship profile from your database.</p>
-          <span className="pair-code">PAIR001</span>
+          <span className="pair-code">{pairCode}</span>
+          {saving && <p className="saving-note">Saving</p>}
         </section>
 
         <section className="certificate">
           <div className="identity">
             <article className="user">
-              <img
-                className="avatar"
-                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80"
-                alt="John Carter"
-              />
-             <h2>Sav Siv</h2>
-              <span>@siv123</span>
+              <img className="avatar" src={owner?.avatarUrl || fallbackAvatar} alt={owner?.fullName || 'Owner'} />
+              <h2>{owner?.fullName || (loading ? 'Loading...' : 'Unknown Member')}</h2>
+              <span>@{owner?.username || 'unknown'}</span>
             </article>
 
             <article className="center-info">
               <div className="center-heart">{'\u2764'}</div>
               <p className="kicker">Established</p>
-              <p className="date">1/1/2025</p>
-              <p className="days">1y 53d together</p>
+              <p className="date">{formattedEstablishedAt}</p>
+              <p className="days">Pair ID {RELATIONSHIP_ID}</p>
             </article>
 
             <article className="user">
-              <img
-                className="avatar"
-                src="https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?auto=format&fit=crop&w=240&q=80"
-                alt="Anna Lee"
-              />
-             <h2>Thalita</h2>
-              <span>@anna456</span>
+              <img className="avatar" src={partner?.avatarUrl || fallbackAvatar} alt={partner?.fullName || 'Partner'} />
+              <h2>{partner?.fullName || (loading ? 'Loading...' : 'Unknown Member')}</h2>
+              <span>@{partner?.username || 'unknown'}</span>
             </article>
           </div>
 
@@ -870,11 +894,7 @@ const RelationshipView = ({
               <div className="meta">
                 <label className="row">
                   <span>Access:</span>
-                  <select
-                    className="field-select"
-                    value={access}
-                    onChange={(event) => setAccess(event.target.value)}
-                  >
+                  <select className="field-select" value={access} onChange={(event) => setAccess(event.target.value)}>
                     <option value="GRANTED">GRANTED</option>
                     <option value="REVOKED">REVOKED</option>
                   </select>
@@ -889,11 +909,7 @@ const RelationshipView = ({
                 </label>
                 <label className="row">
                   <span>Status:</span>
-                  <select
-                    className="field-select"
-                    value={status}
-                    onChange={(event) => setStatus(event.target.value)}
-                  >
+                  <select className="field-select" value={status} onChange={(event) => setStatus(event.target.value)}>
                     <option value="PAIRED">PAIRED</option>
                     <option value="UNPAIRED">UNPAIRED</option>
                     <option value="PUBLIC">PUBLIC</option>
@@ -902,9 +918,14 @@ const RelationshipView = ({
                   </select>
                 </label>
               </div>
-              <button className="outline-btn" type="button" onClick={handleUnpair}>
-                Unpair Relationship
-              </button>
+              <div className="card-actions">
+                <button className="solid-btn" type="button" onClick={handleSaveMetadata} disabled={saving}>
+                  Save Metadata
+                </button>
+                <button className="outline-btn" type="button" onClick={handleUnpair} disabled={saving}>
+                  Unpair Relationship
+                </button>
+              </div>
             </section>
 
             <section className="card">
@@ -912,42 +933,26 @@ const RelationshipView = ({
               <p className="helper">Visibility mode from 'proximity_preferences'.</p>
               <div className="options">
                 <label className={`option ${visibility === 'public' ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="visibility"
-                    value="public"
-                    checked={visibility === 'public'}
-                    onChange={(event) => setVisibility(event.target.value)}
-                  />
+                  <input type="radio" name="visibility" value="public" checked={visibility === 'public'} onChange={(event) => setVisibility(event.target.value)} />
                   <span>Public Presence</span>
                   <span className="dot" />
                 </label>
                 <label className={`option ${visibility === 'partners' ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="visibility"
-                    value="partners"
-                    checked={visibility === 'partners'}
-                    onChange={(event) => setVisibility(event.target.value)}
-                  />
+                  <input type="radio" name="visibility" value="partners" checked={visibility === 'partners'} onChange={(event) => setVisibility(event.target.value)} />
                   <span>Partners Only</span>
                   <span className="dot" />
                 </label>
                 <label className={`option ${visibility === 'private' ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="visibility"
-                    value="private"
-                    checked={visibility === 'private'}
-                    onChange={(event) => setVisibility(event.target.value)}
-                  />
+                  <input type="radio" name="visibility" value="private" checked={visibility === 'private'} onChange={(event) => setVisibility(event.target.value)} />
                   <span>Private</span>
                   <span className="dot" />
                 </label>
               </div>
-              <button className="solid-btn" type="button" onClick={handleSaveVisibility}>
-                Save Visibility
-              </button>
+              <div className="card-actions">
+                <button className="solid-btn" type="button" onClick={handleSaveVisibility} disabled={saving}>
+                  Save Visibility
+                </button>
+              </div>
             </section>
           </div>
 
@@ -956,7 +961,7 @@ const RelationshipView = ({
           <section className="linked">
             <h5>Linked Rings</h5>
             <div className="linked-box">
-              {linkedRings.length === 0 ? 'No rings linked.' : `${linkedRings.length} ring(s) linked.`}
+              {loading ? 'Loading rings...' : linkedRings.length === 0 ? 'No rings linked.' : `${linkedRings.length} ring(s) linked.`}
             </div>
             <div className="linked-controls">
               <input
@@ -965,20 +970,16 @@ const RelationshipView = ({
                 onChange={(event) => setRingInput(event.target.value)}
                 placeholder="Enter ring id"
               />
-              <button className="ring-add-btn" type="button" onClick={handleAddRing}>
+              <button className="ring-add-btn" type="button" onClick={handleAddRing} disabled={saving}>
                 Add Ring
               </button>
             </div>
             {linkedRings.length > 0 && (
               <ul className="ring-list">
                 {linkedRings.map((ring) => (
-                  <li className="ring-item" key={ring}>
-                    <span>{ring}</span>
-                    <button
-                      className="ring-remove"
-                      type="button"
-                      onClick={() => setLinkedRings((current) => current.filter((item) => item !== ring))}
-                    >
+                  <li className="ring-item" key={ring.linkId}>
+                    <span>{ring.ringIdentifier}</span>
+                    <button className="ring-remove" type="button" onClick={() => handleRemoveRing(ring.id)} disabled={saving}>
                       Remove
                     </button>
                   </li>
