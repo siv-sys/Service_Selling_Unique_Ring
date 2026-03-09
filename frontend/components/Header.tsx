@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Bell, Search, Plus, Download } from 'lucide-react';
 
 interface HeaderProps {
@@ -6,207 +6,158 @@ interface HeaderProps {
   subtitle: string;
   showProvisionButton?: boolean;
   showExportButton?: boolean;
+  onExportExcel?: () => void;
+  onExportPdf?: () => void;
+  notifications?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    time: string;
+  }>;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
   title, 
   subtitle, 
   showProvisionButton = false,
-  showExportButton = false
+  showExportButton = false,
+  onExportExcel,
+  onExportPdf,
+  notifications = []
 }) => {
+  const defaultProfilePhoto =
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCmqQASMOLSpK9bGM0-CgmKl9sKhEN6GVoUAzpwuV_qazu6yD8oWPjCj2CgVE-fyl5QOGCpNgh0AALDLKkdOHjRa-3p55FWqeWN2IEP7WRWdYnm7HXTQcVmjLgTru9rytSOijqqbXBENwG2h6eS5rbKl-DJofpCy0tEpZyPfoMv5AsJPZDZqpkkANt9xz8DD1AV_Bn_rHCYdbeLal-7ErCbx9aXUtuDHNY3zLpAGd8hn2VbYSXD_hlpXuc3K9cKXLeY3qGkLCYJB5Sw';
+  const [profilePhoto, setProfilePhoto] = useState(defaultProfilePhoto);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Array<{
-    id: number;
-    type: 'system' | 'ring';
-    title: string;
-    message: string;
-    time: string;
-    read: boolean;
-  }>>([]);
-  const [ringModel, setRingModel] = useState('');
-  const [ringSerial, setRingSerial] = useState('');
-  const [ringStatus, setRingStatus] = useState('In Stock');
+  const exportRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const cached = localStorage.getItem('admin_ring_notifications');
-    if (cached) {
-      setNotifications(JSON.parse(cached));
-      return;
-    }
-
-    setNotifications([
-      {
-        id: Date.now(),
-        type: 'system',
-        title: 'Welcome',
-        message: 'Notification center is ready to store ring information.',
-        time: new Date().toLocaleString(),
-        read: false
-      }
-    ]);
+    const saved = localStorage.getItem('admin_profile_photo');
+    if (saved) setProfilePhoto(saved);
   }, []);
 
   useEffect(() => {
-    if (notifications.length === 0) return;
-    localStorage.setItem('admin_ring_notifications', JSON.stringify(notifications));
-  }, [notifications]);
-
-  const unreadCount = useMemo(
-    () => notifications.filter((item) => !item.read).length,
-    [notifications]
-  );
-
-  const addRingNotification = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!ringModel.trim() || !ringSerial.trim()) return;
-
-    const item = {
-      id: Date.now(),
-      type: 'ring' as const,
-      title: `Ring Saved: ${ringModel}`,
-      message: `Serial ${ringSerial} - Status ${ringStatus}`,
-      time: new Date().toLocaleString(),
-      read: false
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (exportRef.current && !exportRef.current.contains(target)) {
+        setIsExportOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(target)) {
+        setIsNotificationOpen(false);
+      }
     };
 
-    setNotifications((prev) => [item, ...prev]);
-    setRingModel('');
-    setRingSerial('');
-    setRingStatus('In Stock');
-  };
-
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
-  };
-
-  const dismissNotification = (id: number) => {
-    setNotifications((prev) => prev.filter((item) => item.id !== id));
-  };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
-    <>
-      <header className="h-20 bg-white border-b border-primary/10 flex items-center justify-between px-8 z-10 sticky top-0">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
-          <p className="text-sm text-slate-500">{subtitle}</p>
+    <header className="h-20 bg-white border-b-2 border-pink-300 flex items-center justify-between px-8 z-10 sticky top-0">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
+        <p className="text-sm text-slate-500">{subtitle}</p>
+      </div>
+      
+      <div className="flex items-center gap-4">
+        <div className="relative hidden md:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <input 
+            type="text" 
+            placeholder="Search..." 
+            className="pl-10 pr-4 py-2 bg-pink-50 border border-pink-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-300 w-64"
+          />
         </div>
-
-        <div className="flex items-center gap-4">
-          <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/30 w-64"
-            />
-          </div>
-
-          <div className="relative">
-            <button
-              onClick={() => setIsNotificationOpen((prev) => !prev)}
-              className="p-2 text-slate-500 hover:bg-primary/5 rounded-full relative transition-colors"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-primary text-white text-[10px] font-bold rounded-full grid place-items-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {isNotificationOpen && (
-              <div className="absolute right-0 top-12 w-[360px] bg-white border border-slate-300 rounded-xl shadow-xl z-30 overflow-hidden">
-                <div className="p-3 border-b border-slate-300 flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-slate-900">Notifications</h4>
-                  <button
-                    onClick={markAllRead}
-                    className="text-xs font-semibold text-primary hover:text-primary-dark"
-                  >
-                    Mark all read
-                  </button>
-                </div>
-
-                <form onSubmit={addRingNotification} className="p-3 border-b border-slate-300 bg-slate-50/50 space-y-2">
-                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">Store Ring Information</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      value={ringModel}
-                      onChange={(e) => setRingModel(e.target.value)}
-                      placeholder="Ring model"
-                      className="px-2 py-1.5 border border-slate-300 rounded text-xs"
-                    />
-                    <input
-                      value={ringSerial}
-                      onChange={(e) => setRingSerial(e.target.value)}
-                      placeholder="Serial number"
-                      className="px-2 py-1.5 border border-slate-300 rounded text-xs"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <select
-                      value={ringStatus}
-                      onChange={(e) => setRingStatus(e.target.value)}
-                      className="px-2 py-1.5 border border-slate-300 rounded text-xs"
-                    >
-                      <option>In Stock</option>
-                      <option>Low Stock</option>
-                      <option>Depleted</option>
-                    </select>
-                    <button
-                      type="submit"
-                      className="px-3 py-1.5 rounded bg-primary text-white text-xs font-bold hover:bg-primary-dark"
-                    >
-                      Save Ring Info
-                    </button>
-                  </div>
-                </form>
-
-                <div className="max-h-72 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <p className="p-3 text-sm text-slate-600">No notifications yet.</p>
-                  ) : (
-                    notifications.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`p-3 border-b border-slate-200 ${item.read ? 'bg-white' : 'bg-primary/5'}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-bold text-slate-900">{item.title}</p>
-                            <p className="text-xs text-slate-700">{item.message}</p>
-                            <span className="text-[11px] text-slate-500">{item.time}</span>
-                          </div>
-                          <button
-                            onClick={() => dismissNotification(item.id)}
-                            className="text-[11px] font-semibold text-slate-500 hover:text-rose-700"
-                          >
-                            Dismiss
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+        
+        <div className="relative" ref={notificationRef}>
+          <button
+            type="button"
+            onClick={() => setIsNotificationOpen((prev) => !prev)}
+            className="p-2 text-pink-700 hover:bg-pink-100 active:bg-pink-200 active:text-pink-900 rounded-full relative transition-colors border border-pink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
+          >
+            <Bell className="w-5 h-5" />
+            {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-pink-600 rounded-full"></span>}
+          </button>
+          {isNotificationOpen && (
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-pink-200 rounded-xl shadow-lg z-30 overflow-hidden">
+              <div className="px-4 py-3 border-b border-pink-100 text-sm font-bold text-pink-900">
+                Notifications
               </div>
-            )}
-          </div>
-
-          {showExportButton && (
-            <button className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-50 transition-all">
+              <div className="max-h-72 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="px-4 py-3 text-xs text-slate-500">No notifications</p>
+                ) : (
+                  notifications.map((item) => (
+                    <div key={item.id} className="px-4 py-3 border-b border-pink-50 last:border-b-0">
+                      <p className="text-xs font-bold text-slate-900">{item.title}</p>
+                      <p className="text-[11px] text-slate-600">{item.description}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">{item.time}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {showExportButton && (
+          <div className="relative" ref={exportRef}>
+            <button
+              type="button"
+              onClick={() => setIsExportOpen((prev) => !prev)}
+              className="bg-white border border-pink-300 text-pink-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-pink-100 active:bg-pink-200 active:text-pink-900 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
+            >
               <Download className="w-4 h-4" />
               Export
             </button>
-          )}
+            {isExportOpen && (
+              <div className="absolute right-0 mt-2 w-44 bg-white border border-pink-200 rounded-xl shadow-lg z-30 p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onExportExcel?.();
+                    setIsExportOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-pink-100 rounded-lg"
+                >
+                  Export Excel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onExportPdf?.();
+                    setIsExportOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-pink-100 rounded-lg"
+                >
+                  Export PDF
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {showProvisionButton && (
+          <button className="bg-pink-700 hover:bg-pink-800 active:bg-pink-900 active:scale-[0.99] text-white px-5 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-pink-300/30 border border-pink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300">
+            <Plus className="w-4 h-4" />
+            Provision New Device
+          </button>
+        )}
 
-          {showProvisionButton && (
-            <button className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-primary/20">
-              <Plus className="w-4 h-4" />
-              Provision New Device
-            </button>
-          )}
-        </div>
-      </header>
-    </>
+        <button
+          type="button"
+          className="rounded-full border-2 border-pink-300 p-0.5 hover:border-pink-400 active:border-pink-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
+          title="Admin profile"
+        >
+          <img
+            src={profilePhoto}
+            alt="Admin profile"
+            className="w-10 h-10 rounded-full object-cover"
+          />
+        </button>
+      </div>
+    </header>
   );
 };
 
