@@ -138,10 +138,10 @@ const AdminSeedView: React.FC = () => {
   };
 
   const inputClassName =
-    'h-11 px-4 rounded-xl border border-rose-100 dark:border-slate-700 bg-white/90 dark:bg-slate-800/60 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-300/70 dark:focus:ring-rose-500/40 focus:border-transparent transition-all';
+    'h-11 px-4 rounded-xl border border-slate-200 bg-slate-50/90 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-300/80 focus:border-transparent transition-all';
 
   return (
-    <div className="flex h-screen bg-slate-100">
+    <div className="flex h-screen bg-[#f3f4f6]">
 
       {/* Sidebar */}
       <Sidebar currentView={currentView} setView={setView} role={Role.ADMIN} onSignOut={onSignOut} />
@@ -156,17 +156,17 @@ const AdminSeedView: React.FC = () => {
           setView={setView}
         />
 
-        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-rose-50/30 to-slate-100 dark:from-charcoal dark:via-slate-900 dark:to-slate-950 p-6 md:p-8">
+        <main className="flex-1 overflow-y-auto bg-[#f3f4f6] p-6 md:p-8">
 
           <div className="max-w-5xl mx-auto flex flex-col gap-6 animate-in fade-in duration-500">
 
-            <div className="rounded-3xl border border-rose-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm shadow-sm px-6 py-5">
+            <div className="rounded-3xl border border-pink-200 bg-white shadow-sm px-6 py-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Admin Tools</p>
                   <h2 className="text-2xl font-extrabold tracking-tight mt-1">Catalog Seed Console</h2>
                 </div>
-                <div className="inline-flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-primary-red px-3 py-2 border border-rose-100 dark:border-rose-900/30">
+                <div className="inline-flex items-center gap-2 rounded-xl bg-pink-50 text-pink-600 px-3 py-2 border border-pink-200">
                   <span className="material-symbols-outlined text-base">verified_user</span>
                   <span className="text-xs font-bold uppercase tracking-wider">Admin Only</span>
                 </div>
@@ -174,22 +174,22 @@ const AdminSeedView: React.FC = () => {
             </div>
 
             {/* Seed Section */}
-            <div className="bg-white/90 dark:bg-slate-900/85 rounded-3xl border border-rose-100 dark:border-slate-800 shadow-sm p-6 md:p-8">
+            <div className="bg-white rounded-3xl border border-pink-200 shadow-sm p-6 md:p-8">
 
               <div className="flex items-center gap-4 mb-6">
-                <div className="size-12 rounded-2xl bg-rose-50 text-primary-red dark:bg-slate-800/80 flex items-center justify-center">
+                <div className="size-12 rounded-2xl bg-pink-50 text-pink-600 flex items-center justify-center">
                   <span className="material-symbols-outlined">database_upload</span>
                 </div>
 
                 <div>
                   <h3 className="text-xl font-bold">Couple Shop Seed Data</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm text-slate-500">
                     Insert starter products and stock into `ring_models` and `rings`.
                   </p>
                 </div>
               </div>
 
-              <ul className="text-sm text-slate-500 dark:text-slate-400 list-disc pl-5 space-y-1 mb-5">
+              <ul className="text-sm text-slate-500 list-disc pl-5 space-y-1 mb-5">
                 <li>Creates missing ring models for Couple Shop.</li>
                 <li>Inserts available stock rings using safe re-run migration behavior.</li>
                 <li>Admin-only action, protected by auth role.</li>
@@ -198,7 +198,7 @@ const AdminSeedView: React.FC = () => {
               <button
                 onClick={seedCatalog}
                 disabled={isSeeding}
-                className="h-12 px-8 rounded-2xl bg-primary-red hover:bg-rose-700 text-white font-bold text-sm shadow-lg shadow-rose-500/25 disabled:opacity-50 transition-all"
+                className="h-12 px-8 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white font-bold text-sm shadow-lg shadow-pink-500/25 disabled:opacity-50 transition-all"
               >
                 {isSeeding ? 'Seeding Catalog...' : 'Seed Couple Shop Data'}
               </button>
@@ -208,11 +208,11 @@ const AdminSeedView: React.FC = () => {
             {/* Insert Form */}
             <form
               onSubmit={insertFromForm}
-              className="bg-white/90 dark:bg-slate-900/85 rounded-3xl border border-rose-100 dark:border-slate-800 shadow-sm p-6 md:p-8 space-y-6"
+              className="bg-white rounded-3xl border border-pink-200 shadow-sm p-6 md:p-8 space-y-6"
             >
 
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary-red">edit_note</span>
+                <span className="material-symbols-outlined text-pink-600">edit_note</span>
                 <h4 className="text-lg font-bold">Insert Custom Catalog Data</h4>
               </div>
 
@@ -272,7 +272,7 @@ const AdminSeedView: React.FC = () => {
               </div>
 
               <textarea
-                className="w-full min-h-[100px] p-4 rounded-xl border border-rose-100 dark:border-slate-700 bg-white/90 dark:bg-slate-800/60 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-300/70 dark:focus:ring-rose-500/40 focus:border-transparent transition-all"
+                className="w-full min-h-[100px] p-4 rounded-xl border border-slate-200 bg-slate-50/90 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-300/80 focus:border-transparent transition-all"
                 placeholder="Description"
                 value={form.description}
                 onChange={(e) => updateForm('description', e.target.value)}
