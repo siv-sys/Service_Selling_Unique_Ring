@@ -17,6 +17,9 @@ interface PersistedSettings {
   supportEmail: string;
   currency: string;
   systemUpdates: boolean;
+  securityAlerts: boolean;
+  orderPlacement: boolean;
+  pushNotifications: boolean;
 }
 
 const Toggle: React.FC<ToggleProps> = ({ enabled, onChange }) => (
@@ -36,6 +39,9 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   supportEmail: 'support@aurarings.com',
   currency: 'USD',
   systemUpdates: true,
+  securityAlerts: true,
+  orderPlacement: false,
+  pushNotifications: true,
 };
 
 function loadSettings(): PersistedSettings {
@@ -51,6 +57,9 @@ function loadSettings(): PersistedSettings {
       supportEmail: String(parsed.supportEmail || DEFAULT_SETTINGS.supportEmail),
       currency: String(parsed.currency || DEFAULT_SETTINGS.currency),
       systemUpdates: Boolean(parsed.systemUpdates ?? DEFAULT_SETTINGS.systemUpdates),
+      securityAlerts: Boolean(parsed.securityAlerts ?? DEFAULT_SETTINGS.securityAlerts),
+      orderPlacement: Boolean(parsed.orderPlacement ?? DEFAULT_SETTINGS.orderPlacement),
+      pushNotifications: Boolean(parsed.pushNotifications ?? DEFAULT_SETTINGS.pushNotifications),
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -70,9 +79,9 @@ const SettingsView: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState('');
   const [notifications, setNotifications] = useState<Record<NotificationKey, boolean>>({
     systemUpdates: DEFAULT_SETTINGS.systemUpdates,
-    securityAlerts: true,
-    orderPlacement: false,
-    pushNotifications: true,
+    securityAlerts: DEFAULT_SETTINGS.securityAlerts,
+    orderPlacement: DEFAULT_SETTINGS.orderPlacement,
+    pushNotifications: DEFAULT_SETTINGS.pushNotifications,
   });
 
   const toggleNotification = (key: NotificationKey) => {
@@ -85,7 +94,12 @@ const SettingsView: React.FC = () => {
     setShopName(initial.shopName);
     setSupportEmail(initial.supportEmail);
     setCurrency(initial.currency);
-    setNotifications((prev) => ({ ...prev, systemUpdates: initial.systemUpdates }));
+    setNotifications({
+      systemUpdates: initial.systemUpdates,
+      securityAlerts: initial.securityAlerts,
+      orderPlacement: initial.orderPlacement,
+      pushNotifications: initial.pushNotifications,
+    });
   }, []);
 
   useEffect(() => {
@@ -120,7 +134,12 @@ const SettingsView: React.FC = () => {
     setShopName(savedSettings.shopName);
     setSupportEmail(savedSettings.supportEmail);
     setCurrency(savedSettings.currency);
-    setNotifications((prev) => ({ ...prev, systemUpdates: savedSettings.systemUpdates }));
+    setNotifications({
+      systemUpdates: savedSettings.systemUpdates,
+      securityAlerts: savedSettings.securityAlerts,
+      orderPlacement: savedSettings.orderPlacement,
+      pushNotifications: savedSettings.pushNotifications,
+    });
     setSaveStatus('idle');
     setSaveMessage('');
   };
@@ -136,6 +155,9 @@ const SettingsView: React.FC = () => {
       supportEmail: supportEmail.trim(),
       currency: currency.trim().toUpperCase(),
       systemUpdates: notifications.systemUpdates,
+      securityAlerts: notifications.securityAlerts,
+      orderPlacement: notifications.orderPlacement,
+      pushNotifications: notifications.pushNotifications,
     };
 
     if (!nextSettings.shopName || !nextSettings.supportEmail || !nextSettings.currency) {
@@ -178,7 +200,10 @@ const SettingsView: React.FC = () => {
     shopName.trim() !== savedSettings.shopName ||
     supportEmail.trim() !== savedSettings.supportEmail ||
     currency.trim().toUpperCase() !== savedSettings.currency ||
-    notifications.systemUpdates !== savedSettings.systemUpdates;
+    notifications.systemUpdates !== savedSettings.systemUpdates ||
+    notifications.securityAlerts !== savedSettings.securityAlerts ||
+    notifications.orderPlacement !== savedSettings.orderPlacement ||
+    notifications.pushNotifications !== savedSettings.pushNotifications;
 
   return (
     <main className="settings-page">
