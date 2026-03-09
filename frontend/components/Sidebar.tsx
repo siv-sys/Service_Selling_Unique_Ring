@@ -6,6 +6,7 @@ import {
   Package,
   ShieldAlert,
   Database,
+  Heart,
   Settings,
   LogOut
 } from 'lucide-react';
@@ -115,17 +116,6 @@ const Sidebar = () => {
             className="w-10 h-10 rounded-full border-2 border-primary/20 shadow-sm object-cover"
             src={profilePhoto}
           />
-          <button
-            onClick={handleOpenAvatarPicker}
-            className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/40"
-            title="Upload admin profile photo"
-          >
-            <img
-              alt="Alex Rivera"
-              className="w-10 h-10 rounded-full border-2 border-primary/20 shadow-sm object-cover"
-              src={adminAvatar}
-            />
-          </button>
           <div className="overflow-hidden text-left">
             <p className="text-sm font-bold truncate">Alex Rivera</p>
             <p className="text-xs text-slate-500 truncate">System Admin</p>
