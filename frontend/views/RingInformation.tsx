@@ -387,7 +387,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
         <div className="flex items-center gap-2 mb-8 text-sm text-slate-500 dark:text-slate-400">
           <Link to="/shop" className="hover:text-primary">back to shop</Link>
           <span className="material-symbols-outlined text-xs">chevron_left</span>
-          <span className="text-slate-900 dark:text-slate-100 font-medium">{ringData.name}</span>
+          <span className="text-pink-900 dark:text-pink-10 font-medium">{ringData.name}</span>
         </div>
 
         {/* PRODUCT GRID */}
@@ -421,7 +421,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-2 block">
                 BondKeeper · Eternal
               </span>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-slate-100 mb-4 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-black text-yellow-900 dark:text-yellow-500 mb-4 leading-tight">
                 {ringData.name}
               </h1>
               
@@ -444,7 +444,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               <div className="space-y-8">
                 {/* Metal selection */}
                 <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-4 block uppercase tracking-wider">
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-10 mb-4 block uppercase tracking-wider">
                     Metal / Material
                   </span>
                   <div className="flex gap-4 flex-wrap">
@@ -487,7 +487,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                 {/* Size selection */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                    <span className="text-sm font-bold text-slate-900 dark:text-slate-10 uppercase tracking-wider">
                       Ring Size (US)
                     </span>
                     <button className="text-xs font-bold text-primary underline underline-offset-4">

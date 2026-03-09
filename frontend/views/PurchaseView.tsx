@@ -451,19 +451,19 @@ const PurchaseView: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                   <span className="text-sm text-slate-500">Ring name</span>
-                  <span className="font-bold dark:text-white">{ringData.name}</span>
+                  <span className="font-bold text-primary">{ringData.name}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                   <span className="text-sm text-slate-500">SKU</span>
-                  <span className="font-mono text-sm dark:text-white">{ringData.sku}</span>
+                  <span className="font-mono text-sm text-primary">{ringData.sku}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                   <span className="text-sm text-slate-500">Type</span>
-                  <span className="font-bold dark:text-white">{ringData.type}</span>
+                  <span className="font-bold text-primary">{ringData.type}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                   <span className="text-sm text-slate-500">Size</span>
-                  <span className="font-bold dark:text-white">{ringData.size}</span>
+                  <span className="font-bold text-primary">{ringData.size}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                   <span className="text-sm text-slate-500">Price</span>
@@ -816,7 +816,7 @@ const PurchaseView: React.FC = () => {
                         onChange={(e) => setTermsAccepted(e.target.checked)}
                         className="text-primary h-5 w-5 rounded border-slate-300"
                       />
-                      <span className="dark:text-white">
+                      <span className="text-primary">
                         I agree to the <Link to="/terms" className="text-primary underline">Terms</Link> and <Link to="/privacy" className="text-primary underline">Privacy Policy</Link>.
                       </span>
                     </label>

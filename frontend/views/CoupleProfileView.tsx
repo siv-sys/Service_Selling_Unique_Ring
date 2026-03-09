@@ -264,7 +264,7 @@ const showCertificationNotification = () => {
                     type="text"
                     value={searchEmail}
                     onChange={(e) => setSearchEmail(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-80 border-none rounded-2xl pl-12 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 shadow-sm placeholder-slate-400 dark:placeholder-slate-500 dark:text-white"
+                    className="w-full bg-white dark:bg-pink-80 border-none rounded-2xl pl-12 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 shadow-sm placeholder-slate-400 dark:placeholder-slate-500 text-black"
                     placeholder="Find Email Partner"
                   />
                 </div>

@@ -1,218 +1,154 @@
-const RingModel = require('../models/RingModel');
+const { pool } = require('../../config/database');
+const { redisClient } = require('../../config/redis');
 
-class RingController {
-  // Get all rings
-  async getAllRings(req, res) {
-    try {
-      const {
-        material, minPrice, maxPrice, status, search,
-        page, limit
-      } = req.query;
-
-      const filters = { material, minPrice, maxPrice, status, search };
-      const pagination = { page, limit };
-
-      const result = await RingModel.findAll(filters, pagination);
-
-      res.json({
-        success: true,
-        data: result.data,
-        pagination: result.pagination
-      });
-    } catch (error) {
-      console.error('Get all rings error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch rings',
-        error: error.message
-      });
+// Get all rings with filters
+const getRings = async (req, res) => {
+  try {
+    const { 
+      material, 
+      minPrice, 
+      maxPrice, 
+      status,
+      limit = 50, 
+      offset = 0 
+    } = req.query;
+    
+    let query = 'SELECT * FROM rings WHERE 1=1';
+    const params = [];
+    
+    if (material) {
+      query += ' AND material LIKE ?';
+      params.push(`%${material}%`);
     }
-  }
-
-  // Get single ring
-  async getRingById(req, res) {
-    try {
-      const { id } = req.params;
-      const ring = await RingModel.findById(parseInt(id));
-
-      if (!ring) {
-        return res.status(404).json({
-          success: false,
-          message: 'Ring not found'
-        });
+    
+    if (minPrice) {
+      query += ' AND price >= ?';
+      params.push(parseFloat(minPrice));
+    }
+    
+    if (maxPrice) {
+      query += ' AND price <= ?';
+      params.push(parseFloat(maxPrice));
+    }
+    
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+    
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+    
+    const [rows] = await pool.execute(query, params);
+    
+    // Get total count
+    const [countResult] = await pool.execute('SELECT COUNT(*) as total FROM rings');
+    
+    res.json({
+      success: true,
+      data: rows,
+      pagination: {
+        total: countResult[0].total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        returned: rows.length
       }
+    });
+  } catch (error) {
+    console.error('Error fetching rings:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database error',
+      error: error.message 
+    });
+  }
+};
 
-      res.json({
+// Get single ring by ID
+const getRingById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Try Redis cache first
+    const cachedRing = await redisClient.get(`ring:${id}`);
+    if (cachedRing) {
+      return res.json({
         success: true,
-        data: ring
-      });
-    } catch (error) {
-      console.error('Get ring error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch ring',
-        error: error.message
+        data: JSON.parse(cachedRing),
+        cached: true
       });
     }
-  }
-
-  // Get ring by identifier
-  async getRingByIdentifier(req, res) {
-    try {
-      const { identifier } = req.params;
-      const ring = await RingModel.findByIdentifier(identifier);
-
-      if (!ring) {
-        return res.status(404).json({
-          success: false,
-          message: 'Ring not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        data: ring
-      });
-    } catch (error) {
-      console.error('Get ring by identifier error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch ring',
-        error: error.message
+    
+    const [rows] = await pool.execute(
+      'SELECT * FROM rings WHERE id = ? OR ring_identifier = ?',
+      [id, id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Ring not found' 
       });
     }
+    
+    // Cache for 1 hour
+    await redisClient.setEx(`ring:${id}`, 3600, JSON.stringify(rows[0]));
+    
+    res.json({ success: true, data: rows[0] });
+  } catch (error) {
+    console.error('Error fetching ring:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database error',
+      error: error.message 
+    });
   }
+};
 
-  // Create ring
-  async createRing(req, res) {
-    try {
-      const { ring_name, material, price, ...rest } = req.body;
-
-      if (!ring_name || !material || !price) {
-        return res.status(400).json({
-          success: false,
-          message: 'Missing required fields: ring_name, material, price'
-        });
-      }
-
-      const newRing = await RingModel.create({ ring_name, material, price, ...rest });
-
-      res.status(201).json({
-        success: true,
-        message: 'Ring created successfully',
-        data: newRing
-      });
-    } catch (error) {
-      console.error('Create ring error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create ring',
-        error: error.message
+// Get filter options
+const getFilterOptions = async (req, res) => {
+  try {
+    // Try cache first
+    const cached = await redisClient.get('ring:filters');
+    if (cached) {
+      return res.json({ 
+        success: true, 
+        data: JSON.parse(cached), 
+        cached: true 
       });
     }
+    
+    // Get unique materials
+    const [materials] = await pool.execute(
+      'SELECT DISTINCT material FROM rings WHERE material IS NOT NULL AND material != ""'
+    );
+    
+    // Get price range
+    const [priceRange] = await pool.execute(
+      'SELECT MIN(price) as min_price, MAX(price) as max_price FROM rings'
+    );
+    
+    const filterData = {
+      materials: materials.map(m => m.material).filter(Boolean),
+      priceRange: priceRange[0] || { min_price: 0, max_price: 10000 }
+    };
+    
+    // Cache for 1 hour
+    await redisClient.setEx('ring:filters', 3600, JSON.stringify(filterData));
+    
+    res.json({ success: true, data: filterData });
+  } catch (error) {
+    console.error('Error fetching filter options:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database error',
+      error: error.message 
+    });
   }
+};
 
-  // Update ring
-  async updateRing(req, res) {
-    try {
-      const { id } = req.params;
-      
-      const existingRing = await RingModel.findById(parseInt(id));
-      if (!existingRing) {
-        return res.status(404).json({
-          success: false,
-          message: 'Ring not found'
-        });
-      }
-
-      const updatedRing = await RingModel.update(parseInt(id), req.body);
-
-      res.json({
-        success: true,
-        message: 'Ring updated successfully',
-        data: updatedRing
-      });
-    } catch (error) {
-      console.error('Update ring error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update ring',
-        error: error.message
-      });
-    }
-  }
-
-  // Delete ring
-  async deleteRing(req, res) {
-    try {
-      const { id } = req.params;
-      
-      const deleted = await RingModel.delete(parseInt(id));
-
-      if (!deleted) {
-        return res.status(404).json({
-          success: false,
-          message: 'Ring not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Ring deleted successfully'
-      });
-    } catch (error) {
-      console.error('Delete ring error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to delete ring',
-        error: error.message
-      });
-    }
-  }
-
-  // Get shop rings
-  async getShopRings(req, res) {
-    try {
-      const { minPrice, maxPrice, material, page, limit } = req.query;
-
-      const filters = { minPrice, maxPrice, material };
-      const pagination = { page, limit };
-
-      const result = await RingModel.getShopRings(filters, pagination);
-
-      res.json({
-        success: true,
-        data: result.data,
-        pagination: result.pagination
-      });
-    } catch (error) {
-      console.error('Get shop rings error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch shop rings',
-        error: error.message
-      });
-    }
-  }
-
-  // Get filter options
-  async getFilterOptions(req, res) {
-    try {
-      const options = await RingModel.getFilterOptions();
-
-      res.json({
-        success: true,
-        data: options
-      });
-    } catch (error) {
-      console.error('Get filter options error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch filter options',
-        error: error.message
-      });
-    }
-  }
-}
-
-module.exports = new RingController();
+module.exports = {
+  getRings,
+  getRingById,
+  getFilterOptions
+};

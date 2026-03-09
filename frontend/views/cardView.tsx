@@ -135,6 +135,63 @@ const Cart: React.FC = () => {
     }
   }, [cartItems]);
 
+  // Notification function (same style as CoupleProfileView)
+  const showNotification = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
+    // Remove any existing notification
+    const existingNotif = document.getElementById('cart-notification');
+    if (existingNotif) {
+      existingNotif.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.id = 'cart-notification';
+    notification.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
+    
+    // Set colors based on type
+    let bgColor = 'bg-primary';
+    let icon = 'info';
+    if (type === 'success') {
+      bgColor = 'bg-green-500';
+      icon = 'check_circle';
+    } else if (type === 'error') {
+      bgColor = 'bg-red-500';
+      icon = 'error';
+    }
+    
+    notification.innerHTML = `
+      <div class="${bgColor} text-white px-5 py-4 rounded-xl shadow-lg shadow-${bgColor.replace('bg-', '')}/30 flex items-start gap-3 max-w-md border border-white/20">
+        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg">${icon}</span>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-sm mb-1">${type === 'error' ? 'Error' : type === 'success' ? 'Success' : 'Notification'}</p>
+          <p class="text-xs opacity-90 leading-relaxed">${message}</p>
+        </div>
+        <button 
+          class="flex-shrink-0 w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
+          onclick="this.closest('.fixed').remove()"
+        >
+          <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+      const notif = document.getElementById('cart-notification');
+      if (notif) {
+        notif.style.animation = 'slide-down-bottom 0.3s ease-out forwards';
+        setTimeout(() => {
+          if (notif.parentNode) {
+            notif.remove();
+          }
+        }, 300);
+      }
+    }, 4000);
+  };
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     const newDarkMode = !isDarkMode;
@@ -169,15 +226,21 @@ const Cart: React.FC = () => {
   // Handle remove item
   const removeItem = (itemId: number) => {
     setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
+    showNotification('Item removed from cart', 'info');
   };
 
   // Handle continue to checkout
   const handleCheckout = () => {
     if (cartItems.length === 0) {
-      alert('Your cart is empty. Add some rings before checkout.');
+      showNotification('Your cart is empty. Add some rings before checkout.', 'error');
       return;
     }
     navigate('/purchase');
+  };
+
+  // Handle add to cart from upsell
+  const handleUpsellAdd = (itemName: string) => {
+    showNotification(`${itemName} added to your cart!`, 'success');
   };
 
   return (
@@ -358,19 +421,15 @@ const Cart: React.FC = () => {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
             {upsellItems.map((item) => (
-              <Link 
-                key={item.id} 
-                to="/shop"
-                onClick={() => {
-                  // You could add to cart functionality here
-                  alert(`${item.name} added to cart!`);
-                }}
-                className="group"
+              <button
+                key={item.id}
+                onClick={() => handleUpsellAdd(item.name)}
+                className="group text-left"
               >
-                <div className="aspect-square rounded-xl overflow-hidden bg-slate-100">
+                <div className="aspect-square rounded-xl overflow-hidden bg-pink-50">
                   <img 
                     src={item.image} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500" 
+                    className="w-full  object-cover group-hover:scale-105 transition duration-500" 
                     alt={item.name}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=400&fit=crop';
@@ -379,11 +438,38 @@ const Cart: React.FC = () => {
                 </div>
                 <p className="mt-2 font-medium">{item.name}</p>
                 <p className="text-primary text-sm">$ {item.price.toLocaleString()}</p>
-              </Link>
+              </button>
             ))}
           </div>
         </section>
       )}
+
+      {/* Add animations */}
+      <style>{`
+        @keyframes slide-up-bottom {
+          from {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+        }
+        @keyframes slide-down-bottom {
+          from {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+          to {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+        }
+        .animate-slide-up-bottom {
+          animation: slide-up-bottom 0.3s ease-out forwards;
+        }
+      `}</style>
     </main>
   );
 };
