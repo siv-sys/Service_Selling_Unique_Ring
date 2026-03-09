@@ -1,116 +1,161 @@
-
-import React, { useEffect, useState } from 'react';
-import { AppView, ThemeType, Role } from '../types';
-import { api } from '../lib/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bell, Search, Plus, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
-  view: AppView;
-  theme: ThemeType;
-  toggleTheme: () => void;
-  role: Role;
-  setView: (view: AppView) => void;
+  title: string;
+  subtitle: string;
+  showProvisionButton?: boolean;
+  showExportButton?: boolean;
+  onExportExcel?: () => void;
+  onExportPdf?: () => void;
+  notifications?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    time: string;
+  }>;
 }
 
-interface CurrentUserProfile {
-  fullName: string;
-  avatarUrl: string | null;
-}
-
-function getStoredAuthValue(key: string): string | null {
-  return sessionStorage.getItem(key) || localStorage.getItem(key);
-}
-
-const Header: React.FC<HeaderProps> = ({ view, theme, toggleTheme, role, setView }) => {
-  const [profile, setProfile] = useState<CurrentUserProfile>({
-    fullName: role === Role.ADMIN ? 'Admin' : 'Member',
-    avatarUrl: null,
-  });
+const Header: React.FC<HeaderProps> = ({ 
+  title, 
+  subtitle, 
+  showProvisionButton = false,
+  showExportButton = false,
+  onExportExcel,
+  onExportPdf,
+  notifications = []
+}) => {
+  const defaultProfilePhoto =
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCmqQASMOLSpK9bGM0-CgmKl9sKhEN6GVoUAzpwuV_qazu6yD8oWPjCj2CgVE-fyl5QOGCpNgh0AALDLKkdOHjRa-3p55FWqeWN2IEP7WRWdYnm7HXTQcVmjLgTru9rytSOijqqbXBENwG2h6eS5rbKl-DJofpCy0tEpZyPfoMv5AsJPZDZqpkkANt9xz8DD1AV_Bn_rHCYdbeLal-7ErCbx9aXUtuDHNY3zLpAGd8hn2VbYSXD_hlpXuc3K9cKXLeY3qGkLCYJB5Sw';
+  const [profilePhoto, setProfilePhoto] = useState(defaultProfilePhoto);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      const rawUserId = getStoredAuthValue('auth_user_id');
-      if (!rawUserId) return;
+    const saved = localStorage.getItem('admin_profile_photo');
+    if (saved) setProfilePhoto(saved);
+  }, []);
 
-      try {
-        const user = await api.get<{ fullName: string; avatarUrl: string | null }>(`/users/${rawUserId}`);
-        setProfile({
-          fullName: user.fullName || (role === Role.ADMIN ? 'Admin' : 'Member'),
-          avatarUrl: user.avatarUrl || null,
-        });
-      } catch (error) {
-        console.error('Failed to load header profile:', error);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (exportRef.current && !exportRef.current.contains(target)) {
+        setIsExportOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(target)) {
+        setIsNotificationOpen(false);
       }
     };
 
-    loadProfile();
-  }, [role]);
-
-  const getTitle = () => {
-    switch (view) {
-      case AppView.DASHBOARD: return 'Command Center';
-      case AppView.USER_MGMT: return 'User & Pair Registry';
-      case AppView.INVENTORY: return 'Ring Inventory';
-      case AppView.SECURITY_LOGS: return 'Security Logs';
-      case AppView.ADMIN_SEED: return 'Catalog Seed';
-      case AppView.SETTINGS: return 'System Settings';
-      case AppView.RELATIONSHIP: return 'Relationship Certificate';
-      case AppView.COUPLE_PROFILE: return 'Eternal Connection';
-      default: return 'BondKeeper';
-    }
-  };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
-    <header className="h-20 flex items-center justify-between px-6 md:px-10 bg-white dark:bg-charcoal border-b border-rose-50 dark:border-slate-800 z-10 shrink-0">
-      <div className="flex flex-col">
-        <h2 className="text-xl font-extrabold tracking-tight">{getTitle()}</h2>
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
-          <span>Home</span>
-          <span className="material-symbols-outlined text-[10px]">chevron_right</span>
-          <span className="text-primary-red dark:text-rose-400 font-bold capitalize">
-            {view.replace('_', ' ').toLowerCase()}
-          </span>
-        </div>
+    <header className="h-20 bg-white border-b-2 border-pink-300 flex items-center justify-between px-8 z-10 sticky top-0">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
+        <p className="text-sm text-slate-500">{subtitle}</p>
       </div>
-
+      
       <div className="flex items-center gap-4">
-        <div className="hidden md:flex relative group">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+        <div className="relative hidden md:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input 
-            className="h-10 w-64 rounded-xl border-none bg-rose-50/50 dark:bg-slate-800 pl-10 pr-4 text-xs font-medium focus:ring-2 focus:ring-rose-500 transition-all" 
-            placeholder="Quick search..." 
             type="text" 
+            placeholder="Search..." 
+            className="pl-10 pr-4 py-2 bg-pink-50 border border-pink-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-300 w-64"
           />
         </div>
-
-        <button 
-          onClick={toggleTheme}
-          className="size-10 flex items-center justify-center rounded-xl bg-rose-50/50 dark:bg-slate-800 hover:text-primary-red transition-colors"
-        >
-          <span className="material-symbols-outlined">
-            {theme === ThemeType.LIGHT ? 'dark_mode' : 'light_mode'}
-          </span>
-        </button>
-
-        <button className="relative size-10 flex items-center justify-center rounded-xl bg-rose-50/50 dark:bg-slate-800 hover:text-primary-red transition-colors">
-          <span className="material-symbols-outlined">notifications</span>
-          <span className="absolute top-2.5 right-2.5 size-2 bg-primary-red rounded-full border-2 border-white dark:border-charcoal"></span>
-        </button>
-
-        <div className="h-8 w-px bg-rose-100 dark:bg-slate-800 mx-2 hidden md:block"></div>
-
-        <button 
-          onClick={() => setView(AppView.SETTINGS)}
-          className="hidden sm:flex items-center gap-3 px-1 rounded-xl hover:bg-rose-50/50 dark:hover:bg-slate-800 transition-all"
-        >
-          <div className="size-9 rounded-full overflow-hidden border-2 border-white dark:border-slate-700">
-            <img src={profile.avatarUrl || 'https://picsum.photos/seed/user/100'} alt="Avatar" className="w-full h-full object-cover" />
+        
+        <div className="relative" ref={notificationRef}>
+          <button
+            type="button"
+            onClick={() => setIsNotificationOpen((prev) => !prev)}
+            className="p-2 text-pink-700 hover:bg-pink-100 active:bg-pink-200 active:text-pink-900 rounded-full relative transition-colors border border-pink-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
+          >
+            <Bell className="w-5 h-5" />
+            {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-pink-600 rounded-full"></span>}
+          </button>
+          {isNotificationOpen && (
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-pink-200 rounded-xl shadow-lg z-30 overflow-hidden">
+              <div className="px-4 py-3 border-b border-pink-100 text-sm font-bold text-pink-900">
+                Notifications
+              </div>
+              <div className="max-h-72 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="px-4 py-3 text-xs text-slate-500">No notifications</p>
+                ) : (
+                  notifications.map((item) => (
+                    <div key={item.id} className="px-4 py-3 border-b border-pink-50 last:border-b-0">
+                      <p className="text-xs font-bold text-slate-900">{item.title}</p>
+                      <p className="text-[11px] text-slate-600">{item.description}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">{item.time}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {showExportButton && (
+          <div className="relative" ref={exportRef}>
+            <button
+              type="button"
+              onClick={() => setIsExportOpen((prev) => !prev)}
+              className="bg-white border border-pink-300 text-pink-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-pink-100 active:bg-pink-200 active:text-pink-900 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+            {isExportOpen && (
+              <div className="absolute right-0 mt-2 w-44 bg-white border border-pink-200 rounded-xl shadow-lg z-30 p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onExportExcel?.();
+                    setIsExportOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-pink-100 rounded-lg"
+                >
+                  Export Excel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onExportPdf?.();
+                    setIsExportOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-pink-100 rounded-lg"
+                >
+                  Export PDF
+                </button>
+              </div>
+            )}
           </div>
-          <div className="text-left hidden lg:block">
-            <p className="text-xs font-bold leading-none">{profile.fullName}</p>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-              {role === Role.ADMIN ? 'Admin' : 'Member'}
-            </p>
-          </div>
+        )}
+        
+        {showProvisionButton && (
+          <button className="bg-pink-700 hover:bg-pink-800 active:bg-pink-900 active:scale-[0.99] text-white px-5 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-pink-300/30 border border-pink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300">
+            <Plus className="w-4 h-4" />
+            Provision New Device
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="rounded-full border-2 border-pink-300 p-0.5 hover:border-pink-400 active:border-pink-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
+          title="Admin profile"
+        >
+          <img
+            src={profilePhoto}
+            alt="Admin profile"
+            className="w-10 h-10 rounded-full object-cover"
+          />
         </button>
       </div>
     </header>

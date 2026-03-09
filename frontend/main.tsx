@@ -1,20 +1,17 @@
 import React from 'react';
-import { createRoot } from 'react-dom/client';
+import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
-import './components/index.css';
-import './index.css';
 
 document.title = 'BondKeeper - Couple Rings & Relationship Registry';
 
-const container = document.getElementById('root');
-
-if (!container) {
+const root = document.getElementById('root');
+if (!root) {
   throw new Error('Root element not found');
 }
 
-createRoot(container).render(
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
+  </React.StrictMode>
 );
