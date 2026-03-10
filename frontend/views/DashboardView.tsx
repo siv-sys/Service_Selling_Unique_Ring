@@ -109,6 +109,7 @@ const Dashboard: React.FC = () => {
               <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
               <Link to="/ring-view" className="hover:text-primary transition-colors">My Ring</Link>
               <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
             </nav>
           </div>
           {/* right icons & member subtle */}

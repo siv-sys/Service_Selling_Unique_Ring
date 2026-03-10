@@ -188,6 +188,7 @@ const RingInformation: React.FC = () => {
                 <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
                 <Link to="/myring" className="text-primary border-b border-primary/40 pb-1">My Ring</Link>
                 <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+                <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
               </nav>
             </div>
             <div className="flex items-center gap-6">
@@ -244,6 +245,7 @@ const RingInformation: React.FC = () => {
                 <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
                 <Link to="/myring" className="text-primary border-b border-primary/40 pb-1">My Ring</Link>
                 <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+                <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
               </nav>
             </div>
             <div className="flex items-center gap-6">
@@ -327,6 +329,7 @@ const RingInformation: React.FC = () => {
               <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
               <Link to="/myring" className="text-primary border-b border-primary/40 pb-1">My Ring</Link>
               <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
             </nav>
           </div>
           <div className="flex items-center gap-6">

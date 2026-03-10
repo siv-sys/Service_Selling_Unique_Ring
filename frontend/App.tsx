@@ -8,6 +8,7 @@ import MyRing from './views/MyRingView'        // For "My Ring" navbar link - sh
 import RingInfo from './views/RingInformation'  // For "See More" in shop - shows product details
 import ThankYou from './views/ThankYou'
 import Profile from './views/CoupleProfileView'
+import Relationship from './views/RelationshipView'
 
 
 
@@ -34,6 +35,7 @@ function App() {
         {/* Other routes */}
         <Route path="/thank-you" element={<ThankYou />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/relationship" element={<Relationship />} />
         
 
         

@@ -563,6 +563,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               <Link to="/shop" className="text-primary border-b border-primary/40 pb-1">Couple Shop</Link>
               <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
               <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
             </nav>
           </div>
           {/* right icons & member */}

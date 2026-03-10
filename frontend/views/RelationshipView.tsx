@@ -1,4 +1,5 @@
    import React from 'react';
+import { Link } from 'react-router-dom';
 
 const RelationshipView = ({
   onNavigateSettings = () => {},
@@ -10,7 +11,37 @@ const RelationshipView = ({
   const [status, setStatus] = React.useState('UNPAIRED');
   const [visibility, setVisibility] = React.useState('partners');
   const [ringInput, setRingInput] = React.useState('');
-  const [linkedRings, setLinkedRings] = React.useState([]);
+  const [linkedRings, setLinkedRings] = React.useState<string[]>([]);
+  const [cartCount, setCartCount] = React.useState(4);
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
+
+  React.useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    setIsDarkMode(savedDarkMode);
+
+    if (savedDarkMode) {
+      document.documentElement.classList.add('dark');
+      return;
+    }
+
+    document.documentElement.classList.remove('dark');
+  }, []);
+
+  React.useEffect(() => {
+    const syncCartCount = () => {
+      try {
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        setCartCount(cart.length);
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    syncCartCount();
+    window.addEventListener('cartUpdated', syncCartCount);
+
+    return () => window.removeEventListener('cartUpdated', syncCartCount);
+  }, []);
 
   const handleUnpair = () => {
     setAccess('REVOKED');
@@ -38,150 +69,43 @@ const RelationshipView = ({
     setRingInput('');
   };
 
+  const handleThemeToggle = () => {
+    const nextDarkMode = !isDarkMode;
+    setIsDarkMode(nextDarkMode);
+    localStorage.setItem('darkMode', String(nextDarkMode));
+
+    if (nextDarkMode) {
+      document.documentElement.classList.add('dark');
+      return;
+    }
+
+    document.documentElement.classList.remove('dark');
+  };
+
   return (
     <div className="relationship-page">
       <style>{`
         .relationship-page {
           min-height: 100vh;
           background:
-            radial-gradient(circle at 100% -8%, rgba(234, 63, 104, 0.12), transparent 36%),
-            radial-gradient(circle at -10% 110%, rgba(71, 125, 236, 0.14), transparent 34%),
-            #f3f6fb;
-          color: #101b38;
-          font-family: Manrope, 'Segoe UI', sans-serif;
+            radial-gradient(circle at 100% -8%, rgba(255, 42, 162, 0.12), transparent 36%),
+            radial-gradient(circle at -10% 110%, rgba(255, 42, 162, 0.08), transparent 34%),
+            #faf6f2;
+          color: #1e1b1a;
+          font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+        }
+        .dark .relationship-page {
+          background:
+            radial-gradient(circle at 100% -8%, rgba(255, 42, 162, 0.1), transparent 36%),
+            radial-gradient(circle at -10% 110%, rgba(255, 42, 162, 0.06), transparent 34%),
+            #1e1b1a;
+          color: rgba(250, 246, 242, 0.9);
         }
 
         *,
         *::before,
         *::after {
           box-sizing: border-box;
-        }
-
-        .relationship-topbar {
-          height: 72px;
-          border-bottom: 1px solid #d8e1ee;
-          background: rgba(248, 251, 255, 0.85);
-          backdrop-filter: blur(10px);
-          box-shadow: 0 8px 20px rgba(19, 38, 72, 0.07);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 24px;
-          position: sticky;
-          top: 0;
-          z-index: 15;
-          gap: 18px;
-        }
-
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 180px;
-          white-space: nowrap;
-        }
-
-        .heart-logo {
-          color: #ef2f5a;
-          font-size: 26px;
-          line-height: 1;
-        }
-
-        .brand-title {
-          color: #0f1934;
-          font-size: 24px;
-          font-weight: 900;
-          letter-spacing: -0.035em;
-        }
-
-        .top-links {
-          margin-top: 20px;
-          display: flex;
-          align-items: center;
-          gap: 26px;
-          flex: 1;
-          justify-content: center;
-         
-        }
-
-        .top-link {
-          border: 0;
-          background: transparent;
-          color: #6f7f99;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
-          padding: 2px 2px 18px;
-          position: relative;
-          white-space: nowrap;
-          transition: color 0.2s ease, background 0.2s ease;
-        }
-
-        .top-link:hover {
-          color: #2d3f61;
-        }
-
-        .top-link.active {
-          color: #ef2f5a;
-          background: #fff1f5;
-          border-radius: 999px;
-          padding: 8px 12px 18px;
-        }
-
-        .top-link.active::after {
-          content: '';
-          position: absolute;
-          left: 12px;
-          right: 12px;
-          bottom: 2px;
-          height: 3px;
-          background: #ef2f5a;
-          border-radius: 999px;
-        }
-
-        .top-actions {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          min-width: 206px;
-          justify-content: flex-end;
-        }
-
-        .status-pill {
-          border: 1.4px solid #ef2f5a;
-          color: #ef2f5a;
-          border-radius: 999px;
-          padding: 6px 12px;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 0.09em;
-          text-transform: uppercase;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          background: #fff3f6;
-          box-shadow: 0 8px 16px rgba(239, 47, 90, 0.12);
-          line-height: 1;
-        }
-
-        .action-icon {
-          color: #61718d;
-          font-size: 20px;
-        }
-
-        .mini-avatar {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 1px solid #d4dbe6;
-          cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .mini-avatar:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 16px rgba(24, 45, 81, 0.2);
         }
 
         .relationship-wrap {
@@ -202,9 +126,9 @@ const RelationshipView = ({
           gap: 8px;
           padding: 8px 15px;
           border-radius: 999px;
-          border: 1px solid #f3cfd8;
-          background: #fff0f4;
-          color: #ef2f5a;
+          border: 1px solid rgba(255, 42, 162, 0.3);
+          background: rgba(255, 42, 162, 0.08);
+          color: #ff2aa2;
           text-transform: uppercase;
           letter-spacing: 0.24em;
           font-size: 11px;
@@ -216,41 +140,53 @@ const RelationshipView = ({
           font-size: clamp(38px, 5.2vw, 58px);
           letter-spacing: -0.04em;
           font-weight: 800;
-          color: #0f1935;
+          color: #1e1b1a;
           line-height: 1.06;
           text-wrap: balance;
         }
+        .dark .hero h1 { color: rgba(250, 246, 242, 0.95); }
 
         .hero p {
           margin: 0;
-          color: #6d7e9a;
+          color: #6b7280;
           font-size: 18px;
           font-weight: 600;
           line-height: 1.45;
         }
+        .dark .hero p { color: rgba(250, 246, 242, 0.6); }
 
         .pair-code {
           margin-top: 18px;
           display: inline-block;
-          border: 1px solid #d3dfee;
+          border: 1px solid rgba(255, 42, 162, 0.2);
           border-radius: 999px;
-          background: #f8fbff;
-          color: #7d8ea8;
+          background: rgba(255, 255, 255, 0.6);
+          color: #6b7280;
           padding: 7px 14px;
           font-size: 10px;
           font-weight: 900;
           letter-spacing: 0.1em;
           text-transform: uppercase;
         }
+        .dark .pair-code {
+          border-color: rgba(255, 42, 162, 0.25);
+          background: rgba(0, 0, 0, 0.2);
+          color: rgba(250, 246, 242, 0.6);
+        }
 
         .certificate {
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 251, 255, 0.95));
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(250, 246, 242, 0.9));
           border-radius: 28px;
-          border: 1px solid #dbe5f2;
-          box-shadow: 0 20px 42px rgba(29, 54, 94, 0.11);
+          border: 1px solid rgba(255, 42, 162, 0.15);
+          box-shadow: 0 20px 42px rgba(0, 0, 0, 0.06);
           padding: 44px;
           position: relative;
           overflow: hidden;
+        }
+        .dark .certificate {
+          background: linear-gradient(180deg, rgba(40, 38, 37, 0.95), rgba(30, 27, 26, 0.9));
+          border-color: rgba(255, 42, 162, 0.2);
+          box-shadow: 0 20px 42px rgba(0, 0, 0, 0.3);
         }
 
         .certificate::before {
@@ -260,7 +196,7 @@ const RelationshipView = ({
           left: 0;
           right: 0;
           height: 4px;
-          background: linear-gradient(90deg, rgba(239, 47, 90, 0.45), rgba(70, 125, 236, 0.35));
+          background: linear-gradient(90deg, rgba(255, 42, 162, 0.6), rgba(255, 42, 162, 0.3));
         }
 
         .identity {
@@ -270,10 +206,14 @@ const RelationshipView = ({
           align-items: start;
           justify-items: center;
           margin-bottom: 52px;
-          border: 1px solid #dfe8f3;
+          border: 1px solid rgba(255, 42, 162, 0.15);
           border-radius: 22px;
-          background: linear-gradient(180deg, #ffffff, #f8fbff);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 246, 242, 0.8));
           padding: 24px 18px;
+        }
+        .dark .identity {
+          border-color: rgba(255, 42, 162, 0.2);
+          background: linear-gradient(180deg, rgba(50, 47, 46, 0.9), rgba(30, 27, 26, 0.9));
         }
 
         .user {
@@ -284,8 +224,8 @@ const RelationshipView = ({
           width: 104px;
           height: 104px;
           border-radius: 50%;
-          border: 4px solid #f8fbff;
-          box-shadow: 0 0 0 1px #d2ddec, 0 10px 18px rgba(23, 45, 81, 0.18);
+          border: 4px solid rgba(250, 246, 242, 0.9);
+          box-shadow: 0 0 0 1px rgba(255, 42, 162, 0.2), 0 10px 18px rgba(0, 0, 0, 0.1);
           object-fit: cover;
           margin-bottom: 14px;
         }
@@ -295,18 +235,21 @@ const RelationshipView = ({
           margin: 0;
           font-size: 32px;
           font-weight: 900;
-          color: #131e3a;
+          color: #1e1b1a;
           letter-spacing: -0.03em;
           line-height: 1.15;
         }
+        .dark .user h2,
+        .dark .user h3 { color: rgba(250, 246, 242, 0.95); }
 
         .user span {
-          color: #8e9bb3;
+          color: #6b7280;
           font-size: 15px;
           font-weight: 600;
           display: block;
           margin-top: 4px;
         }
+        .dark .user span { color: rgba(250, 246, 242, 0.6); }
 
         .center-info {
           text-align: center;
@@ -316,39 +259,42 @@ const RelationshipView = ({
         .center-heart {
           width: 64px;
           height: 64px;
-          border: 1px solid #d9dfeb;
+          border: 1px solid rgba(255, 42, 162, 0.3);
           border-radius: 50%;
           display: grid;
           place-items: center;
-          color: #ef2f5a;
+          color: #ff2aa2;
           margin: 0 auto 12px;
           font-size: 30px;
-          background: linear-gradient(180deg, #fff4f7, #ffeff3);
-          box-shadow: inset 0 0 0 1px #f8ccd7, 0 10px 20px rgba(239, 47, 90, 0.12);
+          background: linear-gradient(180deg, rgba(255, 42, 162, 0.08), rgba(255, 42, 162, 0.12));
+          box-shadow: inset 0 0 0 1px rgba(255, 42, 162, 0.2), 0 10px 20px rgba(255, 42, 162, 0.15);
         }
 
         .center-info .kicker {
           margin: 0;
-          color: #9aabc1;
+          color: #6b7280;
           letter-spacing: 0.17em;
           text-transform: uppercase;
           font-weight: 900;
           font-size: 14px;
         }
+        .dark .center-info .kicker { color: rgba(250, 246, 242, 0.5); }
 
         .center-info .date {
           margin: 7px 0 0;
-          color: #17223e;
+          color: #1e1b1a;
           font-size: 34px;
           font-weight: 900;
           line-height: 1.2;
         }
+        .dark .center-info .date { color: rgba(250, 246, 242, 0.95); }
 
         .center-info .days {
           margin: 0;
-          color: #9ba8bc;
+          color: #6b7280;
           font-size: 16px;
         }
+        .dark .center-info .days { color: rgba(250, 246, 242, 0.6); }
 
         .grid-cards {
           display: grid;
@@ -358,29 +304,35 @@ const RelationshipView = ({
         }
 
         .card {
-          border: 1px solid #dbe5f1;
+          border: 1px solid rgba(255, 42, 162, 0.15);
           border-radius: 24px;
-          background: linear-gradient(180deg, #ffffff, #f7faff);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(250, 246, 242, 0.85));
           min-height: 360px;
           padding: 32px;
-          box-shadow: 0 14px 28px rgba(23, 45, 81, 0.08);
+          box-shadow: 0 14px 28px rgba(0, 0, 0, 0.06);
           transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .dark .card {
+          border-color: rgba(255, 42, 162, 0.2);
+          background: linear-gradient(180deg, rgba(50, 47, 46, 0.95), rgba(30, 27, 26, 0.9));
+          box-shadow: 0 14px 28px rgba(0, 0, 0, 0.3);
         }
 
         .card:hover {
           transform: translateY(-2px);
-          border-color: #cbd9ea;
-          box-shadow: 0 18px 36px rgba(23, 45, 81, 0.13);
+          border-color: rgba(255, 42, 162, 0.25);
+          box-shadow: 0 18px 36px rgba(255, 42, 162, 0.12);
         }
 
         .card h4 {
           margin: 0;
           font-size: 34px;
           font-weight: 900;
-          color: #141f39;
+          color: #1e1b1a;
           margin-bottom: 10px;
           letter-spacing: -0.03em;
         }
+        .dark .card h4 { color: rgba(250, 246, 242, 0.95); }
 
         .meta {
           margin-top: 18px;
@@ -392,10 +344,11 @@ const RelationshipView = ({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          color: #71829c;
+          color: #6b7280;
           font-size: 14px;
           gap: 14px;
         }
+        .dark .row { color: rgba(250, 246, 242, 0.6); }
 
         .row span {
           min-width: 74px;
@@ -407,27 +360,33 @@ const RelationshipView = ({
           flex: 1;
           height: 42px;
           border-radius: 9px;
-          border: 1px solid #cfdae8;
-          background: #fbfdff;
-          color: #1f2c47;
+          border: 1px solid rgba(255, 42, 162, 0.2);
+          background: rgba(255, 255, 255, 0.8);
+          color: #1e1b1a;
           padding: 0 10px;
           font-size: 13px;
           font-weight: 800;
           font-family: inherit;
           transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
         }
+        .dark .field-input,
+        .dark .field-select {
+          border-color: rgba(255, 42, 162, 0.3);
+          background: rgba(0, 0, 0, 0.2);
+          color: rgba(250, 246, 242, 0.9);
+        }
 
         .field-input:hover,
         .field-select:hover {
-          background: #ffffff;
-          border-color: #bfcee3;
+          background: rgba(255, 255, 255, 0.95);
+          border-color: rgba(255, 42, 162, 0.3);
         }
 
         .field-input:focus,
         .field-select:focus {
           outline: none;
-          border-color: #ef2f5a;
-          box-shadow: 0 0 0 3px rgba(239, 47, 90, 0.14);
+          border-color: #ff2aa2;
+          box-shadow: 0 0 0 3px rgba(255, 42, 162, 0.2);
         }
 
         .outline-btn,
@@ -443,21 +402,22 @@ const RelationshipView = ({
         }
 
         .outline-btn {
-          border: 1.5px solid #ef2f5a;
-          color: #ef2f5a;
-          background: #fff2f6;
+          border: 1.5px solid #ff2aa2;
+          color: #ff2aa2;
+          background: rgba(255, 42, 162, 0.08);
           width: 180px;
-          box-shadow: inset 0 0 0 1px #ffd6e0;
+          box-shadow: inset 0 0 0 1px rgba(255, 42, 162, 0.2);
         }
 
         .helper {
           margin: 6px 0 0;
-          color: #a0aec2;
+          color: #6b7280;
           text-transform: uppercase;
           letter-spacing: 0.08em;
           font-size: 11px;
           font-weight: 800;
         }
+        .dark .helper { color: rgba(250, 246, 242, 0.5); }
 
         .options {
           margin-top: 18px;
@@ -469,22 +429,27 @@ const RelationshipView = ({
           position: relative;
           height: 46px;
           border-radius: 12px;
-          border: 1px solid #cfd9e7;
-          background: #f8fbff;
+          border: 1px solid rgba(255, 42, 162, 0.2);
+          background: rgba(255, 255, 255, 0.6);
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 0 12px 0 14px;
-          color: #4d5e7a;
+          color: #4b5563;
           font-size: 14px;
           font-weight: 700;
           cursor: pointer;
           transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
         }
+        .dark .option {
+          border-color: rgba(255, 42, 162, 0.25);
+          background: rgba(0, 0, 0, 0.2);
+          color: rgba(250, 246, 242, 0.8);
+        }
 
         .option:hover {
-          border-color: #bacce3;
-          background: #f3f8ff;
+          border-color: rgba(255, 42, 162, 0.3);
+          background: rgba(255, 42, 162, 0.05);
         }
 
         .option input {
@@ -497,21 +462,22 @@ const RelationshipView = ({
           width: 18px;
           height: 18px;
           border-radius: 50%;
-          border: 1.5px solid #8f9eb5;
+          border: 1.5px solid rgba(255, 42, 162, 0.4);
           display: grid;
           place-items: center;
         }
 
         .option.active {
-          border-color: #ef2f5a;
-          color: #1b2642;
-          background: #fff4f8;
-          box-shadow: inset 0 0 0 1px #ffd3de;
+          border-color: #ff2aa2;
+          color: #1e1b1a;
+          background: rgba(255, 42, 162, 0.1);
+          box-shadow: inset 0 0 0 1px rgba(255, 42, 162, 0.25);
         }
+        .dark .option.active { color: rgba(250, 246, 242, 0.95); }
 
         .option.active .dot {
-          border-color: #ef2f5a;
-          background: #ef2f5a;
+          border-color: #ff2aa2;
+          background: #ff2aa2;
         }
 
         .option.active .dot::after {
@@ -534,24 +500,29 @@ const RelationshipView = ({
           min-width: 0;
           height: 44px;
           border-radius: 12px;
-          border: 1px solid #cfd9e7;
-          background: #f8fbff;
+          border: 1px solid rgba(255, 42, 162, 0.2);
+          background: rgba(255, 255, 255, 0.8);
           padding: 0 12px;
           font-size: 14px;
-          color: #1d2a45;
+          color: #1e1b1a;
           font-family: inherit;
+        }
+        .dark .ring-input {
+          border-color: rgba(255, 42, 162, 0.3);
+          background: rgba(0, 0, 0, 0.2);
+          color: rgba(250, 246, 242, 0.9);
         }
 
         .ring-input:focus {
           outline: none;
-          border-color: #ef2f5a;
-          box-shadow: 0 0 0 3px rgba(239, 47, 90, 0.14);
+          border-color: #ff2aa2;
+          box-shadow: 0 0 0 3px rgba(255, 42, 162, 0.2);
         }
 
         .ring-add-btn {
-          border: 1px solid #ef2f5a;
-          background: #fff2f6;
-          color: #ef2f5a;
+          border: 1px solid #ff2aa2;
+          background: rgba(255, 42, 162, 0.08);
+          color: #ff2aa2;
           height: 44px;
           border-radius: 12px;
           padding: 0 16px;
@@ -559,7 +530,7 @@ const RelationshipView = ({
           font-weight: 800;
           cursor: pointer;
           font-family: inherit;
-          box-shadow: inset 0 0 0 1px #ffd5de;
+          box-shadow: inset 0 0 0 1px rgba(255, 42, 162, 0.2);
         }
 
         .ring-list {
@@ -575,19 +546,20 @@ const RelationshipView = ({
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          border: 1px solid #d5deeb;
+          border: 1px solid rgba(255, 42, 162, 0.2);
           border-radius: 999px;
-          background: #f3f7fc;
+          background: rgba(255, 42, 162, 0.06);
           padding: 6px 10px;
           font-size: 12px;
-          color: #31435f;
+          color: #1e1b1a;
           font-weight: 700;
         }
+        .dark .ring-item { color: rgba(250, 246, 242, 0.9); }
 
         .ring-remove {
           border: 0;
           background: transparent;
-          color: #ef2f5a;
+          color: #ff2aa2;
           cursor: pointer;
           font-size: 12px;
           font-weight: 900;
@@ -596,10 +568,10 @@ const RelationshipView = ({
 
         .solid-btn {
           border: 1px solid transparent;
-          background: linear-gradient(180deg, #ef2f5a, #dd1d49);
+          background: linear-gradient(180deg, #ff2aa2, #e91a8a);
           color: #fff;
           width: 160px;
-          box-shadow: 0 9px 20px rgba(239, 47, 90, 0.28);
+          box-shadow: 0 9px 20px rgba(255, 42, 162, 0.3);
         }
 
         .outline-btn:hover,
@@ -611,34 +583,40 @@ const RelationshipView = ({
 
         .divider {
           height: 1px;
-          background: #e0e7f0;
+          background: rgba(255, 42, 162, 0.15);
           margin-bottom: 32px;
         }
 
         .linked h5 {
           margin: 0 0 14px;
           font-size: 30px;
-          color: #141e38;
+          color: #1e1b1a;
           font-weight: 900;
         }
+        .dark .linked h5 { color: rgba(250, 246, 242, 0.95); }
 
         .linked-box {
           min-height: 92px;
           border-radius: 22px;
-          border: 1px dashed #d2dce9;
-          color: #a0aec4;
-          background: #f7faff;
+          border: 1px dashed rgba(255, 42, 162, 0.25);
+          color: #6b7280;
+          background: rgba(255, 42, 162, 0.04);
           display: grid;
           place-items: center;
           font-size: 15px;
           font-weight: 600;
           margin-bottom: 10px;
         }
+        .dark .linked-box {
+          border-color: rgba(255, 42, 162, 0.3);
+          background: rgba(255, 42, 162, 0.06);
+          color: rgba(250, 246, 242, 0.5);
+        }
 
         .footer {
           margin-top: 48px;
           text-align: center;
-          color: #c7d3e2;
+          color: rgba(255, 42, 162, 0.5);
           text-transform: uppercase;
           letter-spacing: 0.45em;
           font-size: 11px;
@@ -646,42 +624,6 @@ const RelationshipView = ({
         }
 
         @media (max-width: 1024px) {
-          .relationship-topbar {
-            height: auto;
-            min-height: 68px;
-            padding: 10px 14px;
-            flex-wrap: wrap;
-            gap: 10px;
-          }
-
-          .brand-title {
-            transform: none;
-            width: auto;
-            margin-right: 0;
-            font-size: 26px;
-          }
-
-          .top-links {
-            order: 3;
-            justify-content: flex-start;
-            width: 100%;
-            overflow-x: auto;
-            padding-bottom: 4px;
-          }
-
-          .top-link {
-            padding: 4px 0 10px;
-          }
-
-          .top-link.active::after {
-            bottom: 0;
-          }
-
-          .top-actions {
-            min-width: auto;
-            margin-left: auto;
-          }
-
           .relationship-wrap {
             padding: 40px 14px 30px;
           }
@@ -764,11 +706,6 @@ const RelationshipView = ({
         }
 
         @media (max-width: 640px) {
-          .status-pill,
-          .action-icon {
-            display: none;
-          }
-
           .certificate {
             border-radius: 18px;
             padding: 16px 12px;
@@ -798,31 +735,49 @@ const RelationshipView = ({
         }
       `}</style>
 
-      <header className="relationship-topbar">
-        <div className="brand">
-          <span className="heart-logo">{'\u2764'}</span>
-          <span className="brand-title">Eternal Rings</span>
-        </div>
-
-        <div className="top-links" aria-label="Primary navigation">
-          <button className="top-link">Dashboard</button>
-          <button className="top-link">Ring Scan</button>
-          <button className="top-link">My Ring</button>
-          <button className="top-link" type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
-          <button className="top-link active">Relationship</button>
-          <button className="top-link" type="button" onClick={onNavigateSettings}>Settings</button>
-        </div>
-
-        <div className="top-actions">
-          <span className="status-pill">{'\u2923'} UNLINKED</span>
-          <span className="action-icon">{'\u263E'}</span>
-          <span className="action-icon">{'\u{1F514}'}</span>
-          <img
-            className="mini-avatar"
-            src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80"
-            alt="Member"
-            onClick={onNavigateProfile}
-          />
+      <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+        <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-12">
+            <Link to="/dashboard" className="flex items-center gap-2 group">
+              <span className="material-symbols-outlined text-primary text-3xl">diamond</span>
+              <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+              <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
+              <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
+              <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
+              <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/relationship" className="text-primary border-b border-primary/40 pb-1">Relationship</Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-6">
+            <button className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined">notifications_none</span>
+            </button>
+            <button onClick={handleThemeToggle} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined">
+                {isDarkMode ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+            <Link to="/cart" className="relative">
+              <button className="text-charcoal/60 hover:text-primary">
+                <span className="material-symbols-outlined">shopping_cart</span>
+              </button>
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+            <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
+              <span className="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
+              <Link to="/profile">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+                  <span className="material-symbols-outlined">favorite</span>
+                </div>
+              </Link>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -831,7 +786,7 @@ const RelationshipView = ({
           <span className="label">{'\u2726'} Always & Forever</span>
           <h1>Relationship Certificate</h1>
           <p>Live relationship profile from your database.</p>
-          <span className="pair-code">PAIR001</span>
+          <span className="pair-code">{pairCode}</span>
         </section>
 
         <section className="certificate">
