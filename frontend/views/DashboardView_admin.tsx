@@ -70,10 +70,14 @@ type WeeklyConnectivityPoint = {
   value: number;
 };
 type PairingRequest = {
-  users: [string, string];
+  users: string[]; // Array of paired users from pair_members
+  email?: string; // User email
   model: string;
   date: string;
-  status: 'Pending' | 'Approved';
+  status: 'Pending' | 'Approved' | 'Active' | 'New' | 'Paused';
+  ringStatus: string;
+  role?: string; // Member role
+  totalMembers?: number; // Total members in pair
 };
 type RelationshipUserAlert = {
   id: string;
@@ -122,6 +126,7 @@ const Dashboard = () => {
     { id: 'usr-1003', name: 'Sam Carter', email: 'sam@smartring.com', role: 'User', status: 'Suspended', lastActive: '1 hour ago' },
     { id: 'usr-1004', name: 'Casey Morgan', email: 'casey@smartring.com', role: 'User', status: 'Active', lastActive: '4 minutes ago' }
   ]);
+
   const [ringSales, setRingSales] = useState<RingSale[]>([
     { id: 'sale-001', orderNo: '#R-1201', customer: 'Nika Dara', model: 'SmartRing Lover Edition', status: 'Sold', soldAt: 'Today 10:45 AM' },
     { id: 'sale-002', orderNo: '#R-1202', customer: 'Sokha Kim', model: 'Gen 3 - Rose Gold', status: 'Pending Payment', soldAt: 'Today 09:21 AM' },
@@ -153,9 +158,9 @@ const Dashboard = () => {
   const activeRelationshipsValue = String(getActiveRelationships());
 
   const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([
-    { users: ['Alex', 'Jordan'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 10:45 AM', status: 'Pending' },
-    { users: ['Sam', 'Casey'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 09:12 AM', status: 'Approved' },
-    { users: ['Taylor', 'Morgan'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 08:30 AM', status: 'Pending' }
+    { users: ['Alex', 'Jordan'], email: 'alex@smartring.com', model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 10:45 AM', status: 'Active', ringStatus: 'Ring Purchased', role: 'Primary', totalMembers: 2 },
+    { users: ['Sam', 'Casey'], email: 'sam@smartring.com', model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 09:12 AM', status: 'Active', ringStatus: 'Ring Purchased', role: 'Primary', totalMembers: 2 },
+    { users: ['Taylor', 'Morgan'], email: 'taylor@smartring.com', model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 08:30 AM', status: 'Active', ringStatus: 'Ring Purchased', role: 'Secondary', totalMembers: 2 }
   ]);
 
   const [relationshipUserAlerts, setRelationshipUserAlerts] = useState<RelationshipUserAlert[]>([
@@ -223,6 +228,43 @@ const Dashboard = () => {
     applyDashboardResponse(response);
   };
 
+  const [selectedPairingRequest, setSelectedPairingRequest] = useState<PairingRequest | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+  const handleReview = (pairingRequest: PairingRequest) => {
+    setSelectedPairingRequest(pairingRequest);
+    setIsReviewModalOpen(true);
+  };
+
+  const handleCloseReviewModal = () => {
+    setIsReviewModalOpen(false);
+    setSelectedPairingRequest(null);
+  };
+
+  const handleApprove = () => {
+    if (selectedPairingRequest) {
+      // Update status to Approved
+      const updatedRequests = pairingRequests.map(req =>
+        req.users.join(' & ') === selectedPairingRequest.users.join(' & ')
+          ? { ...req, status: 'Approved' as const }
+          : req
+      );
+      setPairingRequests(updatedRequests);
+      handleCloseReviewModal();
+    }
+  };
+
+  const handleReject = () => {
+    if (selectedPairingRequest) {
+      // Remove or update status to Rejected
+      const updatedRequests = pairingRequests.filter(req =>
+        req.users.join(' & ') !== selectedPairingRequest.users.join(' & ')
+      );
+      setPairingRequests(updatedRequests);
+      handleCloseReviewModal();
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
     const loadDashboard = async () => {
@@ -253,19 +295,19 @@ const Dashboard = () => {
       pendingRequests.length
         ? {
           id: 'pending-pairing',
-          title: 'Pending Pairing Request',
-          desc: `${pendingRequests[0].users.join(' & ')} are waiting for approval.`,
+          title: 'Pending Pair Member',
+          desc: `${pendingRequests[0].users.join(' & ')} waiting for ring assignment.`,
           time: pendingRequests[0].date,
           color: 'red',
           icon: 'alert'
         }
         : null,
-      approvedRequests.length
+      pairingRequests.filter(req => req.status === 'Active' && req.ringStatus === 'Ring Purchased').length > 0
         ? {
-          id: 'approved-pairing',
-          title: 'Approved Pairings',
-          desc: `${approvedRequests.length} pairing request(s) approved successfully.`,
-          time: 'Updated from latest request list',
+          id: 'active-pairs',
+          title: 'Active Ring Pairs',
+          desc: `${pairingRequests.filter(req => req.status === 'Active' && req.ringStatus === 'Ring Purchased').length} paired couples with rings purchased.`,
+          time: 'Updated from latest pair data',
           color: 'green',
           icon: 'check'
         }
@@ -349,8 +391,8 @@ const Dashboard = () => {
       ['Active Relationships', '4,105', '+2%'],
       [],
       ['Latest Pairing Requests', '', '', ''],
-      ['Users', 'Device Model', 'Request Date', 'Status'],
-      ...pairingRequests.map((item) => [item.users.join(' & '), item.model, item.date, item.status]),
+      ['Users', 'Device Model', 'Request Date', 'Status', 'Ring Status'],
+      ...pairingRequests.map((item) => [item.users.join(' & '), item.model, item.date, item.status, item.ringStatus]),
       [],
       ['Recent Alerts', '', ''],
       ['Title', 'Detail', 'Time'],
@@ -419,6 +461,7 @@ const Dashboard = () => {
       <main className="flex-1 overflow-y-auto p-8 space-y-8">
         {dashboardError && <p className="text-xs font-semibold text-rose-600">{dashboardError}</p>}
         {lastExport && <p className="text-xs font-semibold text-slate-600">Last export: {lastExport}</p>}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
@@ -752,9 +795,13 @@ const Dashboard = () => {
                   <PairingRow
                     key={`${item.users.join('-')}-${index}`}
                     users={item.users}
+                    email={item.email}
                     model={item.model}
                     date={item.date}
                     status={item.status}
+                    ringStatus={item.ringStatus}
+                    totalMembers={item.totalMembers}
+                    onReview={handleReview}
                   />
                 ))}
               </tbody>
@@ -762,6 +809,15 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={handleCloseReviewModal}
+        pairingRequest={selectedPairingRequest}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
     </>
   );
 };
@@ -819,34 +875,146 @@ const AlertItem = ({ icon: Icon, title, desc, time, color }: any) => {
   );
 };
 
-const PairingRow = ({ users, model, date, status }: any) => (
+const PairingRow = ({ users, email, model, date, status, ringStatus, onReview, totalMembers }: any) => (
   <tr className="hover:bg-primary/5 transition-colors">
     <td className="px-6 py-4">
       <div className="flex items-center gap-3">
         <div className="flex -space-x-2 overflow-hidden">
-          <div className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white bg-cover" style={{ backgroundImage: `url(https://picsum.photos/seed/${users[0]}/100)` }}></div>
-          <div className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white bg-cover" style={{ backgroundImage: `url(https://picsum.photos/seed/${users[1]}/100)` }}></div>
+          {users.map((user: string, index: number) => (
+            <div key={index} className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white bg-cover" style={{ backgroundImage: `url(https://picsum.photos/seed/${user}/100)` }}></div>
+          ))}
         </div>
-        <span className="text-sm font-medium">{users[0]} & {users[1]}</span>
+        <div>
+          <span className="text-sm font-medium">{users.join(' & ')}</span>
+          {email && <div className="text-xs text-slate-500">{email}</div>}
+          {totalMembers && <div className="text-xs text-pink-600">{totalMembers} members</div>}
+        </div>
       </div>
     </td>
     <td className="px-6 py-4 text-sm">{model}</td>
     <td className="px-6 py-4 text-sm text-slate-500">{date}</td>
     <td className="px-6 py-4">
-      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${status === 'Pending'
-        ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-        : 'bg-green-50 text-green-700 border-green-200'
+      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' :
+        status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+          status === 'New' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+            status === 'Paused' ? 'bg-slate-50 text-slate-700 border-slate-200' :
+              'bg-green-50 text-green-700 border-green-200'
         }`}>
         {status}
       </span>
     </td>
     <td className="px-6 py-4 text-right">
-      <button className="text-pink-700 hover:text-pink-800 font-bold text-sm border border-pink-200 px-3 py-1 rounded-md hover:bg-pink-50 transition-colors">
+      <button
+        onClick={() => onReview({ users, email, model, date, status, ringStatus })}
+        className="text-pink-700 hover:text-pink-800 font-bold text-sm border border-pink-200 px-3 py-1 rounded-md hover:bg-pink-50 transition-colors"
+      >
         Review
       </button>
     </td>
   </tr>
 );
+
+// Review Modal Component
+const ReviewModal = ({
+  isOpen,
+  onClose,
+  pairingRequest,
+  onApprove,
+  onReject
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  pairingRequest: PairingRequest | null;
+  onApprove: () => void;
+  onReject: () => void;
+}) => {
+  if (!isOpen || !pairingRequest) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-slate-900">Review Pairing Request</h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-slate-50 p-4 rounded-lg">
+            <h4 className="font-semibold text-slate-900 mb-2">Request Details</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Paired Users:</span>
+                <span className="font-medium">{pairingRequest.users.join(' & ')}</span>
+              </div>
+              {pairingRequest.totalMembers && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Total Members:</span>
+                  <span className="font-medium">{pairingRequest.totalMembers}</span>
+                </div>
+              )}
+              {pairingRequest.email && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Contact Email:</span>
+                  <span className="font-medium">{pairingRequest.email}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-600">Device Model:</span>
+                <span className="font-medium">{pairingRequest.model}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Request Date:</span>
+                <span className="font-medium">{pairingRequest.date}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Current Status:</span>
+                <span className={`px-2 py-1 rounded text-xs font-medium ${pairingRequest.status === 'Pending'
+                  ? 'bg-yellow-50 text-yellow-700'
+                  : 'bg-green-50 text-green-700'
+                  }`}>
+                  {pairingRequest.status}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Review Action:</strong> Approve to accept this pairing request or reject to decline it.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onApprove}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              Approve Request
+            </button>
+            <button
+              onClick={onReject}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              Reject Request
+            </button>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium py-2 px-4 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default Dashboard;
 
