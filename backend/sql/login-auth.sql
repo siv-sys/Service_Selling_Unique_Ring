@@ -2,6 +2,7 @@ CREATE DATABASE IF NOT EXISTS ring_app;
 USE ring_app;
 
 DROP TABLE IF EXISTS user_providers;
+DROP TABLE IF EXISTS auth_sessions;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
@@ -22,6 +23,19 @@ CREATE TABLE user_providers (
     provider_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE auth_sessions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    revoked_at DATETIME NULL,
+    last_used_at DATETIME NULL,
+    user_agent VARCHAR(255) NULL,
+    ip_address VARCHAR(45) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

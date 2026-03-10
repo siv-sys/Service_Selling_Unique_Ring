@@ -11,6 +11,8 @@ export interface AuthUser {
 export interface LoginResponse {
   message: string;
   user: AuthUser;
+  accessToken: string;
+  expiresAt: string;
   rememberToken?: string | null;
 }
 
@@ -20,6 +22,8 @@ export interface MessageResponse {
 
 export interface RegisterResponse extends MessageResponse {
   user: AuthUser;
+  accessToken?: string;
+  expiresAt?: string;
 }
 
 function getStoredAuthValue(key: string): string | null {
@@ -27,12 +31,10 @@ function getStoredAuthValue(key: string): string | null {
 }
 
 function buildAuthHeaders(): HeadersInit {
-  const userId = getStoredAuthValue('auth_user_id');
-  const roles = getStoredAuthValue('auth_roles');
+  const accessToken = getStoredAuthValue('auth_access_token');
 
   return {
-    ...(userId ? { 'x-auth-user-id': userId } : {}),
-    ...(roles ? { 'x-auth-roles': roles } : {}),
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
 }
 
@@ -72,13 +74,13 @@ export const api = {
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   login: (payload: { email: string; password: string; remember: boolean }) =>
-    request<LoginResponse>('/login', { method: 'POST', body: JSON.stringify(payload) }),
+    request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
   googleLogin: (payload: { email: string; providerId?: string; name?: string }) =>
-    request<LoginResponse>('/login/google', { method: 'POST', body: JSON.stringify(payload) }),
-  register: (payload: { email: string; password: string; name?: string; role?: 'admin' | 'user' }) =>
+    request<LoginResponse>('/auth/login/google', { method: 'POST', body: JSON.stringify(payload) }),
+  register: (payload: { email: string; password: string; name?: string; role?: 'admin' | 'user'; autoLogin?: boolean }) =>
     request<RegisterResponse>('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
   me: () => request<RegisterResponse>('/auth/me'),
-  logout: (payload?: { userId?: number }) =>
+  logout: (payload?: { all?: boolean }) =>
     request<MessageResponse>('/auth/logout', { method: 'POST', body: JSON.stringify(payload || {}) }),
   resetPassword: (payload: { email: string; newPassword: string }) =>
     request<MessageResponse>('/auth/reset-password', { method: 'POST', body: JSON.stringify(payload) }),

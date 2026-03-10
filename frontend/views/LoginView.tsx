@@ -11,6 +11,7 @@ interface LoginScreenProps {
   onLogin: (payload: { email: string; password: string; remember: boolean }) => Promise<void>;
   isLoggingIn?: boolean;
   errorMessage?: string | null;
+  successMessage?: string | null;
 }
 
 const MailIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
@@ -34,6 +35,7 @@ export function LoginScreen({
   onLogin,
   isLoggingIn = false,
   errorMessage = null,
+  successMessage = null,
 }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -105,6 +107,12 @@ export function LoginScreen({
         {errorMessage && (
           <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
             {errorMessage}
+          </p>
+        )}
+
+        {successMessage && (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+            {successMessage}
           </p>
         )}
 

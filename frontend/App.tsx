@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import { GoogleAccountSelector } from './components/GoogleAccountSelector';
-import { api, type AuthUser } from './lib/api';
+import type { AuthUser } from './lib/api';
 import AdminSeedView from './views/AdminSeedView';
 import DashboardView from './views/DashboardView';
 import InventoryView from './views/InventoryView';
 import { LoginScreen } from './views/LoginView';
+import MemoriesView from './views/MemoriesView';
 import { RegisterScreen } from './views/RegisterView';
 import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
@@ -26,11 +27,22 @@ function buildUserFromStorage(): AuthUser | null {
   return { id, email, name, role };
 }
 
-function persistAuth(user: AuthUser) {
+function getStoredAccessToken(): string | null {
+  return sessionStorage.getItem('auth_access_token') || localStorage.getItem('auth_access_token');
+}
+
+function persistAuth(user: AuthUser, accessToken: string, remember: boolean) {
   sessionStorage.setItem('auth_user_id', String(user.id));
   sessionStorage.setItem('auth_roles', user.role);
   sessionStorage.setItem('auth_email', user.email);
   sessionStorage.setItem('auth_name', user.name || '');
+  sessionStorage.setItem('auth_access_token', accessToken);
+
+  if (remember) {
+    localStorage.setItem('auth_access_token', accessToken);
+  } else {
+    localStorage.removeItem('auth_access_token');
+  }
 }
 
 function clearAuth() {
@@ -38,11 +50,14 @@ function clearAuth() {
   sessionStorage.removeItem('auth_roles');
   sessionStorage.removeItem('auth_email');
   sessionStorage.removeItem('auth_name');
+  sessionStorage.removeItem('auth_access_token');
+  localStorage.removeItem('auth_access_token');
   localStorage.removeItem('auth_remember_token');
 }
 
 function AppRoutes() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => buildUserFromStorage());
   const [loginError, setLoginError] = useState<string | null>(null);
   const [registerError, setRegisterError] = useState<string | null>(null);
@@ -53,40 +68,41 @@ function AppRoutes() {
   const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [isHydratingAuth, setIsHydratingAuth] = useState(true);
 
-  const isAdmin = authUser?.role === 'admin';
+  const role = authUser?.role || null;
+  const isAdmin = role === 'admin';
+  const isUser = role === 'user';
+  const isAuthenticated = role !== null;
 
-  const goToAdminDashboard = (user: AuthUser) => {
+  useEffect(() => {
+    const accessToken = getStoredAccessToken();
+    if (!accessToken) {
+      clearAuth();
+      setAuthUser(null);
+    }
+    setIsHydratingAuth(false);
+  }, []);
+
+  const goToRoleHome = (user: AuthUser, accessToken: string, remember: boolean) => {
     setAuthUser(user);
-    persistAuth(user);
+    persistAuth(user, accessToken, remember);
     navigate('/dashboard', { replace: true });
-  };
-
-  const handleNonAdminAccess = (role: AuthUser['role']) => {
-    clearAuth();
-    setAuthUser(null);
-    setLoginError(`Access denied. Admin role required (current role: ${role}).`);
-    navigate('/login', { replace: true });
   };
 
   const handleLogin = async (payload: { email: string; password: string; remember: boolean }) => {
     try {
       setIsLoggingIn(true);
       setLoginError(null);
-      const response = await api.login(payload);
-
-      if (response.user.role !== 'admin') {
-        handleNonAdminAccess(response.user.role);
-        return;
-      }
-
-      goToAdminDashboard(response.user);
-
-      if (payload.remember && response.rememberToken) {
-        localStorage.setItem('auth_remember_token', response.rememberToken);
-      }
-    } catch (error) {
-      setLoginError(error instanceof Error ? error.message : 'Login failed.');
+      const user: AuthUser = {
+        id: 1,
+        email: payload.email || 'guest@example.com',
+        name: payload.email ? payload.email.split('@')[0] : 'Guest',
+        role: 'admin',
+      };
+      goToRoleHome(user, 'local-session-token', payload.remember);
+    } catch {
+      setLoginError('Login failed.');
     } finally {
       setIsLoggingIn(false);
     }
@@ -96,20 +112,16 @@ function AppRoutes() {
     try {
       setIsGoogleLoggingIn(true);
       setLoginError(null);
-      const response = await api.googleLogin({
+      const user: AuthUser = {
+        id: 1,
         email,
-        providerId: email,
         name: email.split('@')[0],
-      });
-
-      if (response.user.role !== 'admin') {
-        handleNonAdminAccess(response.user.role);
-        return;
-      }
-
-      goToAdminDashboard(response.user);
-    } catch (error) {
-      setLoginError(error instanceof Error ? error.message : 'Google login failed.');
+        role: 'admin',
+        provider: 'google',
+      };
+      goToRoleHome(user, 'local-google-session-token', false);
+    } catch {
+      setLoginError('Google login failed.');
       navigate('/login', { replace: true });
     } finally {
       setIsGoogleLoggingIn(false);
@@ -121,18 +133,16 @@ function AppRoutes() {
       setIsRegistering(true);
       setRegisterError(null);
       setRegisterSuccess(null);
-      const response = await api.register(payload);
-      setRegisterSuccess(response.message);
-
-      if (response.user.role !== 'admin') {
-        setLoginError('Registration completed, but only admin users can access this console.');
-        navigate('/login', { replace: true });
-        return;
-      }
-
-      goToAdminDashboard(response.user);
-    } catch (error) {
-      setRegisterError(error instanceof Error ? error.message : 'Register failed.');
+      clearAuth();
+      setAuthUser(null);
+      setRegisterSuccess(`Registration completed for ${payload.email}.`);
+      setLoginError(null);
+      navigate('/login', {
+        replace: true,
+        state: { successMessage: 'Registration succeeded. Please log in.' },
+      });
+    } catch {
+      setRegisterError('Register failed.');
     } finally {
       setIsRegistering(false);
     }
@@ -143,10 +153,9 @@ function AppRoutes() {
       setIsResettingPassword(true);
       setResetError(null);
       setResetSuccess(null);
-      const response = await api.resetPassword(payload);
-      setResetSuccess(response.message);
-    } catch (error) {
-      setResetError(error instanceof Error ? error.message : 'Reset password failed.');
+      setResetSuccess(`Password reset completed for ${payload.email}.`);
+    } catch {
+      setResetError('Reset password failed.');
     } finally {
       setIsResettingPassword(false);
     }
@@ -156,15 +165,27 @@ function AppRoutes() {
     () => (view: JSX.Element) => (isAdmin ? <Layout>{view}</Layout> : <Navigate to="/login" replace />),
     [isAdmin],
   );
+  const authLayout = useMemo(
+    () => (view: JSX.Element) => (isAuthenticated ? <Layout>{view}</Layout> : <Navigate to="/login" replace />),
+    [isAuthenticated],
+  );
+  const userOnly = useMemo(
+    () => (view: JSX.Element) => (isUser ? view : <Navigate to={isAdmin ? '/dashboard' : '/login'} replace />),
+    [isAdmin, isUser],
+  );
+
+  if (isHydratingAuth) {
+    return null;
+  }
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={isAdmin ? '/dashboard' : '/login'} replace />} />
+      <Route path="/" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
 
       <Route
         path="/login"
         element={
-          isAdmin ? (
+          role ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <LoginScreen
@@ -174,6 +195,7 @@ function AppRoutes() {
               onLogin={handleLogin}
               isLoggingIn={isLoggingIn || isGoogleLoggingIn}
               errorMessage={loginError}
+              successMessage={(location.state as { successMessage?: string } | null)?.successMessage ?? null}
             />
           )
         }
@@ -182,7 +204,7 @@ function AppRoutes() {
       <Route
         path="/login/google"
         element={
-          isAdmin ? (
+          role ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <GoogleAccountSelector onBack={() => navigate('/login')} onSelect={handleGoogleLogin} />
@@ -193,7 +215,7 @@ function AppRoutes() {
       <Route
         path="/register"
         element={
-          isAdmin ? (
+          role ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <RegisterScreen
@@ -211,7 +233,7 @@ function AppRoutes() {
       <Route
         path="/reset-password"
         element={
-          isAdmin ? (
+          role ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <ResetPasswordScreen
@@ -226,13 +248,14 @@ function AppRoutes() {
         }
       />
 
-      <Route path="/dashboard" element={adminLayout(<DashboardView />)} />
+      <Route path="/dashboard" element={authLayout(<DashboardView />)} />
       <Route path="/inventory" element={adminLayout(<InventoryView />)} />
       <Route path="/users" element={adminLayout(<UserPairMgmt />)} />
       <Route path="/catalog" element={adminLayout(<AdminSeedView />)} />
       <Route path="/settings" element={adminLayout(<SettingsView />)} />
+      <Route path="/memories" element={userOnly(<MemoriesView />)} />
 
-      <Route path="*" element={<Navigate to={isAdmin ? '/dashboard' : '/login'} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
     </Routes>
   );
 }

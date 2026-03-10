@@ -4,14 +4,13 @@ const { query } = require('../config/db');
 const router = express.Router();
 
 function mapRole(code) {
-  if (code === 'ADMIN') return 'Admin';
-  if (code === 'SELLER') return 'Manager';
+  if (code === 'admin') return 'Admin';
   return 'User';
 }
 
 function mapUserStatus(status) {
-  if (status === 'ACTIVE') return 'Active';
-  return 'Suspended';
+  if (status === 'SUSPENDED' || status === 'suspended') return 'Suspended';
+  return 'Active';
 }
 
 function mapPairStage(status) {
@@ -45,16 +44,12 @@ async function loadUserViewById(userId) {
     `
       SELECT
         u.id,
-        u.full_name,
+        COALESCE(u.name, '') AS name,
         u.email,
-        u.account_status,
         u.updated_at,
-        COALESCE(MAX(r.code), 'USER') AS role_code
+        COALESCE(u.role, 'user') AS role_code
       FROM users u
-      LEFT JOIN user_roles ur ON ur.user_id = u.id
-      LEFT JOIN roles r ON r.id = ur.role_id
       WHERE u.id = ?
-      GROUP BY u.id, u.full_name, u.email, u.account_status, u.updated_at
       LIMIT 1
     `,
     [userId]
@@ -65,10 +60,10 @@ async function loadUserViewById(userId) {
 
   return {
     id: `usr-${row.id}`,
-    name: row.full_name,
+    name: row.name,
     email: row.email,
     role: mapRole(row.role_code),
-    status: mapUserStatus(row.account_status),
+    status: 'Active',
     lastActive: new Date(row.updated_at).toLocaleString(),
   };
 }
@@ -111,7 +106,7 @@ async function loadRelationshipViewById(pairId) {
         rp.id,
         rp.status,
         rp.updated_at,
-        GROUP_CONCAT(u.full_name ORDER BY pm.member_role SEPARATOR ' & ') AS pair_name
+        GROUP_CONCAT(COALESCE(u.name, u.email, CONCAT('User ', u.id)) ORDER BY pm.member_role SEPARATOR ' & ') AS pair_name
       FROM relationship_pairs rp
       LEFT JOIN pair_members pm ON pm.pair_id = rp.id
       LEFT JOIN users u ON u.id = pm.user_id
@@ -137,7 +132,7 @@ async function loadRelationshipViewById(pairId) {
 router.get('/', async (_req, res) => {
   try {
     const [userCountRows, ringSoldRows, activePairsRows] = await Promise.all([
-      query("SELECT COUNT(*) AS total FROM users WHERE account_status <> 'DELETED'"),
+      query('SELECT COUNT(*) AS total FROM users'),
       query("SELECT COUNT(*) AS total FROM rings WHERE status = 'ASSIGNED'"),
       query("SELECT COUNT(*) AS total FROM relationship_pairs WHERE status IN ('CONNECTED', 'SYNCING')"),
     ]);
@@ -146,16 +141,11 @@ router.get('/', async (_req, res) => {
       query(`
         SELECT
           u.id,
-          u.full_name,
+          COALESCE(u.name, '') AS name,
           u.email,
-          u.account_status,
           u.updated_at,
-          COALESCE(MAX(r.code), 'USER') AS role_code
+          COALESCE(u.role, 'user') AS role_code
         FROM users u
-        LEFT JOIN user_roles ur ON ur.user_id = u.id
-        LEFT JOIN roles r ON r.id = ur.role_id
-        WHERE u.account_status <> 'DELETED'
-        GROUP BY u.id, u.full_name, u.email, u.account_status, u.updated_at
         ORDER BY u.updated_at DESC
         LIMIT 10
       `),
@@ -177,7 +167,7 @@ router.get('/', async (_req, res) => {
           rp.id,
           rp.status,
           rp.updated_at,
-          GROUP_CONCAT(u.full_name ORDER BY pm.member_role SEPARATOR ' & ') AS pair_name
+          GROUP_CONCAT(COALESCE(u.name, u.email, CONCAT('User ', u.id)) ORDER BY pm.member_role SEPARATOR ' & ') AS pair_name
         FROM relationship_pairs rp
         LEFT JOIN pair_members pm ON pm.pair_id = rp.id
         LEFT JOIN users u ON u.id = pm.user_id
@@ -190,8 +180,8 @@ router.get('/', async (_req, res) => {
           pi.id,
           pi.status,
           pi.created_at,
-          COALESCE(inviter.full_name, 'Unknown') AS inviter_name,
-          COALESCE(invitee.full_name, pi.invitee_handle, 'Pending User') AS invitee_name,
+          COALESCE(inviter.name, inviter.email, 'Unknown') AS inviter_name,
+          COALESCE(invitee.name, invitee.email, pi.invitee_handle, 'Pending User') AS invitee_name,
           COALESCE(rm.model_name, 'SmartRing') AS model_name
         FROM pair_invitations pi
         LEFT JOIN users inviter ON inviter.id = pi.inviter_user_id
@@ -211,10 +201,10 @@ router.get('/', async (_req, res) => {
 
     const systemUsers = usersRows.map((row) => ({
       id: `usr-${row.id}`,
-      name: row.full_name,
+      name: row.name,
       email: row.email,
       role: mapRole(row.role_code),
-      status: mapUserStatus(row.account_status),
+      status: 'Active',
       lastActive: new Date(row.updated_at).toLocaleString(),
     }));
 
@@ -308,15 +298,10 @@ router.patch('/users/:id/status', async (req, res) => {
     const userId = extractNumericId(req.params.id);
     if (!userId) return res.status(400).json({ message: 'Invalid user id' });
 
-    const rows = await query('SELECT account_status FROM users WHERE id = ? LIMIT 1', [userId]);
+    const rows = await query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
     if (!rows[0]) return res.status(404).json({ message: 'User not found' });
 
-    const current = rows[0].account_status;
-    const next = current === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-    await query('UPDATE users SET account_status = ? WHERE id = ?', [next, userId]);
-
-    const user = await loadUserViewById(userId);
-    return res.json({ user });
+    return res.status(400).json({ message: 'User status is not supported by the current users table schema.' });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to update user status', error: error.message });
   }
@@ -328,24 +313,13 @@ router.patch('/users/:id/role', async (req, res) => {
     if (!userId) return res.status(400).json({ message: 'Invalid user id' });
 
     const roleRows = await query(
-      `
-        SELECT COALESCE(MAX(r.code), 'USER') AS role_code
-        FROM users u
-        LEFT JOIN user_roles ur ON ur.user_id = u.id
-        LEFT JOIN roles r ON r.id = ur.role_id
-        WHERE u.id = ?
-        GROUP BY u.id
-      `,
-      [userId]
+      'SELECT COALESCE(role, ? ) AS role_code FROM users WHERE id = ? LIMIT 1',
+      ['user', userId]
     );
     if (!roleRows[0]) return res.status(404).json({ message: 'User not found' });
 
-    const nextCode = nextFromCycle(roleRows[0].role_code, ['USER', 'SELLER', 'ADMIN']);
-    const targetRole = await query('SELECT id FROM roles WHERE code = ? LIMIT 1', [nextCode]);
-    if (!targetRole[0]) return res.status(500).json({ message: `Role ${nextCode} not found` });
-
-    await query('DELETE FROM user_roles WHERE user_id = ?', [userId]);
-    await query('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [userId, targetRole[0].id]);
+    const nextRole = nextFromCycle(roleRows[0].role_code, ['user', 'admin']);
+    await query('UPDATE users SET role = ? WHERE id = ?', [nextRole, userId]);
 
     const user = await loadUserViewById(userId);
     return res.json({ user });
