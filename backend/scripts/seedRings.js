@@ -62,8 +62,7 @@ async function seedRings() {
     for (const model of models) {
       await connection.execute(`
         INSERT INTO ring_models 
-        (model_name, collection_name, material, description, image_url, base_price, currency_code)
-        VALUES (?, ?, ?, ?, ?, ?, 'USD')
+        (model_name, collection_name, material, description, image_url, base_price, currency_code)        VALUES (?, ?, ?, ?, ?, ?, 'USD')
         ON DUPLICATE KEY UPDATE
         model_name = VALUES(model_name)
       `, [model.model_name, model.collection_name, model.material, model.description, model.image_url, model.base_price]);

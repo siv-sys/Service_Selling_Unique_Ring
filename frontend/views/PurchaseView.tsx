@@ -12,6 +12,7 @@ interface CoupleProfile {
   sku: string;
   price: number;
   purchaseDate: string;
+  ringImage?: string;
 }
 
 interface ExistingRelationship {
@@ -19,22 +20,34 @@ interface ExistingRelationship {
   partner2: string;
 }
 
+interface SelectedRing {
+  name: string;
+  sku: string;
+  type: string;
+  size: string;
+  price: number;
+  stock: number;
+  image: string;
+  id?: number;
+}
+
 const PurchaseView: React.FC = () => {
   const navigate = useNavigate();
-  
+
   // State
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [cartCount, setCartCount] = useState<number>(1);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [modalData, setModalData] = useState<any>(null);
-  
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
+
   // Form states
   const [partner1, setPartner1] = useState<string>('Alex Rivera');
   const [partner2, setPartner2] = useState<string>('Sam Rivera');
   const [anniversary, setAnniversary] = useState<string>('2023-06-15');
   const [email, setEmail] = useState<string>('couple@bondkeeper.com');
-  
+
   const [phone, setPhone] = useState<string>('+855 12 345 678');
   const [altPhone, setAltPhone] = useState<string>('+855 98 765 432');
   const [address, setAddress] = useState<string>('#123, Street 456, Phnom Penh');
@@ -43,15 +56,15 @@ const PurchaseView: React.FC = () => {
   const [country, setCountry] = useState<string>('Cambodia');
   const [nc1, setNc1] = useState<string>('N-123456789');
   const [nc2, setNc2] = useState<string>('N-987654321');
-  
+
   const [paymentMethod, setPaymentMethod] = useState<string>('card');
   const [cardNumber, setCardNumber] = useState<string>('4111 1111 1111 1111');
   const [expiry, setExpiry] = useState<string>('12/28');
   const [cvc, setCvc] = useState<string>('123');
   const [termsAccepted, setTermsAccepted] = useState<boolean>(true);
 
-  // Ring data (could come from cart or session)
-  const [ringData] = useState({
+  // Ring data from sessionStorage (set by shop "See More" button or cart)
+  const [ringData, setRingData] = useState<SelectedRing>({
     name: 'Twin Souls Silver B',
     sku: 'TSS-002-X9',
     type: 'Sterling Silver',
@@ -60,6 +73,49 @@ const PurchaseView: React.FC = () => {
     stock: 3,
     image: 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900'
   });
+
+  // Load ring data from sessionStorage
+  useEffect(() => {
+    // Try to get from purchaseRing (set by "Buy Now" button)
+    const purchaseRing = sessionStorage.getItem('purchaseRing');
+    if (purchaseRing) {
+      try {
+        const parsedRing = JSON.parse(purchaseRing);
+        setRingData({
+          name: parsedRing.name || parsedRing.ring_name || 'Twin Souls Silver B',
+          sku: parsedRing.sku || parsedRing.ring_identifier || 'TSS-002-X9',
+          type: parsedRing.material || 'Sterling Silver',
+          size: parsedRing.size || '7 (adjustable)',
+          price: parsedRing.price || 899,
+          stock: parsedRing.stock || 3,
+          image: parsedRing.image || parsedRing.image_url || parsedRing.img || 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900',
+          id: parsedRing.id
+        });
+      } catch (e) {
+        console.error('Error parsing purchase ring:', e);
+      }
+    } else {
+      // Try to get from currentRing (set by "See More" button)
+      const currentRing = sessionStorage.getItem('currentRing');
+      if (currentRing) {
+        try {
+          const parsedRing = JSON.parse(currentRing);
+          setRingData({
+            name: parsedRing.name || parsedRing.ring_name || 'Twin Souls Silver B',
+            sku: parsedRing.sku || parsedRing.ring_identifier || 'TSS-002-X9',
+            type: parsedRing.material || 'Sterling Silver',
+            size: parsedRing.size || '7 (adjustable)',
+            price: parsedRing.price || 899,
+            stock: parsedRing.stock || 3,
+            image: parsedRing.image || parsedRing.image_url || parsedRing.img || 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900',
+            id: parsedRing.id
+          });
+        } catch (e) {
+          console.error('Error parsing current ring:', e);
+        }
+      }
+    }
+  }, []);
 
   // Existing relationships (for duplicate check)
   const [existingRelationships] = useState<ExistingRelationship[]>([]);
@@ -95,12 +151,27 @@ const PurchaseView: React.FC = () => {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
+  // Auto-hide notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Show notification function
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+  };
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     const newDarkMode = !isDarkMode;
     setIsDarkMode(newDarkMode);
     localStorage.setItem('darkMode', String(newDarkMode));
-    
+
     if (newDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -110,7 +181,7 @@ const PurchaseView: React.FC = () => {
 
   // Handle notification click
   const handleNotificationClick = () => {
-    alert('No new notifications');
+    showNotification('No new notifications', 'info');
   };
 
   // Navigation functions
@@ -121,7 +192,7 @@ const PurchaseView: React.FC = () => {
   // Step 1 validation
   const validateStep1 = (): boolean => {
     if (!partner1 || !partner2 || !email) {
-      alert('Please fill partner names and email.');
+      showNotification('Please fill partner names and email.', 'error');
       return false;
     }
     return true;
@@ -130,7 +201,7 @@ const PurchaseView: React.FC = () => {
   // Step 2 validation
   const validateStep2 = (): boolean => {
     if (!phone || !address || !city || !country || !nc1 || !nc2) {
-      alert('Please fill all required delivery and ID fields.');
+      showNotification('Please fill all required delivery and ID fields.', 'error');
       return false;
     }
     return true;
@@ -139,7 +210,7 @@ const PurchaseView: React.FC = () => {
   // Step 3 validation
   const validateStep3 = (): boolean => {
     if (!termsAccepted) {
-      alert('You must agree to the Terms and Privacy Policy.');
+      showNotification('You must agree to the Terms and Privacy Policy.', 'error');
       return false;
     }
     return true;
@@ -186,31 +257,31 @@ const PurchaseView: React.FC = () => {
 
     // Stock check
     if (ringData.stock <= 0) {
-      alert('❌ Sorry, this ring is out of stock.');
+      showNotification('❌ Sorry, this ring is out of stock.', 'error');
       return;
     }
 
     // Duplicate check
-    const duplicate = existingRelationships.some(rel => 
-      (rel.partner1 === partner1 && rel.partner2 === partner2) || 
+    const duplicate = existingRelationships.some(rel =>
+      (rel.partner1 === partner1 && rel.partner2 === partner2) ||
       (rel.partner1 === partner2 && rel.partner2 === partner1)
     );
-    
+
     if (duplicate) {
-      alert('❌ Relationship already exists. Duplicate bond not allowed.');
+      showNotification('❌ Relationship already exists. Duplicate bond not allowed.', 'error');
       return;
     }
 
     // Simulate stock decrease
     const newStock = ringData.stock - 1;
-    
+
     // Record relationship
     const newRelationship = { partner1, partner2 };
     existingRelationships.push(newRelationship);
 
-    // Store couple profile
+    // Store couple profile with ring image
     const coupleProfile: CoupleProfile = {
-      id: 'CP' + Math.floor(Math.random()*10000),
+      id: 'CP' + Math.floor(Math.random() * 10000),
       partner1,
       partner2,
       email,
@@ -220,8 +291,9 @@ const PurchaseView: React.FC = () => {
       sku: ringData.sku,
       price: ringData.price,
       purchaseDate: new Date().toLocaleDateString(),
+      ringImage: ringData.image
     };
-    
+
     // Store data in sessionStorage for the Thank You page
     sessionStorage.setItem('bondKeeper_couple', JSON.stringify(coupleProfile));
     sessionStorage.setItem('showThankYou', 'true');
@@ -237,8 +309,9 @@ const PurchaseView: React.FC = () => {
       price: ringData.price,
       newStock,
       date: new Date().toLocaleDateString(),
+      ringImage: ringData.image
     });
-    
+
     setShowModal(true);
 
     // Redirect to profile after modal is shown
@@ -271,7 +344,7 @@ const PurchaseView: React.FC = () => {
 
   // Get step description
   const getStepDescription = (): string => {
-    switch(currentStep) {
+    switch (currentStep) {
       case 1: return 'Step 1: Choose ring & fill partner information';
       case 2: return 'Step 2: Delivery & identity verification';
       case 3: return 'Step 3: Payment & final confirmation';
@@ -325,7 +398,7 @@ const PurchaseView: React.FC = () => {
 
       {/* SUCCESS MODAL */}
       {showModal && modalData && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop opacity-100 pointer-events-auto transition-opacity duration-300"
           onClick={handleModalBackdropClick}
         >
@@ -334,13 +407,13 @@ const PurchaseView: React.FC = () => {
           {/* modal card */}
           <div className="relative bg-white dark:bg-charcoal rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-primary/20 modal-content opacity-100 translate-y-0 transition-all duration-300">
             {/* close button */}
-            <button 
+            <button
               onClick={closeModal}
               className="absolute top-4 right-4 text-slate-400 hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
-            
+
             {/* success icon with animation */}
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-pulse">
@@ -352,8 +425,24 @@ const PurchaseView: React.FC = () => {
             <h2 className="heading-serif text-4xl font-bold text-center text-primary">Thank you!</h2>
             <p className="text-center text-slate-600 dark:text-cream/70 mt-2">Your bond is now forever registered.</p>
 
+            {/* Ring image in modal */}
+            {modalData.ringImage && (
+              <div className="mt-4 flex justify-center">
+                <div className="w-24 h-24 rounded-lg overflow-hidden border-2 border-primary/20">
+                  <img 
+                    src={modalData.ringImage} 
+                    alt={modalData.ring}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/96?text=Ring';
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* purchase details */}
-            <div className="mt-8 bg-primary/5 rounded-2xl p-6 space-y-3 text-sm border border-primary/10">
+            <div className="mt-4 bg-primary/5 rounded-2xl p-6 space-y-3 text-sm border border-primary/10">
               <div className="flex justify-between">
                 <span className="text-slate-500">Couple</span>
                 <span className="font-bold">{modalData.partner1} & {modalData.partner2}</span>
@@ -383,8 +472,8 @@ const PurchaseView: React.FC = () => {
 
             {/* action button */}
             <div className="mt-8 flex justify-center">
-              <Link 
-                to="/profile" 
+              <Link
+                to="/profile"
                 className="bg-primary text-white px-8 py-4 rounded-full font-bold hover:bg-primary/80 transition-all flex items-center gap-2 shadow-lg"
               >
                 <span>View your couple profile</span>
@@ -400,7 +489,7 @@ const PurchaseView: React.FC = () => {
         <div className="text-center mb-12">
           <span className="text-xs uppercase tracking-[0.3em] text-primary/70 font-semibold">Secure checkout</span>
           <h1 className="heading-serif text-5xl font-light mt-2">Purchase & verify your bond</h1>
-          
+
           {/* Step circles with labels */}
           <div className="flex justify-center items-center gap-4 mt-8">
             {/* Step 1 */}
@@ -432,19 +521,19 @@ const PurchaseView: React.FC = () => {
 
         {/* Multi-step container */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* LEFT: ring details (visible in all steps) */}
+          {/* LEFT: ring details with image from selected ring */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white dark:bg-slate-80 rounded-3xl p-6 border border-primary/10 shadow-premium sticky top-28">
+            <div className="bg-white dark:bg-pink-200 rounded-3xl p-6 border border-primary/10 shadow-premium sticky top-28">
               <h3 className="heading-serif text-2xl font-semibold mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">diamond</span> Your selection
               </h3>
               <div className="aspect-square rounded-2xl overflow-hidden bg-slate-100 mb-5">
-                <img 
-                  src={ringData.image} 
-                  className="w-full h-full object-cover" 
+                <img
+                  src={ringData.image}
+                  className="w-full h-full object-cover"
                   alt={ringData.name}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=600&fit=crop';
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400?text=Image+not+available';
                   }}
                 />
               </div>
@@ -478,7 +567,7 @@ const PurchaseView: React.FC = () => {
               </div>
               <div className="mt-6 p-4 bg-primary/5 rounded-2xl">
                 <p className="text-xs flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-lg">verified</span> 
+                  <span className="material-symbols-outlined text-primary text-lg">verified</span>
                   After purchase, this ring will be linked to your couple profile and stock will decrease.
                 </p>
               </div>
@@ -490,31 +579,30 @@ const PurchaseView: React.FC = () => {
             {/* STEP 1 FORM */}
             {currentStep === 1 && (
               <div className="step-form space-y-8">
-                <div className="bg-white dark:bg-slate-80 rounded-3xl p-8 border border-primary/10 shadow-premium">
+                <div className="bg-white dark:bg-pink-200 rounded-3xl p-8 border border-primary/10 shadow-premium">
                   <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">favorite</span> Register your relationship
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-  <label className="block text-xs font-bold uppercase tracking-widest text-pink-600 mb-2">
-    Partner 1 Full Name
-  </label>
-
-  <input
-    type="text"
-    value={partner1}
-    onChange={(e) => setPartner1(e.target.value)}
-    className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
-    placeholder="Enter full name"
-    required
-  />
-</div>
+                      <label className="block text-xs font-bold uppercase tracking-widest text-pink-600 mb-2">
+                        Partner 1 Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={partner1}
+                        onChange={(e) => setPartner1(e.target.value)}
+                        className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
+                        placeholder="Enter full name"
+                        required
+                      />
+                    </div>
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                         Partner 2 full name
                       </label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={partner2}
                         onChange={(e) => setPartner2(e.target.value)}
                         className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -527,8 +615,8 @@ const PurchaseView: React.FC = () => {
                       <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-pink-400 mb-2">
                         Anniversary date
                       </label>
-                      <input 
-                        type="date" 
+                      <input
+                        type="date"
                         value={anniversary}
                         onChange={(e) => setAnniversary(e.target.value)}
                         className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -539,8 +627,8 @@ const PurchaseView: React.FC = () => {
                       <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-pink-400 mb-2">
                         Email (both share)
                       </label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -556,7 +644,7 @@ const PurchaseView: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <button 
+                  <button
                     onClick={handleToStep2}
                     className="bg-primary text-white px-10 py-4 rounded-full font-bold hover:bg-primary/80 transition-all flex items-center gap-2"
                   >
@@ -569,7 +657,7 @@ const PurchaseView: React.FC = () => {
             {/* STEP 2 FORM */}
             {currentStep === 2 && (
               <div className="step-form space-y-8">
-                <div className="bg-white dark:bg-slate-80 rounded-3xl p-8 border border-primary/10 shadow-premium">
+                <div className="bg-white dark:bg-pink-200 rounded-3xl p-8 border border-primary/10 shadow-premium">
                   <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">contact_mail</span> Delivery & identity
                   </h3>
@@ -579,8 +667,8 @@ const PurchaseView: React.FC = () => {
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                           Phone number (both)
                         </label>
-                        <input 
-                          type="tel" 
+                        <input
+                          type="tel"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -591,8 +679,8 @@ const PurchaseView: React.FC = () => {
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                           Alternative phone
                         </label>
-                        <input 
-                          type="tel" 
+                        <input
+                          type="tel"
                           value={altPhone}
                           onChange={(e) => setAltPhone(e.target.value)}
                           className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -603,8 +691,8 @@ const PurchaseView: React.FC = () => {
                       <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                         Street address / P.O. Box
                       </label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                         className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -616,8 +704,8 @@ const PurchaseView: React.FC = () => {
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                           City
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={city}
                           onChange={(e) => setCity(e.target.value)}
                           className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -628,8 +716,8 @@ const PurchaseView: React.FC = () => {
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                           Postal code
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={zip}
                           onChange={(e) => setZip(e.target.value)}
                           className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -639,8 +727,8 @@ const PurchaseView: React.FC = () => {
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                           Country
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={country}
                           onChange={(e) => setCountry(e.target.value)}
                           className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -653,8 +741,8 @@ const PurchaseView: React.FC = () => {
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                           Partner 1 National ID (NC)
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={nc1}
                           onChange={(e) => setNc1(e.target.value)}
                           className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -665,8 +753,8 @@ const PurchaseView: React.FC = () => {
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                           Partner 2 National ID (NC)
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={nc2}
                           onChange={(e) => setNc2(e.target.value)}
                           className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -677,13 +765,13 @@ const PurchaseView: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-between">
-                  <button 
+                  <button
                     onClick={handleBackToStep1}
                     className="px-8 py-4 border border-primary/30 rounded-full font-bold hover:bg-primary/5 transition-colors flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined">arrow_back</span> Back
                   </button>
-                  <button 
+                  <button
                     onClick={handleToStep3}
                     className="bg-primary text-white px-10 py-4 rounded-full font-bold hover:bg-primary/80 transition-all flex items-center gap-2"
                   >
@@ -696,11 +784,11 @@ const PurchaseView: React.FC = () => {
             {/* STEP 3 FORM */}
             {currentStep === 3 && (
               <div className="step-form space-y-8">
-                <div className="bg-white dark:bg-slate-80 rounded-3xl p-8 border border-primary/10 shadow-premium">
+                <div className="bg-white dark:bg-pink-200 rounded-3xl p-8 border border-primary/10 shadow-premium">
                   <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">credit_card</span> Payment & confirmation
                   </h3>
-                  
+
                   {/* Order summary */}
                   <div className="bg-primary/5 rounded-2xl p-6 mb-8">
                     <h4 className="font-bold mb-4 flex items-center gap-2">
@@ -736,9 +824,9 @@ const PurchaseView: React.FC = () => {
                       </label>
                       <div className="grid grid-cols-2 gap-4">
                         <label className="flex items-center gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:border-primary/50">
-                          <input 
-                            type="radio" 
-                            name="payment" 
+                          <input
+                            type="radio"
+                            name="payment"
                             value="card"
                             checked={paymentMethod === 'card'}
                             onChange={(e) => setPaymentMethod(e.target.value)}
@@ -749,9 +837,9 @@ const PurchaseView: React.FC = () => {
                           </span>
                         </label>
                         <label className="flex items-center gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:border-primary/50">
-                          <input 
-                            type="radio" 
-                            name="payment" 
+                          <input
+                            type="radio"
+                            name="payment"
                             value="aba"
                             checked={paymentMethod === 'aba'}
                             onChange={(e) => setPaymentMethod(e.target.value)}
@@ -763,15 +851,15 @@ const PurchaseView: React.FC = () => {
                         </label>
                       </div>
                     </div>
-                    
+
                     {paymentMethod === 'card' && (
                       <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2">
                           <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                             Card number
                           </label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={cardNumber}
                             onChange={(e) => setCardNumber(e.target.value)}
                             className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -781,8 +869,8 @@ const PurchaseView: React.FC = () => {
                           <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                             Expiry (MM/YY)
                           </label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={expiry}
                             onChange={(e) => setExpiry(e.target.value)}
                             className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -792,8 +880,8 @@ const PurchaseView: React.FC = () => {
                           <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
                             CVC
                           </label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={cvc}
                             onChange={(e) => setCvc(e.target.value)}
                             className="w-full px-5 py-3 bg-pink-100 border border-pink-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-700 placeholder-gray-400"
@@ -810,8 +898,8 @@ const PurchaseView: React.FC = () => {
                     )}
 
                     <label className="flex items-center gap-3 text-sm">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={termsAccepted}
                         onChange={(e) => setTermsAccepted(e.target.checked)}
                         className="text-primary h-5 w-5 rounded border-slate-300"
@@ -823,13 +911,13 @@ const PurchaseView: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-between">
-                  <button 
+                  <button
                     onClick={handleBackToStep2}
                     className="px-8 py-4 border border-primary/30 rounded-full font-bold hover:bg-primary/5 transition-colors flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined">arrow_back</span> Back
                   </button>
-                  <button 
+                  <button
                     onClick={handleFinalPurchase}
                     className="bg-primary text-white px-12 py-5 rounded-full text-lg font-bold shadow-xl hover:bg-primary/80 transition-all flex items-center gap-3"
                   >
@@ -843,12 +931,50 @@ const PurchaseView: React.FC = () => {
         </div>
       </main>
 
+      {/* Custom Pink Notification */}
+      {notification && (
+        <div 
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
+            ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
+            text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+        >
+          <span className="material-symbols-outlined text-sm">
+            {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
+          </span>
+          <p className="text-sm font-medium flex-1">{notification.message}</p>
+          <button 
+            className="hover:bg-white/20 rounded-full p-1 transition-colors"
+            onClick={() => setNotification(null)}
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-20 pt-12 pb-8">
         <div className="max-w-7xl mx-auto px-6 text-center text-xs text-slate-400">
           <p>© BondKeeper · 3‑step secure checkout. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* Add animations */}
+      <style>{`
+        @keyframes slideUpBottom {
+          from {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+        }
+        
+        .animate-slide-up-bottom {
+          animation: slideUpBottom 0.3s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 };
