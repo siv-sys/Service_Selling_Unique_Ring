@@ -849,4 +849,3 @@ const PairingRow = ({ users, model, date, status }: any) => (
 );
 
 export default Dashboard;
-
