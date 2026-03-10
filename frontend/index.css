@@ -1,0 +1,407 @@
+﻿/* ===== BASE STYLES ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #faf6f2;
+  color: #1e1b1a;
+  transition: background-color 0.3s, color 0.3s;
+  min-height: 100vh;
+}
+.text-primary {
+  color: #ff2aa2;
+}
+.dark body {
+  background-color: #1e1b1a;
+  color: rgba(250, 246, 242, 0.9);
+}
+
+
+
+/* ===== TYPOGRAPHY ===== */
+.heading-serif {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ===== LAYOUT & CONTAINERS ===== */
+.max-w-7xl {
+  max-width: 80rem;
+}
+
+.max-w-6xl {
+  max-width: 72rem;
+}
+
+.max-w-5xl {
+  max-width: 64rem;
+}
+
+/* ===== HEADER & NAVIGATION ===== */
+.premium-blur {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ===== GLASS PANELS ===== */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(188, 71, 108, 0.15);
+}
+
+.dark .glass-panel {
+  background: rgba(28, 28, 28, 0.7);
+  border-color: rgba(182, 48, 147, 0.2);
+}
+
+/* ===== CARDS & CONTAINERS ===== */
+.shadow-premium {
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 8px 20px -8px rgba(177, 123, 94, 0.15);
+}
+
+.shadow-card {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02), 0 1px 4px rgba(177, 123, 94, 0.08);
+}
+
+/* ===== RING CARDS ===== */
+.ring-card {
+  transition: all 0.25s ease;
+}
+
+.ring-card:hover {
+  transform: translateY(-4px);
+}
+
+.ring-image-premium {
+  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+.ring-image-premium:hover {
+  transform: scale(1.03);
+}
+
+/* ===== STAT CARDS ===== */
+.stat-card {
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.stat-card:hover {
+  border-color: rgba(200, 33, 139, 0.25);
+  box-shadow: 0 15px 30px -15px rgba(177, 123, 94, 0.3);
+}
+
+/* ===== DIAMOND SHINE ANIMATION ===== */
+.diamond-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.diamond-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(60deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+  transform: rotate(25deg);
+  animation: shine 6s infinite;
+  pointer-events: none;
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  20% {
+    transform: translateX(100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(25deg);
+  }
+}
+
+/* ===== CATEGORY TAGS ===== */
+.category-tag {
+  background: rgba(255, 42, 162, 0.1);
+  color: #ff2aa2;
+  padding: 6px 16px;
+  border-radius: 30px;
+  font-size: 14px;
+  display: inline-block;
+  margin: 0 8px 8px 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.category-tag:hover {
+  background: #ff2aa2;
+  color: white;
+}
+
+/* ===== LOADING SPINNER ===== */
+.loading-spinner {
+  border: 3px solid rgba(255, 42, 162, 0.1);
+  border-top: 3px solid #ff2aa2;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== STEP INDICATOR (for checkout) ===== */
+.step {
+  transition: all 0.2s;
+}
+
+.step.active {
+  background-color: #ff2aa2;
+  color: white;
+  border-color: #ff2aa2;
+}
+
+.step.completed {
+  background-color: #ff2aa2;
+  color: white;
+  border-color: #ff2aa2;
+}
+
+/* ===== MODAL ANIMATIONS ===== */
+.modal-backdrop {
+  transition: opacity 0.3s ease;
+}
+
+.modal-content {
+  transform: scale(0.95);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.modal-show .modal-content {
+  transform: scale(1);
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* ===== TOOLTIP ===== */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip .tooltip-text {
+  visibility: hidden;
+  width: 200px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  padding: 5px;
+  border-radius: 6px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 12px;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* ===== INFO SECTIONS ===== */
+.info-section {
+  border-bottom: 1px solid rgba(255, 42, 162, 0.1);
+  padding: 20px 0;
+}
+
+.info-section:last-child {
+  border-bottom: none;
+}
+
+/* ===== LOVE PATTERN BACKGROUND ===== */
+.love-pattern-bg {
+  background-image: radial-gradient(#fecdd3 0.5px, transparent 0.5px), radial-gradient(#fecdd3 0.5px, #fff9fb 0.5px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+.dark .love-pattern-bg {
+  background-image: radial-gradient(#4c0519 0.5px, transparent 0.5px), radial-gradient(#4c0519 0.5px, #0f172a 0.5px);
+}
+
+/* ===== ASPECT RATIOS ===== */
+.aspect-\[4\/5\] {
+  aspect-ratio: 4/5;
+}
+
+/* ===== PRIMARY COLOR UTILITIES ===== */
+.bg-primary {
+  background-color: #ff2aa2 !important;
+}
+
+.text-primary {
+  color: #ff2aa2 !important;
+}
+
+.border-primary {
+  border-color: #ff2aa2 !important;
+}
+
+.ring-primary {
+  --tw-ring-color: #ff2aa2 !important;
+}
+
+.shadow-primary\/30 {
+  box-shadow: 0 10px 25px -5px rgba(255, 42, 162, 0.3) !important;
+}
+
+/* ===== CUSTOM SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ff2aa2;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d91a85;
+}
+
+/* ===== RANGE INPUT STYLING ===== */
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #ff2aa2;
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: -6px;
+}
+
+input[type=range]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #ff2aa2;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+}
+
+.dark input[type=range]::-webkit-slider-runnable-track {
+  background: #334155;
+}
+
+/* ===== CHECKBOX STYLING ===== */
+input[type=checkbox] {
+  accent-color: #ff2aa2;
+}
+
+/* ===== RADIO BUTTON STYLING ===== */
+input[type=radio] {
+  accent-color: #ff2aa2;
+}
+
+/* ===== FORM FOCUS STATES ===== */
+input:focus, select:focus, textarea:focus, button:focus {
+  outline: 2px solid rgba(255, 42, 162, 0.3);
+  outline-offset: 2px;
+}
+
+/* ===== RESPONSIVE UTILITIES ===== */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* ===== FOOTER STYLES ===== */
+footer a {
+  transition: color 0.2s ease;
+}
+
+footer a:hover {
+  color: #ff2aa2;
+}
+
+/* ===== BUTTON HOVER EFFECTS ===== */
+button, .button {
+  transition: all 0.2s ease;
+}
+
+button:disabled, .button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== CARD HOVER EFFECTS ===== */
+.hover-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -10px rgba(255, 42, 162, 0.15);
+}
