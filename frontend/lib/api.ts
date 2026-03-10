@@ -25,6 +25,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
+    const contentType = response.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const data = await response.json().catch(() => null);
+      const message =
+        data && typeof data === 'object' && 'message' in data ? String(data.message) : '';
+      throw new Error(message || `Request failed with status ${response.status}`);
+    }
+
     const message = await response.text();
     throw new Error(message || `Request failed with status ${response.status}`);
   }
