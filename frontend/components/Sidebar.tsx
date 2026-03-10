@@ -4,11 +4,10 @@ import {
   LayoutDashboard,
   Users,
   Package,
-  ShieldAlert,
   Database,
+  Heart,
   Settings,
-  LogOut,
-  Heart
+  LogOut
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -50,7 +49,6 @@ const Sidebar = () => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: Users, label: 'User & Pair Management', path: '/users' },
     { icon: Package, label: 'Ring Inventory', path: '/inventory' },
-    { icon: ShieldAlert, label: 'Security Logs', path: '/security' },
     { icon: Database, label: 'Catalog Seed', path: '/catalog' },
   ];
 
@@ -61,8 +59,8 @@ const Sidebar = () => {
           <Heart className="w-6 h-6 fill-current" />
         </div>
         <div>
-          <h1 className="text-lg font-bold leading-tight tracking-tight text-primary">SmartRing</h1>
-          <p className="text-xs text-slate-500">Admin Console</p>
+          <h1 className="text-lg font-black leading-tight tracking-tight text-pink-700">RingAdmin</h1>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-pink-500">Console</p>
         </div>
       </div>
 
