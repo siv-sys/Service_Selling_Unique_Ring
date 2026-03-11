@@ -123,7 +123,7 @@ const formatLastSyncedLabel = (message, loading) => {
   return 'Synced with your account settings';
 };
 
-const formatNotificationDate = (value) => {
+const formatNotificationDate = (value: string | null | undefined) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -212,7 +212,7 @@ const SettingsView = ({
 
     const loadNotifications = async () => {
       try {
-        const data = await api.get('/notifications/me');
+        const data: any = await api.get('/notifications/me');
         if (!active) return;
         if (Array.isArray(data) && data.length > 0) {
           setNotifications(data);
@@ -234,16 +234,15 @@ const SettingsView = ({
       return;
     }
 
-    const handleClickAway = (event) => {
-      if (!notificationPanelRef.current) {
-        return;
-      }
+    const handleClickAway = (event: MouseEvent) => {
+      if (!notificationPanelRef.current) return;
+      if (!(event.target instanceof Node)) return;
       if (!notificationPanelRef.current.contains(event.target)) {
         setIsNotificationOpen(false);
       }
     };
 
-    const handleEscape = (event) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsNotificationOpen(false);
       }
@@ -262,7 +261,7 @@ const SettingsView = ({
 
     const loadSettings = async () => {
       try {
-        const data = await api.get('/settings/me');
+        const data: any = await api.get('/settings/me');
         if (!active) return;
         setTwoFactorEnabled(Boolean(data?.twoFactorEnabled));
         setPrivacyLevel(typeof data?.privacyLevel === 'string' ? data.privacyLevel : DEFAULT_SETTINGS.privacyLevel);
@@ -310,7 +309,7 @@ const SettingsView = ({
     };
   }, []);
 
-  const showSaveMessage = (message) => {
+  const showSaveMessage = (message: string) => {
     setSaveMessage(message);
     window.setTimeout(() => setSaveMessage(''), 2000);
   };
@@ -341,7 +340,7 @@ const SettingsView = ({
 
   const handleResetSettings = async () => {
     try {
-      const data = await api.delete('/settings/me');
+      const data: any = await api.delete('/settings/me');
       setTwoFactorEnabled(Boolean(data?.twoFactorEnabled));
       setPrivacyLevel(typeof data?.privacyLevel === 'string' ? data.privacyLevel : DEFAULT_SETTINGS.privacyLevel);
       setThemeMode(typeof data?.themeMode === 'string' ? data.themeMode : DEFAULT_SETTINGS.themeMode);
@@ -379,7 +378,7 @@ const SettingsView = ({
     api.patch('/notifications/me/read-all', {}).catch(() => {});
   };
 
-  const handleNotificationClick = (item) => {
+  const handleNotificationClick = (item: any) => {
     setNotifications((current) =>
       current.map((notification) =>
         notification.id === item.id ? { ...notification, unread: false } : notification
@@ -506,7 +505,7 @@ const SettingsView = ({
       link.remove();
       URL.revokeObjectURL(downloadUrl);
 
-      api.post('/settings/me/export', {}).then((data) => {
+    api.post('/settings/me/export', {}).then((data: any) => {
         if (typeof data?.lastExportAt === 'string' || data?.lastExportAt === null) {
           setLastExportAt(data.lastExportAt);
         }
@@ -520,7 +519,7 @@ const SettingsView = ({
     }
   };
 
-  const openDeleteSessionConfirm = (sessionName) => {
+  const openDeleteSessionConfirm = (sessionName: string) => {
     setSessionToDelete(sessionName);
   };
 
@@ -532,7 +531,7 @@ const SettingsView = ({
     if (!sessionToDelete) return;
     const session = activeSessions.find((item) => item.name === sessionToDelete);
     if (!session) return;
-    api.delete(`/settings/me/sessions/${session.id}`).then((data) => {
+    api.delete(`/settings/me/sessions/${session.id}`).then((data: any) => {
       setActiveSessions(Array.isArray(data?.activeSessions) ? data.activeSessions : []);
       setSessionToDelete(null);
       showSaveMessage('Session removed');
@@ -586,7 +585,7 @@ const SettingsView = ({
 
   const toggleSubscriptionRenewal = () => {
     const nextAutoRenewEnabled = !subscription.autoRenewEnabled;
-    api.patch('/settings/me/subscription', { autoRenewEnabled: nextAutoRenewEnabled }).then((data) => {
+    api.patch('/settings/me/subscription', { autoRenewEnabled: nextAutoRenewEnabled }).then((data: any) => {
       setSubscription({
         planName: typeof data?.planName === 'string' ? data.planName : 'Premium Plan',
         autoRenewEnabled: Boolean(data?.autoRenewEnabled),
@@ -602,7 +601,7 @@ const SettingsView = ({
     if (!sessionToDelete) {
       return;
     }
-    const handleEscape = (event) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSessionToDelete(null);
       }
@@ -615,7 +614,7 @@ const SettingsView = ({
     if (!isSubscriptionDialogOpen) {
       return;
     }
-    const handleEscape = (event) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsSubscriptionDialogOpen(false);
       }
@@ -628,7 +627,7 @@ const SettingsView = ({
     if (!isDeleteAccountConfirmOpen) {
       return;
     }
-    const handleEscape = (event) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsDeleteAccountConfirmOpen(false);
       }
@@ -641,7 +640,7 @@ const SettingsView = ({
     if (!isLogoutAllConfirmOpen) {
       return;
     }
-    const handleEscape = (event) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsLogoutAllConfirmOpen(false);
       }
