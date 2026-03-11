@@ -43,7 +43,7 @@ router.post('/', async (req, res, next) => {
     );
 
     if (!users.length) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
+      return res.status(401).json({ message: 'Email not found.' });
     }
 
     const user = users[0];
@@ -59,7 +59,7 @@ router.post('/', async (req, res, next) => {
     }
 
     if (!passwordMatches) {
-      return res.status(401).json({ message: 'Invalid email or password.' });
+      return res.status(401).json({ message: 'Incorrect password' });
     }
 
     let rememberToken = null;
