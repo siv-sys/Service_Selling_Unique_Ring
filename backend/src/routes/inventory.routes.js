@@ -49,6 +49,7 @@ function toItemResponse(row) {
     stock,
     stockPercent: Math.max(0, Math.min(100, Number(row.stock_percent))),
     statusColor: row.status_color,
+    supplier: row.supplier,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -187,6 +188,7 @@ router.put('/:id', async (req, res, next) => {
       stock,
       stockPercent,
       statusColor,
+      supplier,
     } = req.body;
 
     if (!model || !variant || !sku || !serial || !status) {
@@ -207,7 +209,8 @@ router.put('/:id', async (req, res, next) => {
            status = :status,
            stock_qty = :stock,
            stock_percent = :stockPercent,
-           status_color = :statusColor
+           status_color = :statusColor,
+           supplier = :supplier
        WHERE id = :id`,
       {
         id: req.params.id,
@@ -221,6 +224,7 @@ router.put('/:id', async (req, res, next) => {
         stock: safeStock,
         stockPercent: safeStockPercent,
         statusColor: statusColor || null,
+        supplier: supplier || null,
       }
     );
 

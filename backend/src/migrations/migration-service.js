@@ -265,11 +265,13 @@ async function runCustomCatalogSeedMigration(payload) {
   const ringIdentifierPrefix = payload.ringIdentifierPrefix ? String(payload.ringIdentifierPrefix).trim() : 'SHOP-CUSTOM';
   const defaultSize = payload.defaultSize ? String(payload.defaultSize).trim() : null;
   const locationLabel = payload.locationLabel ? String(payload.locationLabel).trim() : null;
+  const color = payload.color ? String(payload.color).trim() : material;
+  const supplier = payload.supplier ? String(payload.supplier).trim() : null;
 
   const modelInsertResult = await execute(
     `
-    INSERT INTO ring_models (model_name, collection_name, material, description, image_url, base_price, currency_code)
-    VALUES (:modelName, :collectionName, :material, :description, :imageUrl, :basePrice, :currencyCode)
+    INSERT INTO ring_models (model_name, collection_name, material, description, image_url, base_price, currency_code, supplier_name)
+    VALUES (:modelName, :collectionName, :material, :description, :imageUrl, :basePrice, :currencyCode, :supplier)
     `,
     {
       modelName,
@@ -279,11 +281,58 @@ async function runCustomCatalogSeedMigration(payload) {
       imageUrl,
       basePrice: price,
       currencyCode,
+      supplier,
     },
   );
 
   const modelId = Number(modelInsertResult.insertId);
   const ringIdentifiers = [];
+
+  // Determine status and color based on stock
+  let status = 'In Stock';
+  let statusColor = 'emerald';
+  if (stockCount === 0) {
+    status = 'Depleted';
+    statusColor = 'rose';
+  } else if (stockCount <= 20) {
+    status = 'Low Stock';
+    statusColor = 'amber';
+  }
+
+  // Insert into inventory_items for Ring Inventory page
+  const inventorySku = `${ringIdentifierPrefix}`;
+  const inventorySerial = `MODEL-${modelId}-${Date.now()}`;
+  const stockPercent = Math.min(100, Math.round((stockCount / 100) * 100));
+
+  await execute(
+    `
+    INSERT INTO inventory_items 
+    (image_url, model_name, color, variant, sku, serial_number, status, stock_qty, stock_percent, status_color, supplier)
+    VALUES (:imageUrl, :modelName, :color, :variant, :sku, :serial, :status, :stockQty, :stockPercent, :statusColor, :supplier)
+    ON DUPLICATE KEY UPDATE
+      image_url = VALUES(image_url),
+      color = VALUES(color),
+      variant = VALUES(variant),
+      status = VALUES(status),
+      stock_qty = VALUES(stock_qty),
+      stock_percent = VALUES(stock_percent),
+      status_color = VALUES(status_color),
+      supplier = VALUES(supplier)
+    `,
+    {
+      imageUrl,
+      modelName,
+      color,
+      variant: `${defaultSize || 'Standard'} - ${material}`,
+      sku: inventorySku,
+      serial: inventorySerial,
+      status,
+      stockQty: stockCount,
+      stockPercent: stockPercent,
+      statusColor,
+      supplier,
+    },
+  );
 
   for (let i = 0; i < stockCount; i += 1) {
     const sequence = String(startingNumber + i).padStart(3, '0');
@@ -291,8 +340,8 @@ async function runCustomCatalogSeedMigration(payload) {
     ringIdentifiers.push(ringIdentifier);
     await execute(
       `
-      INSERT INTO rings (ring_identifier, ring_name, model_id, size, material, status, location_type, location_label, price)
-      VALUES (:ringIdentifier, :ringName, :modelId, :size, :material, 'AVAILABLE', 'WAREHOUSE', :locationLabel, :price)
+      INSERT INTO rings (ring_identifier, ring_name, model_id, size, material, status, location_type, location_label, price, supplier_name)
+      VALUES (:ringIdentifier, :ringName, :modelId, :size, :material, 'AVAILABLE', 'WAREHOUSE', :locationLabel, :price, :supplier)
       ON DUPLICATE KEY UPDATE
         ring_name = VALUES(ring_name),
         model_id = VALUES(model_id),
@@ -301,7 +350,8 @@ async function runCustomCatalogSeedMigration(payload) {
         status = VALUES(status),
         location_type = VALUES(location_type),
         location_label = VALUES(location_label),
-        price = VALUES(price)
+        price = VALUES(price),
+        supplier_name = VALUES(supplier_name)
       `,
       {
         ringIdentifier,
@@ -311,6 +361,7 @@ async function runCustomCatalogSeedMigration(payload) {
         material,
         locationLabel,
         price,
+        supplier,
       },
     );
   }
@@ -322,9 +373,10 @@ async function runCustomCatalogSeedMigration(payload) {
   });
 
   const result = {
-    message: `Inserted model #${modelId} and ${stockCount} ring(s) via migration.`,
+    message: `Inserted model #${modelId}, ${stockCount} ring(s), and added to inventory.`,
     createdModels: 1,
     createdRings: stockCount,
+    inventoryAdded: true,
     migrationId,
     storedFile: SEED_HISTORY_FILE,
   };
@@ -341,6 +393,7 @@ async function runCustomCatalogSeedMigration(payload) {
       imageUrl,
       basePrice: price,
       currencyCode,
+      supplier,
     },
     ringConfig: {
       ringNamePrefix,
@@ -350,6 +403,7 @@ async function runCustomCatalogSeedMigration(payload) {
       startingNumber,
       defaultSize,
       locationLabel,
+      supplier,
     },
     result,
   });

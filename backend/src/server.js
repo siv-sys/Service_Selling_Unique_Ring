@@ -1,36 +1,21 @@
-<<<<<<< HEAD
-﻿
 const app = require('./app');
 const env = require('./config/env');
-const { initializeSettingsTables } = require('./config/db');
+const { initializeSettingsTables, ping } = require('./config/db');
 
 async function startServer() {
   try {
-    await initializeSettingsTables();
-    app.listen(env.port, () => {
-      console.log(`Backend running at http://localhost:${env.port}`);
-=======
-<<<<<<< HEAD
-﻿
-const app = require('./app.js');
-const { env } = require('./config/env.js');
-
-app.listen(env.port, () => {
-  console.log(`Backend server running on http://localhost:${env.port}`);
-});
-=======
-<<<<<<< HEAD
-﻿
-const app = require('./app');
-const env = require('./config/env');
-const { ping } = require('./config/db');
-
-async function start() {
-  try {
+    // Test database connection
     await ping();
+    console.log('Database connected successfully');
+    
+    // Initialize settings tables
+    await initializeSettingsTables();
+    console.log('Settings tables initialized');
+    
+    // Start server
     app.listen(env.port, () => {
-      console.log(`API running on http://localhost:${env.port}`);
->>>>>>> feature/ringInventory
+      console.log(`Backend server running on http://localhost:${env.port}`);
+      console.log(`API available at http://localhost:${env.port}/api`);
     });
   } catch (error) {
     console.error('Failed to start server:', error.message);
@@ -38,19 +23,4 @@ async function start() {
   }
 }
 
-<<<<<<< HEAD
-void startServer();
-=======
-start();
-=======
-const app = require('./app');
-const env = require('./config/env');
-
-const port = env.port;
-
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
-});
->>>>>>> feature/admin_dashboard
->>>>>>> feature/ringInventory
->>>>>>> feature/ringInventory
+startServer();

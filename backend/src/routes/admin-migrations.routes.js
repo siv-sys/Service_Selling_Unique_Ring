@@ -18,7 +18,7 @@ router.get('/status', async (_req, res) => {
       ...status,
     });
   } catch (error) {
-    res.status(500).send(error.message || 'Failed to get migration status');
+    res.status(500).json({ message: error.message || 'Failed to get migration status' });
   }
 });
 
@@ -31,7 +31,7 @@ router.post('/run', async (_req, res) => {
       appliedMigrations: result.appliedMigrations,
     });
   } catch (error) {
-    res.status(500).send(error.message || 'Failed to run migrations');
+    res.status(500).json({ message: error.message || 'Failed to run migrations' });
   }
 });
 
@@ -44,7 +44,7 @@ router.post('/seed-catalog', async (req, res) => {
       : await runSeedCatalogMigration();
     res.json(result);
   } catch (error) {
-    res.status(500).send(error.message || 'Failed to run seed migration');
+    res.status(500).json({ message: error.message || 'Failed to run seed migration' });
   }
 });
 

@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import {
   Download,
-  Layers,
   RotateCcw,
   Edit3,
   Trash2,
@@ -10,93 +9,171 @@ import {
   AlertTriangle,
   Link,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
-const initialInventoryData = [
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCOV78VY4Fdm2XWC_ux_phNkkWau0YDvVV8qRMt4lub-GHKKAKGNgyXf1Q2_kTbXi2K1lF0z2_0WZscl8d4RRsUbpP1WALcV0fcE3DkfAWjMjTH0McaIGLBudP_5IjCI8oXke5GEhMk2JVE05MT3kyAzVf07doF6J3Y5hsV4PpEcVcb8Vlthw1lc5bM7t77Nu-GVldwo-clQjGOWt69Sm0LTebvMEQBqoaC1MKeLyw32ZFmfRqpaz34hipy_IGOOM1KynvSKlSTp8iY',
-    model: 'Gen 3 - Rose Gold',
-    color: 'Rose Gold',
-    variant: 'Size 7 - Premium Alloy',
-    sku: 'SKU-G3-RG-07',
-    serial: 'SN: 8820-XL-421',
-    status: 'Low Stock',
-    stock: 12,
-    stockPercent: 15,
-    statusColor: 'amber'
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuClU7KD3g2DAHs_y45M3ohuAYqp0BDE8ULQU56wCEAUXPigep9dSbsUMhQlpa_FKq5HRVy1oTPHLyZDmYYITQUawgwqc2IHCschz80w-ABhPYAOVaCQ_sYeZQ6I5Me0BXm_HI4536gPkpqJlSyrPTRZ-miV2tOYd4iD15e5djzVe-tcjUtd-uDpO3s9kXhlJjAvbF4GkWfsDoULNINM3GWboa4mnMee16Kh6XJ6HrpAwg8Qp9S08nKFpxtINwe-r5OTJevno4scRm9M',
-    model: 'Classic Silver',
-    color: 'Silver',
-    variant: 'Size 9 - Polished Steel',
-    sku: 'SKU-CLS-SV-09',
-    serial: 'SN: 4492-CS-221',
-    status: 'In Stock',
-    stock: 84,
-    stockPercent: 65,
-    statusColor: 'emerald'
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAtJbz4xoC06FWJPjntWC62FdOscgQpTGjCmWqmb2HiwN2tDHgOiTO6UOoiaMTeY2bOF2Koeg2W0Cg0d51UE4XuUyLXP19-1iFsobFBHJbcwmlBzH7RSeChY6dAKsAKEF0XBZhsq3s2T2rnKZFpVt5m0PHVV6kqt9Udbs_1ttQCYdytLuAep3VOx6-8Td2-UOTTlWadTPFm3xFttFHGW0Z9wpSwk7oDpnWLKt-x_Px40-BhpuqU4dtIKt-Uhh9s7y4bJwJ_Djgm6AQ_',
-    model: 'Midnight Black',
-    color: 'Black',
-    variant: 'Size 12 - Carbon Fiber',
-    sku: 'SKU-MID-BK-12',
-    serial: 'SN: 7710-MB-003',
-    status: 'Depleted',
-    stock: 0,
-    stockPercent: 0,
-    statusColor: 'rose'
-  }
-];
+const API_URL = 'http://localhost:4000/api/inventory';
+const ITEMS_PER_PAGE = 20;
+
+interface InventoryItem {
+  id: number;
+  image: string;
+  model: string;
+  color: string;
+  variant: string;
+  sku: string;
+  serial: string;
+  status: string;
+  stock: number;
+  stockPercent: number;
+  statusColor: string;
+  supplier?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface Filters {
+  models: string[];
+  colors: string[];
+  statuses: string[];
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+}
 
 const RingInventory = () => {
-  const [inventoryData, setInventoryData] = useState(initialInventoryData);
+  const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
+  const [filters, setFilters] = useState<Filters>({ models: ['All Models'], colors: ['All Colors'], statuses: ['Any Status'] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [lastExport, setLastExport] = useState('');
   const [activeStatFilter, setActiveStatFilter] = useState<'all' | 'sku' | 'critical' | 'active' | 'compliance'>('all');
   const [selectedModel, setSelectedModel] = useState('All Models');
   const [selectedColor, setSelectedColor] = useState('All Colors');
   const [selectedStatus, setSelectedStatus] = useState('Any Status');
-  const [editingSku, setEditingSku] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<any>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<InventoryItem | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: ITEMS_PER_PAGE, total: 0 });
 
-  const availableModels = useMemo(() => ['All Models', ...Array.from(new Set(inventoryData.map((item) => item.model)))], [inventoryData]);
-  const availableColors = useMemo(() => ['All Colors', ...Array.from(new Set(inventoryData.map((item) => item.color)))], [inventoryData]);
-  const availableStatuses = useMemo(() => ['Any Status', ...Array.from(new Set(inventoryData.map((item) => item.status)))], [inventoryData]);
+  // Fetch inventory data from API with pagination
+  const fetchInventory = useCallback(async (page = currentPage) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      params.append('page', String(page));
+      params.append('limit', String(ITEMS_PER_PAGE));
+      if (selectedModel !== 'All Models') params.append('model', selectedModel);
+      if (selectedColor !== 'All Colors') params.append('color', selectedColor);
+      if (selectedStatus !== 'Any Status') params.append('status', selectedStatus);
 
-  const filteredInventoryData = inventoryData.filter((item) => {
-    const modelOk = selectedModel === 'All Models' || item.model === selectedModel;
-    const colorOk = selectedColor === 'All Colors' || item.color === selectedColor;
-    const statusOk = selectedStatus === 'Any Status' || item.status === selectedStatus;
-    return modelOk && colorOk && statusOk;
-  });
+      const response = await fetch(`${API_URL}?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch inventory');
+      
+      const data = await response.json();
+      setInventoryData(data.items || []);
+      setPagination(data.pagination || { page, limit: ITEMS_PER_PAGE, total: 0 });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load inventory');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, selectedModel, selectedColor, selectedStatus]);
 
-  const skuData = filteredInventoryData.filter((item) => item.sku.trim().length > 0);
-  const criticalLowStockData = filteredInventoryData.filter(
+  // Pagination handlers
+  const totalPages = Math.ceil(pagination.total / ITEMS_PER_PAGE);
+  
+  const goToPage = (page: number) => {
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(validPage);
+    fetchInventory(validPage);
+  };
+  
+  const goToPrevPage = () => goToPage(currentPage - 1);
+  const goToNextPage = () => goToPage(currentPage + 1);
+  
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
+
+  // Fetch filter options
+  const fetchFilters = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/filters`);
+      if (!response.ok) throw new Error('Failed to fetch filters');
+      
+      const data = await response.json();
+      setFilters({
+        models: data.models || ['All Models'],
+        colors: data.colors || ['All Colors'],
+        statuses: data.statuses || ['Any Status'],
+      });
+    } catch (err) {
+      console.error('Failed to fetch filters:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFilters();
+  }, [fetchFilters]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    fetchInventory(1);
+  }, [selectedModel, selectedColor, selectedStatus]);
+
+  // Calculate stats from current page data
+  const skuData = inventoryData.filter((item) => item.sku?.trim().length > 0);
+  const criticalLowStockData = inventoryData.filter(
     (item) =>
       item.statusColor === 'amber' ||
       item.statusColor === 'rose' ||
-      item.status.toLowerCase().includes('low') ||
+      item.status?.toLowerCase().includes('low') ||
       item.stock === 0
   );
-  const activeUnitsData = filteredInventoryData.filter(
+  const activeUnitsData = inventoryData.filter(
     (item) =>
       item.statusColor === 'emerald' ||
-      item.status.toLowerCase().includes('in stock') ||
-      item.status.toLowerCase().includes('active')
+      item.status?.toLowerCase().includes('in stock') ||
+      item.status?.toLowerCase().includes('active')
   );
-  const hardwareComplianceData = filteredInventoryData.filter(
+  const hardwareComplianceData = inventoryData.filter(
     (item) => item.statusColor === 'emerald' && item.stock > 0
   );
-  const totalSkuCount = new Set(skuData.map((item) => item.sku.trim())).size;
-  const hardwareCompliancePercent = filteredInventoryData.length
-    ? `${((hardwareComplianceData.length / filteredInventoryData.length) * 100).toFixed(1)}%`
+  const totalSkuCount = new Set(skuData.map((item) => item.sku?.trim())).size;
+  const hardwareCompliancePercent = inventoryData.length
+    ? `${((hardwareComplianceData.length / inventoryData.length) * 100).toFixed(1)}%`
     : '0.0%';
 
-  const tableData =
+  // Display data based on stat filter (local filtering on current page)
+  const displayData =
     activeStatFilter === 'sku'
       ? skuData
       : activeStatFilter === 'critical'
@@ -105,7 +182,7 @@ const RingInventory = () => {
           ? activeUnitsData
           : activeStatFilter === 'compliance'
             ? hardwareComplianceData
-          : filteredInventoryData;
+          : inventoryData;
 
   const getTimestamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
@@ -157,13 +234,13 @@ const RingInventory = () => {
     setShowExportMenu(false);
   };
 
-  const handleEditClick = (item: any) => {
-    setEditingSku(item.sku);
+  const handleEditClick = (item: InventoryItem) => {
+    setEditingId(item.id);
     setEditDraft({ ...item });
   };
 
-  const handleEditDraftChange = (field: string, value: string) => {
-    setEditDraft((prev: any) => {
+  const handleEditDraftChange = (field: string, value: string | number) => {
+    setEditDraft((prev) => {
       if (!prev) return prev;
 
       const next = { ...prev, [field]: value };
@@ -188,15 +265,78 @@ const RingInventory = () => {
   };
 
   const handleCancelEdit = () => {
-    setEditingSku(null);
+    setEditingId(null);
     setEditDraft(null);
   };
 
-  const handleSaveEdit = () => {
-    if (!editingSku || !editDraft) return;
-    setInventoryData((prev) => prev.map((item) => (item.sku === editingSku ? editDraft : item)));
-    setEditingSku(null);
-    setEditDraft(null);
+  const handleSaveEdit = async () => {
+    if (!editingId || !editDraft) return;
+    
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: editDraft.image,
+          model: editDraft.model,
+          color: editDraft.color,
+          variant: editDraft.variant,
+          sku: editDraft.sku,
+          serial: editDraft.serial,
+          status: editDraft.status,
+          stock: editDraft.stock,
+          stockPercent: editDraft.stockPercent,
+          statusColor: editDraft.statusColor,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to update item');
+      }
+
+      // Update local state
+      setInventoryData((prev) => prev.map((item) => (item.id === editingId ? editDraft : item)));
+      setEditingId(null);
+      setEditDraft(null);
+      
+      // Refresh data from server
+      fetchInventory();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    
+    setDeletingId(id);
+    try {
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete item');
+      }
+
+      setInventoryData((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete item');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSelectedModel('All Models');
+    setSelectedColor('All Colors');
+    setSelectedStatus('Any Status');
+    setActiveStatFilter('all');
+    setCurrentPage(1);
   };
 
   return (
@@ -226,12 +366,21 @@ const RingInventory = () => {
                   <button onClick={handleExportPdf} className="w-full text-left px-4 py-2 text-sm text-slate-800 hover:bg-slate-50">Export PDF</button>
                 </div>
               )}
-              <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:opacity-90 transition-colors">
-                <Layers className="w-4 h-4" /> Bulk Actions
+              <button 
+                onClick={fetchInventory}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:opacity-90 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" /> Refresh
               </button>
             </div>
           </div>
           {lastExport && <p className="text-xs font-semibold text-slate-700 mb-2">Last export: {lastExport}</p>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">×</button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <InventoryStatCard
@@ -284,7 +433,7 @@ const RingInventory = () => {
               onChange={(event) => setSelectedModel(event.target.value)}
               className="bg-slate-50 border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-primary/20 min-w-[160px] py-2"
             >
-              {availableModels.map((model) => (
+              {filters.models.map((model) => (
                 <option key={model} value={model}>{model}</option>
               ))}
             </select>
@@ -293,7 +442,7 @@ const RingInventory = () => {
               onChange={(event) => setSelectedColor(event.target.value)}
               className="bg-slate-50 border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-primary/20 min-w-[160px] py-2"
             >
-              {availableColors.map((color) => (
+              {filters.colors.map((color) => (
                 <option key={color} value={color}>{color}</option>
               ))}
             </select>
@@ -302,18 +451,13 @@ const RingInventory = () => {
               onChange={(event) => setSelectedStatus(event.target.value)}
               className="bg-slate-50 border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-primary/20 min-w-[160px] py-2"
             >
-              {availableStatuses.map((status) => (
+              {filters.statuses.map((status) => (
                 <option key={status} value={status}>{status}</option>
               ))}
             </select>
             <button
               type="button"
-              onClick={() => {
-                setSelectedModel('All Models');
-                setSelectedColor('All Colors');
-                setSelectedStatus('Any Status');
-                setActiveStatFilter('all');
-              }}
+              onClick={handleResetFilters}
               className="ml-auto flex items-center gap-2 text-primary text-sm font-bold hover:underline"
             >
               <RotateCcw className="w-4 h-4" /> Reset
@@ -323,48 +467,90 @@ const RingInventory = () => {
 
         <div className="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-300">
-                  <th className="p-4 w-10"><input type="checkbox" className="rounded text-primary focus:ring-primary border-slate-300" /></th>
-                  <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Model & Variant</th>
-                  <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">SKU / Serial</th>
-                  <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
-                  <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Stock Level</th>
-                  <th className="p-4 text-[11px] font-bold text-slate-700 uppercase tracking-widest text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-300">
-                {tableData.map((item) => (
-                  <InventoryRow
-                    key={item.sku}
-                    {...item}
-                    isEditing={editingSku === item.sku}
-                    editDraft={editingSku === item.sku ? editDraft : null}
-                    onEditClick={() => handleEditClick(item)}
-                    onEditDraftChange={handleEditDraftChange}
-                    onSaveEdit={handleSaveEdit}
-                    onCancelEdit={handleCancelEdit}
-                  />
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="ml-2 text-slate-500">Loading inventory...</span>
+              </div>
+            ) : displayData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                <Package className="w-12 h-12 mb-4 text-slate-300" />
+                <p className="font-medium">No inventory items found</p>
+                <p className="text-sm">Try adjusting your filters or add new items</p>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-300">
+                    <th className="p-4 w-10"><input type="checkbox" className="rounded text-primary focus:ring-primary border-slate-300" /></th>
+                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Model & Variant</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">SKU / Serial</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Supplier</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Stock Level</th>
+                    <th className="p-4 text-[11px] font-bold text-slate-700 uppercase tracking-widest text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-300">
+                  {displayData.map((item) => (
+                    <InventoryRow
+                      key={item.id}
+                      {...item}
+                      isEditing={editingId === item.id}
+                      editDraft={editingId === item.id ? editDraft : null}
+                      saving={saving}
+                      deleting={deletingId === item.id}
+                      onEditClick={() => handleEditClick(item)}
+                      onEditDraftChange={handleEditDraftChange}
+                      onSaveEdit={handleSaveEdit}
+                      onCancelEdit={handleCancelEdit}
+                      onDelete={() => handleDelete(item.id)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {!loading && pagination.total > 0 && (
+            <div className="p-4 border-t border-slate-300 flex items-center justify-between bg-slate-50/50">
+              <span className="text-xs text-slate-500 font-medium">
+                Showing <span className="font-bold text-slate-700">{((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, pagination.total)}</span> of {pagination.total} items
+              </span>
+              <div className="flex gap-1 items-center">
+                <button 
+                  onClick={goToPrevPage}
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-400 hover:text-pink-600 hover:border-pink-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                {getPageNumbers().map((page, index) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${index}`} className="px-2 text-slate-400">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => goToPage(page as number)}
+                      className={`w-8 h-8 flex items-center justify-center rounded border font-bold text-xs transition-colors ${
+                        currentPage === page
+                          ? 'border-pink-500 bg-pink-500 text-white'
+                          : 'border-slate-300 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
                 ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="p-4 border-t border-slate-300 flex items-center justify-between bg-slate-50/50">
-            <span className="text-xs text-slate-500 font-medium">
-              Showing <span className="font-bold text-slate-700">{tableData.length ? `1-${tableData.length}` : '0-0'}</span> of {tableData.length} items
-            </span>
-            <div className="flex gap-1">
-              <button className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-400 hover:text-primary transition-colors">
-                <Download className="w-4 h-4 rotate-90" />
-              </button>
-              <button className="w-8 h-8 flex items-center justify-center rounded border border-primary bg-primary text-white font-bold text-xs">1</button>
-              <button className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-600 hover:border-primary hover:text-primary transition-colors font-bold text-xs">2</button>
-              <button className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-400 hover:text-primary transition-colors">
-                <Download className="w-4 h-4 -rotate-90" />
-              </button>
+                <button 
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-400 hover:text-pink-600 hover:border-pink-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="mt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-slate-500">
@@ -375,7 +561,7 @@ const RingInventory = () => {
           </div>
           <p className="text-[11px] font-medium flex items-center gap-2">
             <RefreshCw className="w-4 h-4" />
-            Last synchronized: 12 seconds ago (Real-time tracking enabled)
+            Last synchronized: {new Date().toLocaleTimeString()}
           </p>
         </div>
       </main>
@@ -403,8 +589,10 @@ const InventoryStatCard = ({ title, value, change, subtext, icon: Icon, border, 
 );
 
 const InventoryRow = ({
+  id,
   image,
   model,
+  color,
   variant,
   sku,
   serial,
@@ -412,12 +600,16 @@ const InventoryRow = ({
   stock,
   stockPercent,
   statusColor,
+  supplier,
   isEditing,
   editDraft,
+  saving,
+  deleting,
   onEditClick,
   onEditDraftChange,
   onSaveEdit,
-  onCancelEdit
+  onCancelEdit,
+  onDelete
 }: any) => {
   const statusClasses: any = {
     emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -429,7 +621,7 @@ const InventoryRow = ({
     amber: 'bg-amber-500',
     rose: 'bg-rose-500'
   };
-  const current = isEditing && editDraft ? editDraft : { image, model, variant, sku, serial, status, stock, stockPercent, statusColor };
+  const current = isEditing && editDraft ? editDraft : { image, model, color, variant, sku, serial, status, stock, stockPercent, statusColor, supplier };
 
   return (
     <tr className="hover:bg-primary/5 transition-colors group">
@@ -437,7 +629,13 @@ const InventoryRow = ({
       <td className="p-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-300 overflow-hidden flex-shrink-0 shadow-sm">
-            <img src={image} alt={model} className="w-full h-full object-cover" />
+            {current.image ? (
+              <img src={current.image} alt={current.model} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400">
+                <Package className="w-6 h-6" />
+              </div>
+            )}
           </div>
           <div>
             {isEditing ? (
@@ -488,7 +686,20 @@ const InventoryRow = ({
         )}
       </td>
       <td className="p-4">
-        <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center justify-center w-[110px] text-center border shadow-sm ${statusClasses[current.statusColor]}`}>
+        {isEditing ? (
+          <input
+            type="text"
+            value={current.supplier || ''}
+            onChange={(event) => onEditDraftChange('supplier', event.target.value)}
+            className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-900 w-full"
+            placeholder="Supplier name"
+          />
+        ) : (
+          <div className="text-xs text-slate-600">{supplier || '-'}</div>
+        )}
+      </td>
+      <td className="p-4">
+        <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center justify-center w-[110px] text-center border shadow-sm ${statusClasses[current.statusColor] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>
           {current.status}
         </span>
       </td>
@@ -506,7 +717,7 @@ const InventoryRow = ({
             <span className="font-bold text-slate-900 text-sm">{stock}</span>
           )}
           <div className="flex-1 w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className={`h-full ${barClasses[current.statusColor]}`} style={{ width: `${current.stockPercent}%` }}></div>
+            <div className={`h-full ${barClasses[current.statusColor] || 'bg-slate-400'}`} style={{ width: `${current.stockPercent}%` }}></div>
           </div>
         </div>
       </td>
@@ -517,14 +728,17 @@ const InventoryRow = ({
               <button
                 type="button"
                 onClick={onSaveEdit}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-extrabold bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                disabled={saving}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-extrabold bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-50"
               >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                 Save
               </button>
               <button
                 type="button"
                 onClick={onCancelEdit}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-extrabold bg-slate-500 text-white border border-slate-600 hover:bg-slate-600 shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+                disabled={saving}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-extrabold bg-slate-500 text-white border border-slate-600 hover:bg-slate-600 shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -540,9 +754,11 @@ const InventoryRow = ({
           )}
           <button
             type="button"
-            className="w-9 h-9 p-0 flex items-center justify-center border border-slate-500 text-slate-800 hover:text-white hover:border-rose-700 hover:bg-rose-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 focus-visible:ring-offset-2"
+            onClick={onDelete}
+            disabled={deleting}
+            className="w-9 h-9 p-0 flex items-center justify-center border border-slate-500 text-slate-800 hover:text-white hover:border-rose-700 hover:bg-rose-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 focus-visible:ring-offset-2 disabled:opacity-50"
           >
-            <Trash2 className="w-4 h-4" />
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
           </button>
         </div>
       </td>
