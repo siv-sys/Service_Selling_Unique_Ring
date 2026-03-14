@@ -7,6 +7,7 @@ require('dotenv').config();
 const ringRoutes = require('./routes/ringRoutes');
 const coupleRoutes = require('./routes/coupleRoutes');
 const authRoutes = require('./routes/authRoutes');
+const cartRoutes = require('./routes/cartRoutes'); // Make sure this line is present
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -38,6 +39,7 @@ app.use((req, res, next) => {
 app.use('/api/rings', ringRoutes);
 app.use('/api/couples', coupleRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/cart', cartRoutes); // ADD THIS LINE
 
 // Health check
 app.get('/api/health', async (req, res) => {
@@ -60,6 +62,10 @@ app.listen(PORT, () => {
   console.log(`   GET  /api/rings/shop`);
   console.log(`   GET  /api/rings/filter-options`);
   console.log(`   GET  /api/rings/:id`);
+  console.log(`   GET  /api/cart`); // Add this to the list
+  console.log(`   POST /api/cart/add`); // Add this to the list
+  console.log(`   PUT  /api/cart/:id`); // Add this to the list
+  console.log(`   DEL  /api/cart/:id`); // Add this to the list
   console.log(`   POST /api/auth/register`);
   console.log(`   POST /api/auth/login`);
 });

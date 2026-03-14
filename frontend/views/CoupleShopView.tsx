@@ -131,26 +131,36 @@ const CoupleShopView: React.FC = () => {
 
   // Load cart count
   useEffect(() => {
-    try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      setCartCount(cart.length);
-    } catch {
-      setCartCount(0);
-    }
-
+    fetchCartCount();
+    
     // Listen for cart updates
     const handleCartUpdate = () => {
-      try {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-        setCartCount(cart.length);
-      } catch {
-        setCartCount(0);
-      }
+      fetchCartCount();
     };
 
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
+
+  // Fetch cart count from backend
+  const fetchCartCount = async () => {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) return;
+      
+      const response = await fetch(`${API_BASE_URL}/cart`, {
+        headers: {
+          'x-session-id': sessionId
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCartCount(data.data?.length || 0);
+      }
+    } catch (e) {
+      console.error('Error fetching cart count:', e);
+    }
+  };
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -421,40 +431,51 @@ const CoupleShopView: React.FC = () => {
     }
   };
 
-// Add to cart function with small bottom notification
-const addToCart = (ring: Ring) => {
+// CORRECTED Add to cart function with backend API
+const addToCart = async (ring: Ring) => {
   try {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    console.log('Adding to cart:', ring);
     
-    const existingItem = cart.find((item: any) => item.id === ring.id);
+    // Get existing session ID or null
+    let sessionId = localStorage.getItem('sessionId');
     
-    if (existingItem) {
-      existingItem.quantity = (existingItem.quantity || 1) + 1;
-    } else {
-      const cartItem = {
-        id: ring.id,
-        ring_identifier: ring.ring_identifier,
-        ring_name: ring.ring_name,
-        material: ring.material,
-        price: ring.price,
-        size: ring.size,
-        image_url: ring.image_url || ring.img,
+    const response = await fetch(`${API_BASE_URL}/cart/add`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(sessionId && { 'x-session-id': sessionId })
+      },
+      body: JSON.stringify({
+        ringId: ring.id,
         quantity: 1,
-        addedAt: new Date().toISOString()
-      };
-      cart.push(cartItem);
+        size: ring.size || '7',
+        material: ring.material
+      })
+    });
+    
+    const data = await response.json();
+    console.log('Add to cart response:', data);
+    
+    if (response.ok) {
+      // Save the session ID from server if it's new
+      if (data.sessionId && !sessionId) {
+        localStorage.setItem('sessionId', data.sessionId);
+        console.log('Saved new session ID:', data.sessionId);
+      }
+      
+      // Update cart count
+      setCartCount(data.data.length);
+      
+      // Show success notification
+      showBottomNotification(`${ring.ring_name} added to cart!`, 'success');
+      
+      // Dispatch event for header and cart page to update
+      window.dispatchEvent(new Event('cartUpdated'));
+    } else {
+      throw new Error(data.message || 'Failed to add to cart');
     }
-    
-    localStorage.setItem('cart', JSON.stringify(cart));
-    setCartCount(cart.length);
-    
-    // Show small pink notification at bottom
-    showBottomNotification(`${ring.ring_name} added to cart!`);
-    
-    // Dispatch event for header to update
-    window.dispatchEvent(new Event('cartUpdated'));
   } catch (e) {
-    // Show small pink error notification at bottom
+    console.error('Error adding to cart:', e);
     showBottomNotification('Error adding to cart', 'error');
   }
 };
@@ -878,7 +899,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
             <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
             <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+              <input className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
               <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
             </div>
           </div>

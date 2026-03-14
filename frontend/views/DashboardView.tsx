@@ -244,7 +244,7 @@ const Dashboard: React.FC = () => {
             {recentlyViewedRings.map((ring) => (
               <Link 
                 key={ring.id} 
-                to={`/ring-view`}
+                to={`/shop?ring=${ring.id}`}
                 onClick={() => {
                   // You can store the selected ring in sessionStorage if needed
                   sessionStorage.setItem('currentRing', JSON.stringify({

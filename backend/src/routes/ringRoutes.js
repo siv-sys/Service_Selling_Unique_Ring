@@ -18,3 +18,4 @@ router.get('/:id/test-connection', authenticate, ringController.testRingConnecti
 router.post('/:id/unpair', authenticate, ringController.unpairRing);
 
 module.exports = router;
+
