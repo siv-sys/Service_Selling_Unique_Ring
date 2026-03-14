@@ -13,6 +13,7 @@ const Dashboard: React.FC = () => {
   const [memberName, setMemberName] = useState<string>('Alexander');
   const [cartCount, setCartCount] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
 
   // Sample recently viewed rings data
   const recentlyViewedRings: RecentlyViewedRing[] = [
@@ -74,6 +75,21 @@ const Dashboard: React.FC = () => {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
+  // Auto-hide notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Show notification function
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+  };
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     const newDarkMode = !isDarkMode;
@@ -90,7 +106,7 @@ const Dashboard: React.FC = () => {
   // Handle navigation clicks (for # links)
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, section: string) => {
     e.preventDefault();
-    console.log(`🔗 [PREMIUM] Navigation: "${section}" – link functional.`);
+    showNotification(`🔗 Navigation: "${section}" – link functional.`, 'info');
   };
 
   return (
@@ -113,7 +129,10 @@ const Dashboard: React.FC = () => {
           </div>
           {/* right icons & member subtle */}
           <div className="flex items-center gap-6">
-            <button className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+            <button 
+              onClick={() => showNotification('No new notifications', 'info')} 
+              className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors"
+            >
               <span className="material-symbols-outlined">notifications_none</span>
             </button>
             <button 
@@ -190,7 +209,7 @@ const Dashboard: React.FC = () => {
           </Link>
           
           {/* my ring card */}
-          <Link to="/ring-view" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
+          <Link to="/myring" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
             <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">diamond</span>
             </div>
@@ -279,6 +298,26 @@ const Dashboard: React.FC = () => {
         </div>
       </main>
 
+      {/* Custom Pink Notification */}
+      {notification && (
+        <div 
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
+            ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
+            text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+        >
+          <span className="material-symbols-outlined text-sm">
+            {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
+          </span>
+          <p className="text-sm font-medium flex-1">{notification.message}</p>
+          <button 
+            className="hover:bg-white/20 rounded-full p-1 transition-colors"
+            onClick={() => setNotification(null)}
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
+
       {/* FOOTER – elegant, minimal, with functional links */}
       <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-28 pt-16 pb-12">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
@@ -353,6 +392,39 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Add animations */}
+      <style>{`
+        @keyframes slideUpBottom {
+          from {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideDownBottom {
+          from {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+          to {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+        }
+        
+        .animate-slide-up-bottom {
+          animation: slideUpBottom 0.3s ease-out forwards;
+        }
+        
+        .animate-slide-down-bottom {
+          animation: slideDownBottom 0.3s ease-out forwards;
+        }
+      `}</style>
     </>
   );
 };

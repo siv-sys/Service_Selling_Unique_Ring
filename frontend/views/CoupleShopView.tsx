@@ -112,6 +112,7 @@ const CoupleShopView: React.FC = () => {
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 10000 });
   const [cartCount, setCartCount] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   
   const [filters, setFilters] = useState<Filters>({
     material: '',
@@ -142,6 +143,16 @@ const CoupleShopView: React.FC = () => {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
+  // Auto-hide notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   // Fetch cart count from backend
   const fetchCartCount = async () => {
     try {
@@ -162,6 +173,11 @@ const CoupleShopView: React.FC = () => {
     }
   };
 
+  // Show notification function
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+  };
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     const newDarkMode = !isDarkMode;
@@ -177,7 +193,7 @@ const CoupleShopView: React.FC = () => {
 
   // Handle notification click
   const handleNotificationClick = () => {
-    alert('No new notifications');
+    showNotification('No new notifications', 'info');
   };
 
   // Load rings from API
@@ -512,11 +528,6 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
     }
   }, 2000);
 };
-
-  // Show notification
-  const showNotification = (message: string) => {
-    alert(message);
-  };
 
   // Toggle favorite
   const toggleFavorite = (ringId: number, event: React.MouseEvent) => {
@@ -862,6 +873,26 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
         )}
       </main>
 
+      {/* Custom Pink Notification */}
+      {notification && (
+        <div 
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
+            ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
+            text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+        >
+          <span className="material-symbols-outlined text-sm">
+            {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
+          </span>
+          <p className="text-sm font-medium flex-1">{notification.message}</p>
+          <button 
+            className="hover:bg-white/20 rounded-full p-1 transition-colors"
+            onClick={() => setNotification(null)}
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
+
       {/* FOOTER */}
       <footer className="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
@@ -912,6 +943,53 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
           </div>
         </div>
       </footer>
+
+      {/* Add animations */}
+      <style>{`
+        @keyframes slideUpBottom {
+          from {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideDownBottom {
+          from {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+          to {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+        }
+        
+        .animate-slide-up-bottom {
+          animation: slideUpBottom 0.3s ease-out forwards;
+        }
+        
+        .animate-slide-down-bottom {
+          animation: slideDownBottom 0.3s ease-out forwards;
+        }
+
+        .loading-spinner {
+          border: 3px solid rgba(255,42,162,0.1);
+          border-top: 3px solid #ff2aa2;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
