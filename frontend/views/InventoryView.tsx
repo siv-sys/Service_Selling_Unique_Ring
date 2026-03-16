@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const API_URL = 'http://localhost:4000/api/inventory';
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 10;
 
 interface InventoryItem {
   id: number;
@@ -288,6 +288,7 @@ const RingInventory = () => {
           stock: editDraft.stock,
           stockPercent: editDraft.stockPercent,
           statusColor: editDraft.statusColor,
+          supplier: editDraft.supplier,
         }),
       });
 

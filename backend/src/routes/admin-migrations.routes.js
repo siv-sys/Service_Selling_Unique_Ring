@@ -6,7 +6,7 @@ const {
   runPendingSchemaMigrations,
   runSeedCatalogMigration,
   runCustomCatalogSeedMigration,
-} = require('../migrations/migration-service.js');
+} = require('../services/migration-service.js');
 
 const router = express.Router();
 

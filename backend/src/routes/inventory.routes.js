@@ -74,7 +74,7 @@ router.get('/filters', async (_req, res, next) => {
 router.get('/', async (req, res, next) => {
   try {
     const page = Math.max(1, Number(req.query.page || 1));
-    const limit = Math.min(200, Math.max(1, Number(req.query.limit || 50)));
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit || 10)));
     const offset = (page - 1) * limit;
 
     const { whereSql, params } = buildFilters({

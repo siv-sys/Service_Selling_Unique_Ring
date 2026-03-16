@@ -666,5 +666,255 @@
       "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
     },
     "storedAt": "2026-03-12T07:31:29.936Z"
+  },
+  {
+    "type": "default-seed",
+    "models": [
+      "Eternal Bond Gold",
+      "Infinity Whisper"
+    ],
+    "rings": [
+      "SHOP-EBG-001",
+      "SHOP-EBG-002"
+    ],
+    "result": {
+      "message": "Seed migration executed successfully.",
+      "createdModels": 2,
+      "createdRings": 2,
+      "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
+    },
+    "storedAt": "2026-03-12T07:36:33.010Z"
+  },
+  {
+    "type": "custom-seed",
+    "migrationId": "custom_seed_1773301008704",
+    "model": {
+      "id": 90,
+      "modelName": "Autem ut doloribus i",
+      "collectionName": "Est assumenda nihil",
+      "material": "Aliquip excepturi eu",
+      "description": "Quidem rerum alias d",
+      "imageUrl": "https://i.pinimg.com/474x/91/e0/eb/91e0ebb8563c8cd36337297331ab6a94.jpg",
+      "basePrice": 89,
+      "currencyCode": "EX SINT DOLORES DOL",
+      "supplier": "Qui velit esse rei"
+    },
+    "ringConfig": {
+      "ringNamePrefix": "Autem ut doloribus i",
+      "ringIdentifierPrefix": "SKU-MMN5MVCE",
+      "ringIdentifiers": [
+        "SKU-MMN5MVCE-001"
+      ],
+      "stockCount": 1,
+      "startingNumber": 1,
+      "defaultSize": "Similique blanditiis",
+      "locationLabel": "Repellendus Perspic",
+      "supplier": "Qui velit esse rei"
+    },
+    "result": {
+      "message": "Inserted model #90, 1 ring(s), and added to inventory.",
+      "createdModels": 1,
+      "createdRings": 1,
+      "inventoryAdded": true,
+      "migrationId": "custom_seed_1773301008704",
+      "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
+    },
+    "storedAt": "2026-03-12T07:36:48.705Z"
+  },
+  {
+    "type": "custom-seed",
+    "migrationId": "custom_seed_1773301071767",
+    "model": {
+      "id": 91,
+      "modelName": "Fuga Voluptas in do",
+      "collectionName": "Cupiditate voluptate",
+      "material": "Suscipit officia a v",
+      "description": "Accusantium voluptat",
+      "imageUrl": "https://esdomera.com/cdn/shop/files/solitaire-round-blue-sapphire-engagement-his-and-hers-wedding-band-promise-leaf-matching-couple-rings-esdomera-2_1800x1800.png?v=1743670739",
+      "basePrice": 90,
+      "currencyCode": "SUSCIPIT DOLOR TEMPO",
+      "supplier": "Pariatur Cum dolore"
+    },
+    "ringConfig": {
+      "ringNamePrefix": "Fuga Voluptas in do",
+      "ringIdentifierPrefix": "SKU-MMN5O806",
+      "ringIdentifiers": [
+        "SKU-MMN5O806-001",
+        "SKU-MMN5O806-002",
+        "SKU-MMN5O806-003",
+        "SKU-MMN5O806-004",
+        "SKU-MMN5O806-005",
+        "SKU-MMN5O806-006",
+        "SKU-MMN5O806-007"
+      ],
+      "stockCount": 7,
+      "startingNumber": 1,
+      "defaultSize": "Cillum voluptas eius",
+      "locationLabel": "Rerum anim nesciunt",
+      "supplier": "Pariatur Cum dolore"
+    },
+    "result": {
+      "message": "Inserted model #91, 7 ring(s), and added to inventory.",
+      "createdModels": 1,
+      "createdRings": 7,
+      "inventoryAdded": true,
+      "migrationId": "custom_seed_1773301071767",
+      "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
+    },
+    "storedAt": "2026-03-12T07:37:51.770Z"
+  },
+  {
+    "type": "custom-seed",
+    "migrationId": "custom_seed_1773301131668",
+    "model": {
+      "id": 92,
+      "modelName": "Adipisci corrupti v",
+      "collectionName": "Ad et reiciendis est",
+      "material": "Nobis aut accusantiu",
+      "description": "Culpa in nisi et si",
+      "imageUrl": "https://www.sagabands.com/cdn/shop/files/THE-EXORCIST-COUPLE-RING-SET-Damascus-Bands-with-Meteorite-and-Gold-Foil--Saga-Bands.jpg?v=1750307375&width=1080",
+      "basePrice": 78,
+      "currencyCode": "DOLOREM MAIORES ADIP",
+      "supplier": "Sunt reiciendis esse"
+    },
+    "ringConfig": {
+      "ringNamePrefix": "Adipisci corrupti v",
+      "ringIdentifierPrefix": "SKU-MMN5PI7I",
+      "ringIdentifiers": [
+        "SKU-MMN5PI7I-001",
+        "SKU-MMN5PI7I-002",
+        "SKU-MMN5PI7I-003",
+        "SKU-MMN5PI7I-004",
+        "SKU-MMN5PI7I-005",
+        "SKU-MMN5PI7I-006",
+        "SKU-MMN5PI7I-007",
+        "SKU-MMN5PI7I-008",
+        "SKU-MMN5PI7I-009",
+        "SKU-MMN5PI7I-010",
+        "SKU-MMN5PI7I-011",
+        "SKU-MMN5PI7I-012",
+        "SKU-MMN5PI7I-013",
+        "SKU-MMN5PI7I-014",
+        "SKU-MMN5PI7I-015",
+        "SKU-MMN5PI7I-016",
+        "SKU-MMN5PI7I-017",
+        "SKU-MMN5PI7I-018",
+        "SKU-MMN5PI7I-019",
+        "SKU-MMN5PI7I-020",
+        "SKU-MMN5PI7I-021",
+        "SKU-MMN5PI7I-022",
+        "SKU-MMN5PI7I-023",
+        "SKU-MMN5PI7I-024",
+        "SKU-MMN5PI7I-025",
+        "SKU-MMN5PI7I-026"
+      ],
+      "stockCount": 26,
+      "startingNumber": 1,
+      "defaultSize": "Voluptatem minima u",
+      "locationLabel": "In est corrupti do",
+      "supplier": "Sunt reiciendis esse"
+    },
+    "result": {
+      "message": "Inserted model #92, 26 ring(s), and added to inventory.",
+      "createdModels": 1,
+      "createdRings": 26,
+      "inventoryAdded": true,
+      "migrationId": "custom_seed_1773301131668",
+      "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
+    },
+    "storedAt": "2026-03-12T07:38:51.669Z"
+  },
+  {
+    "type": "custom-seed",
+    "migrationId": "custom_seed_1773371526224",
+    "model": {
+      "id": 93,
+      "modelName": "Temporibus fugit pr",
+      "collectionName": "Labore facilis tempo",
+      "material": "In consequatur amet",
+      "description": "Sit aliquam explica",
+      "imageUrl": "https://rukminim2.flixcart.com/image/480/640/xif0q/ring/y/x/l/adjustable-2-cpl126-e1-ring-set-kazare-original-imagmxnzmmutb9cp.jpeg?q=90",
+      "basePrice": 46,
+      "currencyCode": "NULLA DO ET MOLLITIA",
+      "supplier": "Totam recusandae Re"
+    },
+    "ringConfig": {
+      "ringNamePrefix": "Temporibus fugit pr",
+      "ringIdentifierPrefix": "SKU-MMOBMAQ3",
+      "ringIdentifiers": [
+        "SKU-MMOBMAQ3-001",
+        "SKU-MMOBMAQ3-002",
+        "SKU-MMOBMAQ3-003",
+        "SKU-MMOBMAQ3-004",
+        "SKU-MMOBMAQ3-005",
+        "SKU-MMOBMAQ3-006",
+        "SKU-MMOBMAQ3-007",
+        "SKU-MMOBMAQ3-008",
+        "SKU-MMOBMAQ3-009",
+        "SKU-MMOBMAQ3-010",
+        "SKU-MMOBMAQ3-011"
+      ],
+      "stockCount": 11,
+      "startingNumber": 1,
+      "defaultSize": "Sed maiores dicta mo",
+      "locationLabel": "Quis reprehenderit s",
+      "supplier": "Totam recusandae Re"
+    },
+    "result": {
+      "message": "Inserted model #93, 11 ring(s), and added to inventory.",
+      "createdModels": 1,
+      "createdRings": 11,
+      "inventoryAdded": true,
+      "migrationId": "custom_seed_1773371526224",
+      "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
+    },
+    "storedAt": "2026-03-13T03:12:06.227Z"
+  },
+  {
+    "type": "custom-seed",
+    "migrationId": "custom_seed_1773391244429",
+    "model": {
+      "id": 94,
+      "modelName": "Aurora Promise Ring",
+      "collectionName": "Aurora Collection",
+      "material": "18K White Gold",
+      "description": "A delicate 18K white gold promise ring featuring a sleek modern band and a brilliant center stone. Designed for couples who want a timeless yet contemporary symbol of commitment.",
+      "imageUrl": "https://images.unsplash.com/photo-1589987607627-5f1cdd4f0b1a",
+      "basePrice": 1450,
+      "currencyCode": "USD",
+      "supplier": "Aurora Jewelry Ltd."
+    },
+    "ringConfig": {
+      "ringNamePrefix": "Aurora Promise Ring",
+      "ringIdentifierPrefix": "SKU-MMONCXF3",
+      "ringIdentifiers": [
+        "SKU-MMONCXF3-001",
+        "SKU-MMONCXF3-002",
+        "SKU-MMONCXF3-003",
+        "SKU-MMONCXF3-004",
+        "SKU-MMONCXF3-005",
+        "SKU-MMONCXF3-006",
+        "SKU-MMONCXF3-007",
+        "SKU-MMONCXF3-008",
+        "SKU-MMONCXF3-009",
+        "SKU-MMONCXF3-010",
+        "SKU-MMONCXF3-011",
+        "SKU-MMONCXF3-012"
+      ],
+      "stockCount": 12,
+      "startingNumber": 1,
+      "defaultSize": "Size 6",
+      "locationLabel": "Main Warehouse",
+      "supplier": "Aurora Jewelry Ltd."
+    },
+    "result": {
+      "message": "Inserted model #94, 12 ring(s), and added to inventory.",
+      "createdModels": 1,
+      "createdRings": 12,
+      "inventoryAdded": true,
+      "migrationId": "custom_seed_1773391244429",
+      "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
+    },
+    "storedAt": "2026-03-13T08:40:44.433Z"
   }
 ]

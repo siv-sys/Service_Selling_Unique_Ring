@@ -390,4 +390,37 @@ router.patch('/relationships/:id/stage', async (req, res) => {
   }
 });
 
+// GET /api/dashboard/user-management-stats - Stats for user management dashboard
+router.get('/user-management-stats', async (req, res) => {
+  try {
+    const [
+      activeUsersResult,
+      disconnectedPairsResult,
+      outdatedFirmwareResult,
+      suspendedAccountsResult
+    ] = await Promise.all([
+      query("SELECT COUNT(*) AS total FROM users WHERE account_status = 'ACTIVE'"),
+      query("SELECT COUNT(*) AS total FROM user_pairs WHERE status IN ('UNPAIRED', 'SUSPENDED', 'DISSOLVED')"),
+      query("SELECT COUNT(*) AS total FROM rings WHERE status = 'MAINTENANCE'"),
+      query("SELECT COUNT(*) AS total FROM users WHERE account_status = 'SUSPENDED'")
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        totalActiveUsers: Number(activeUsersResult[0]?.total || 0),
+        disconnectedPairs: Number(disconnectedPairsResult[0]?.total || 0),
+        outdatedFirmware: Number(outdatedFirmwareResult[0]?.total || 0),
+        suspendedAccounts: Number(suspendedAccountsResult[0]?.total || 0)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load user management stats',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import { 
   Users, 
@@ -14,8 +14,10 @@ import {
   Link,
   Trash2,
   Smartphone,
-  Cpu
+  Cpu,
+  Loader2
 } from 'lucide-react';
+import { api } from '../lib/api';
 
 const UserPairMgmt = () => {
   const [toggles, setToggles] = useState({
@@ -27,6 +29,34 @@ const UserPairMgmt = () => {
   const [selectedExport, setSelectedExport] = useState<'excel' | 'pdf'>('excel');
   const [selectedPage, setSelectedPage] = useState(1);
   const [lastExportedFile, setLastExportedFile] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    totalActiveUsers: 0,
+    disconnectedPairs: 0,
+    outdatedFirmware: 0,
+    suspendedAccounts: 0
+  });
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [ringModelFilter, setRingModelFilter] = useState('All Models');
+  const [osPlatformFilter, setOsPlatformFilter] = useState('Any OS');
+  const [lastActiveFilter, setLastActiveFilter] = useState('Last 24 Hours');
+
+  // Fetch stats from backend
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response: any = await api.get('/dashboard/user-management-stats');
+        if (response.stats) {
+          setStats(response.stats);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const userPairs = [
     {
@@ -73,16 +103,40 @@ const UserPairMgmt = () => {
     }
   ];
 
-  const visibleUserPairs =
-    summaryFilter === 'active'
-      ? userPairs.filter((pair) => pair.status === 'Active')
-      : summaryFilter === 'disconnected'
-      ? userPairs.filter((pair) => pair.status !== 'Active')
-      : summaryFilter === 'outdated'
-      ? userPairs.filter((pair) => pair.firmware === 'Outdated')
-      : summaryFilter === 'suspended'
-      ? userPairs.filter((pair) => pair.accountState === 'Suspended')
-      : userPairs;
+  // Apply all filters
+  const filteredUserPairs = userPairs.filter((pair) => {
+    // Summary filter (from cards)
+    if (summaryFilter === 'active' && pair.status !== 'Active') return false;
+    if (summaryFilter === 'disconnected' && pair.status === 'Active') return false;
+    if (summaryFilter === 'outdated' && pair.firmware !== 'Outdated') return false;
+    if (summaryFilter === 'suspended' && pair.accountState !== 'Suspended') return false;
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        pair.names.toLowerCase().includes(query) ||
+        pair.pairId.toLowerCase().includes(query) ||
+        pair.ring.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
+    }
+    
+    // Ring model filter
+    if (ringModelFilter !== 'All Models') {
+      if (ringModelFilter === 'Gen 3 Pro' && !pair.ring.includes('Pro')) return false;
+      if (ringModelFilter === 'Gen 3 Lite' && !pair.ring.includes('Lite')) return false;
+    }
+    
+    // OS Platform filter
+    if (osPlatformFilter !== 'Any OS') {
+      if (osPlatformFilter === 'iOS' && !pair.os.includes('iOS')) return false;
+      if (osPlatformFilter === 'Android' && !pair.os.includes('Android')) return false;
+    }
+    
+    return true;
+  });
+
+  const visibleUserPairs = filteredUserPairs;
 
   const togglePair = (id: string) => {
     setToggles(prev => ({ ...prev, [id]: !prev[id as keyof typeof prev] }));
@@ -244,7 +298,7 @@ const UserPairMgmt = () => {
           <div style={entrance(40)}>
             <SummaryCard 
             title="Total Active Users" 
-            value="1,204" 
+            value={stats.totalActiveUsers.toLocaleString()} 
             status="Active Now" 
             icon={Users} 
             color="green"
@@ -255,7 +309,7 @@ const UserPairMgmt = () => {
           <div style={entrance(90)}>
             <SummaryCard 
             title="Disconnected Pairs" 
-            value="42" 
+            value={stats.disconnectedPairs.toString()} 
             status="Requires Sync" 
             icon={Link2Off} 
             color="amber"
@@ -266,7 +320,7 @@ const UserPairMgmt = () => {
           <div style={entrance(140)}>
             <SummaryCard 
             title="Outdated Firmware" 
-            value="18" 
+            value={stats.outdatedFirmware.toString()} 
             status="Action Required" 
             icon={RefreshCw} 
             color="primary"
@@ -277,7 +331,7 @@ const UserPairMgmt = () => {
           <div style={entrance(190)}>
             <SummaryCard 
             title="Suspended Accounts" 
-            value="7" 
+            value={stats.suspendedAccounts.toString()} 
             status="Security Risk" 
             icon={ShieldAlert} 
             color="red"
@@ -299,6 +353,8 @@ const UserPairMgmt = () => {
                 <input 
                   type="text" 
                   placeholder="Search by name, ID, or phone..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/30"
                 />
               </div>
@@ -342,12 +398,36 @@ const UserPairMgmt = () => {
           )}
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-6 border-t border-slate-100">
-            <FilterSelect label="Ring Model" options={['All Models', 'Gen 3 Pro', 'Gen 3 Lite']} />
-            <FilterSelect label="OS Platform" options={['Any OS', 'iOS', 'Android']} />
-            <FilterSelect label="Last Active Range" options={['Last 24 Hours', 'Last 7 Days', 'Last 30 Days']} />
+            <FilterSelect 
+              label="Ring Model" 
+              options={['All Models', 'Gen 3 Pro', 'Gen 3 Lite']} 
+              value={ringModelFilter}
+              onChange={setRingModelFilter}
+            />
+            <FilterSelect 
+              label="OS Platform" 
+              options={['Any OS', 'iOS', 'Android']} 
+              value={osPlatformFilter}
+              onChange={setOsPlatformFilter}
+            />
+            <FilterSelect 
+              label="Last Active Range" 
+              options={['Last 24 Hours', 'Last 7 Days', 'Last 30 Days']} 
+              value={lastActiveFilter}
+              onChange={setLastActiveFilter}
+            />
             <div className="flex items-end">
-              <button className="btn-contrast btn-contrast-primary w-full py-2.5 rounded-lg text-sm hover:-translate-y-0.5 transition-all duration-200">
-                Apply Filters
+              <button 
+                onClick={() => {
+                  setSearchQuery('');
+                  setRingModelFilter('All Models');
+                  setOsPlatformFilter('Any OS');
+                  setLastActiveFilter('Last 24 Hours');
+                  setSummaryFilter('all');
+                }}
+                className="btn-contrast btn-contrast-primary w-full py-2.5 rounded-lg text-sm hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Clear Filters
               </button>
             </div>
           </div>
@@ -374,6 +454,24 @@ const UserPairMgmt = () => {
                 className="btn-contrast btn-contrast-neutral px-3 py-1.5 rounded-lg text-xs"
               >
                 Show All Users
+              </button>
+            </div>
+          )}
+          {(searchQuery || ringModelFilter !== 'All Models' || osPlatformFilter !== 'Any OS') && (
+            <div className="px-6 py-3 border-b border-primary/10 bg-blue-50 flex items-center justify-between">
+              <p className="text-sm font-semibold text-blue-800">
+                Showing {visibleUserPairs.length} result{visibleUserPairs.length !== 1 ? 's' : ''} 
+                {searchQuery && ` for "${searchQuery}"`}
+              </p>
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setRingModelFilter('All Models');
+                  setOsPlatformFilter('Any OS');
+                }}
+                className="btn-contrast btn-contrast-neutral px-3 py-1.5 rounded-lg text-xs"
+              >
+                Clear Search
               </button>
             </div>
           )}
@@ -481,10 +579,14 @@ const SummaryCard = ({ title, value, status, icon: Icon, color, onClick, active 
   );
 };
 
-const FilterSelect = ({ label, options }: any) => (
+const FilterSelect = ({ label, options, value, onChange }: any) => (
   <div className="space-y-1.5">
     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">{label}</label>
-    <select className="w-full bg-slate-50 border-none rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/30">
+    <select 
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full bg-slate-50 border-none rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/30"
+    >
       {options.map((opt: string) => <option key={opt}>{opt}</option>)}
     </select>
   </div>
@@ -492,6 +594,48 @@ const FilterSelect = ({ label, options }: any) => (
 
 const UserRow = ({ id, names, pairId, tier, ring, os, osIcon: OSIcon, status, lastActive, enabled, onToggle, disabled }: any) => {
   const [selectedAction, setSelectedAction] = useState<'view' | 'chart' | 'link' | 'delete' | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handleView = () => {
+    setSelectedAction('view');
+    // Navigate to pair detail view or open modal
+    alert(`View details for ${names}`);
+  };
+
+  const handleStats = () => {
+    setSelectedAction('chart');
+    // Show stats/chart for the pair
+    alert(`Show statistics for ${names}`);
+  };
+
+  const handleLink = async () => {
+    setSelectedAction('link');
+    setActionLoading(true);
+    try {
+      // Copy pair link to clipboard or navigate to pair connection
+      await navigator.clipboard.writeText(`https://ringapp.com/pair/${pairId}`);
+      alert(`Link copied for ${names}: ${pairId}`);
+    } catch (error) {
+      alert(`Link for ${names}: ${pairId}`);
+    }
+    setActionLoading(false);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete ${names}?`)) return;
+    setSelectedAction('delete');
+    setActionLoading(true);
+    try {
+      // Call backend to delete the pair
+      await api.delete(`/user-pairs/${id}`);
+      alert(`${names} has been deleted`);
+      // Refresh the page or remove from list
+      window.location.reload();
+    } catch (error) {
+      alert(`Failed to delete ${names}`);
+    }
+    setActionLoading(false);
+  };
 
   return (
     <tr className={`hover:bg-primary/5 transition-all duration-200 group ${disabled ? 'bg-slate-50/30' : 'hover:translate-x-0.5'}`}>
@@ -565,7 +709,8 @@ const UserRow = ({ id, names, pairId, tier, ring, os, osIcon: OSIcon, status, la
       <td className="p-5 text-right">
         <div className="flex items-center justify-end gap-1">
           <button
-            onClick={() => setSelectedAction('view')}
+            onClick={handleView}
+            disabled={actionLoading}
             className={`btn-contrast p-1.5 rounded transition-all duration-200 hover:-translate-y-0.5 ${
               selectedAction === 'view'
                 ? 'btn-contrast-primary shadow-md'
@@ -575,7 +720,8 @@ const UserRow = ({ id, names, pairId, tier, ring, os, osIcon: OSIcon, status, la
             <Eye className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setSelectedAction('chart')}
+            onClick={handleStats}
+            disabled={actionLoading}
             className={`btn-contrast p-1.5 rounded transition-all duration-200 hover:-translate-y-0.5 ${
               selectedAction === 'chart'
                 ? 'btn-contrast-primary shadow-md'
@@ -585,24 +731,26 @@ const UserRow = ({ id, names, pairId, tier, ring, os, osIcon: OSIcon, status, la
             <BarChart2 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setSelectedAction('link')}
+            onClick={handleLink}
+            disabled={actionLoading}
             className={`btn-contrast p-1.5 rounded transition-all duration-200 hover:-translate-y-0.5 ${
               selectedAction === 'link'
                 ? 'btn-contrast-primary shadow-md'
                 : 'btn-contrast-neutral text-slate-600'
             }`}
           >
-            <Link className="w-4 h-4" />
+            {actionLoading && selectedAction === 'link' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
           </button>
           <button
-            onClick={() => setSelectedAction('delete')}
+            onClick={handleDelete}
+            disabled={actionLoading}
             className={`btn-contrast p-1.5 rounded transition-all duration-200 hover:-translate-y-0.5 ${
               selectedAction === 'delete'
                 ? 'btn-contrast-danger shadow-md'
                 : 'btn-contrast-neutral text-slate-600'
             }`}
           >
-            <Trash2 className="w-4 h-4" />
+            {actionLoading && selectedAction === 'delete' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
           </button>
         </div>
       </td>

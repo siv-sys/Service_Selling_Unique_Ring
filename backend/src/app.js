@@ -12,6 +12,8 @@ const inventoryRoutes = require('./routes/inventory.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const adminMigrationsRoutes = require('./routes/admin-migrations.routes');
 const adminSeedRoutes = require('./routes/admin-seed.routes');
+const userPairsRoutes = require('./routes/user-pairs.routes');
+const usersRoutes = require('./routes/users.routes');
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.get('/api', (req, res) => {
       '/api/settings',
       '/api/inventory',
       '/api/dashboard',
+      '/api/users',
+      '/api/user-pairs',
       '/api/admin/migrations',
       '/api/admin/seed',
     ],
@@ -43,6 +47,8 @@ app.use('/api/health', healthRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/user-pairs', userPairsRoutes);
 app.use('/api/admin/migrations', adminMigrationsRoutes);
 app.use('/api/admin/seed', adminSeedRoutes);
 
