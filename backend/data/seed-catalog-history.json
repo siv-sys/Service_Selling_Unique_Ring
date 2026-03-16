@@ -916,5 +916,78 @@
       "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
     },
     "storedAt": "2026-03-13T08:40:44.433Z"
+  },
+  {
+    "type": "custom-seed",
+    "migrationId": "custom_seed_1773633688187",
+    "model": {
+      "id": 95,
+      "modelName": "Ipsa similique aspe",
+      "collectionName": "Lorem non facere eve",
+      "material": "Quas sint laborum M",
+      "description": "Eum aut et quia corp",
+      "imageUrl": "https://i.pinimg.com/236x/a3/e5/ed/a3e5ede05ad3a67bbb8cac687ac578de.jpg",
+      "basePrice": 18,
+      "currencyCode": "SUNT AMET EX AUT VE",
+      "supplier": "Porro velit corpori"
+    },
+    "ringConfig": {
+      "ringNamePrefix": "Ipsa similique aspe",
+      "ringIdentifierPrefix": "SKU-MMSNPCD6",
+      "ringIdentifiers": [
+        "SKU-MMSNPCD6-001",
+        "SKU-MMSNPCD6-002",
+        "SKU-MMSNPCD6-003",
+        "SKU-MMSNPCD6-004",
+        "SKU-MMSNPCD6-005",
+        "SKU-MMSNPCD6-006",
+        "SKU-MMSNPCD6-007",
+        "SKU-MMSNPCD6-008",
+        "SKU-MMSNPCD6-009",
+        "SKU-MMSNPCD6-010",
+        "SKU-MMSNPCD6-011",
+        "SKU-MMSNPCD6-012",
+        "SKU-MMSNPCD6-013",
+        "SKU-MMSNPCD6-014",
+        "SKU-MMSNPCD6-015",
+        "SKU-MMSNPCD6-016",
+        "SKU-MMSNPCD6-017",
+        "SKU-MMSNPCD6-018",
+        "SKU-MMSNPCD6-019",
+        "SKU-MMSNPCD6-020",
+        "SKU-MMSNPCD6-021",
+        "SKU-MMSNPCD6-022",
+        "SKU-MMSNPCD6-023",
+        "SKU-MMSNPCD6-024",
+        "SKU-MMSNPCD6-025",
+        "SKU-MMSNPCD6-026",
+        "SKU-MMSNPCD6-027",
+        "SKU-MMSNPCD6-028",
+        "SKU-MMSNPCD6-029",
+        "SKU-MMSNPCD6-030",
+        "SKU-MMSNPCD6-031",
+        "SKU-MMSNPCD6-032",
+        "SKU-MMSNPCD6-033",
+        "SKU-MMSNPCD6-034",
+        "SKU-MMSNPCD6-035",
+        "SKU-MMSNPCD6-036",
+        "SKU-MMSNPCD6-037",
+        "SKU-MMSNPCD6-038"
+      ],
+      "stockCount": 38,
+      "startingNumber": 1,
+      "defaultSize": "Quia in odit ut ex a",
+      "locationLabel": "Qui aut suscipit ips",
+      "supplier": "Porro velit corpori"
+    },
+    "result": {
+      "message": "Inserted model #95, 38 ring(s), and added to inventory.",
+      "createdModels": 1,
+      "createdRings": 38,
+      "inventoryAdded": true,
+      "migrationId": "custom_seed_1773633688187",
+      "storedFile": "C:\\Users\\USER\\OneDrive\\Desktop\\Service_Selling_Unique_Ring\\backend\\data\\seed-catalog-history.json"
+    },
+    "storedAt": "2026-03-16T04:01:28.190Z"
   }
 ]
