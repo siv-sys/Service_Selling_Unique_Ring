@@ -1,4 +1,4 @@
-USE ring_app;
+USE user_ring;
 
 CREATE TABLE IF NOT EXISTS inventory_items (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

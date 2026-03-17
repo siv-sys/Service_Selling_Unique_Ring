@@ -4,70 +4,63 @@ const path = require('path');
 const env = require('./src/config/env');
 
 async function initDatabase() {
+  let connection;
+
   try {
     // Connect to MySQL without database first
-    const connection = await mysql.createConnection({
+    connection = await mysql.createConnection({
       host: env.db.host,
       port: env.db.port,
       user: env.db.user,
       password: env.db.password,
+      multipleStatements: true
     });
 
     console.log('Connected to MySQL server');
 
-    // Create database if not exists
+    // Create database
     await connection.execute(`CREATE DATABASE IF NOT EXISTS ${env.db.database}`);
     console.log(`Database ${env.db.database} created or already exists`);
 
     await connection.end();
 
-    // Connect to the specific database
-    const dbConnection = await mysql.createConnection({
+    // Connect to the specific database with multiple statements enabled
+    connection = await mysql.createConnection({
       host: env.db.host,
       port: env.db.port,
       user: env.db.user,
       password: env.db.password,
       database: env.db.database,
+      multipleStatements: true
     });
 
-    console.log('Connected to ring_app database');
+    console.log(`Connected to ${env.db.database} database`);
 
-    // Read and execute schema
+    // Read and execute schema - use query instead of execute for multiple statements
     const schemaPath = path.join(__dirname, 'sql', 'schema.sql');
-    const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
+    let schemaSQL = fs.readFileSync(schemaPath, 'utf8');
 
-    // Remove the CREATE DATABASE and USE statements since we already handled them
-    const cleanedSQL = schemaSQL
-      .replace(/CREATE DATABASE IF NOT EXISTS ring_app;?/g, '')
-      .replace(/USE ring_app;?/g, '')
-      .replace(/SET NAMES utf8mb4;?/g, '')
-      .replace(/SET time_zone = '\+00:00';?/g, '');
+    // Clean the SQL
+    schemaSQL = schemaSQL.replace(/CREATE DATABASE IF NOT EXISTS.*$/gm, '');
+    schemaSQL = schemaSQL.replace(/^USE .*$/gm, '');
+    schemaSQL = schemaSQL.replace(/SET NAMES.*$/gm, '');
+    schemaSQL = schemaSQL.replace(/SET time_zone.*$/gm, '');
+    schemaSQL = schemaSQL.replace(/^\s*$/gm, '');
 
-    // Split SQL statements and execute them
-    const statements = cleanedSQL.split(';').filter(stmt => stmt.trim() && !stmt.trim().startsWith('--'));
-    for (let i = 0; i < statements.length; i++) {
-      const statement = statements[i].trim();
-      if (statement) {
-        try {
-          await dbConnection.execute(statement + ';');
-          console.log(`Executed statement ${i + 1}/${statements.length}`);
-        } catch (error) {
-          console.error(`Error in statement ${i + 1}:`, statement.substring(0, 100) + '...');
-          console.error('Error details:', error.message);
-          // Continue with other statements
-        }
-      }
-    }
+    // Execute the entire schema as one query with multipleStatements
+    const results = await connection.query(schemaSQL);
     console.log('Schema executed successfully');
 
     // Insert sample data
-    await insertSampleData(dbConnection);
+    await insertSampleData(connection);
     console.log('Sample data inserted successfully');
 
-    await dbConnection.end();
+    await connection.end();
     console.log('Database initialization completed!');
+
   } catch (error) {
     console.error('Database initialization failed:', error);
+    if (connection) await connection.end();
     process.exit(1);
   }
 }
@@ -80,6 +73,7 @@ async function insertSampleData(connection) {
     ('SELLER', 'Ring seller/manager'),
     ('ADMIN', 'System administrator')
   `);
+  console.log('Inserted roles');
 
   // Insert sample users
   await connection.execute(`
@@ -91,6 +85,7 @@ async function insertSampleData(connection) {
     ('taylor_user', 'Taylor Davis', 'taylor@smartring.com', 'hashed_password_5', 'ACTIVE'),
     ('morgan_user', 'Morgan Wilson', 'morgan@smartring.com', 'hashed_password_6', 'ACTIVE')
   `);
+  console.log('Inserted users');
 
   // Get role IDs
   const [roles] = await connection.execute('SELECT id, code FROM roles');
@@ -108,50 +103,53 @@ async function insertSampleData(connection) {
   const morgan = users.find(u => u.username === 'morgan_user');
 
   // Assign roles
-  await connection.execute(`
-    INSERT IGNORE INTO user_roles (user_id, role_id) VALUES 
-    (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)
-  `, [
-    alex.id, adminRole.id,
-    jordan.id, sellerRole.id,
-    sam.id, userRole.id,
-    casey.id, userRole.id,
-    taylor.id, userRole.id,
-    morgan.id, userRole.id
-  ]);
+  if (alex && adminRole) {
+    await connection.execute(`INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)`, [alex.id, adminRole.id]);
+  }
+  if (jordan && sellerRole) {
+    await connection.execute(`INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)`, [jordan.id, sellerRole.id]);
+  }
+  for (const user of [sam, casey, taylor, morgan]) {
+    if (user && userRole) {
+      await connection.execute(`INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)`, [user.id, userRole.id]);
+    }
+  }
+  console.log('Inserted user_roles');
 
   // Insert ring models
   await connection.execute(`
-    INSERT IGNORE INTO ring_models (model_name, description) VALUES 
-    ('SmartRing Lover Edition', 'Premium couples ring with advanced features'),
-    ('SmartRing Classic', 'Basic model for everyday use'),
-    ('SmartRing Pro', 'Professional model with extended battery life')
+    INSERT IGNORE INTO ring_models (model_name, description, material, base_price) VALUES 
+    ('SmartRing Lover Edition', 'Premium couples ring with advanced features', 'Gold', 499.99),
+    ('SmartRing Classic', 'Basic model for everyday use', 'Silver', 299.99),
+    ('SmartRing Pro', 'Professional model with extended battery life', 'Titanium', 699.99)
   `);
+  console.log('Inserted ring_models');
 
-  // Get ring model IDs
-  const [models] = await connection.execute('SELECT id, model_name FROM ring_models');
-  const loverModel = models.find(m => m.model_name === 'SmartRing Lover Edition');
+  // Get ring model ID
+  const [models] = await connection.execute('SELECT id, model_name FROM ring_models LIMIT 1');
+  const modelId = models[0]?.id;
 
   // Insert rings
-  await connection.execute(`
-    INSERT IGNORE INTO rings (ring_identifier, ring_name, model_id, status) VALUES 
-    ('SR001', 'Alex & Jordan Ring', ?, 'ASSIGNED'),
-    ('SR002', 'Sam & Casey Ring', ?, 'ASSIGNED'),
-    ('SR003', 'Taylor & Morgan Ring', ?, 'ASSIGNED'),
-    ('SR004', 'Available Ring 1', ?, 'AVAILABLE'),
-    ('SR005', 'Available Ring 2', ?, 'AVAILABLE'),
-    ('SR006', 'Maintenance Ring', ?, 'MAINTENANCE')
-  `, [
-    loverModel.id, loverModel.id, loverModel.id, loverModel.id, loverModel.id, loverModel.id
-  ]);
+  if (modelId) {
+    await connection.execute(`INSERT IGNORE INTO rings (ring_identifier, ring_name, model_id, status, material, price) VALUES ('SR001', 'Alex & Jordan Ring', ?, 'ASSIGNED', 'Gold', 550.00)`, [modelId]);
+    await connection.execute(`INSERT IGNORE INTO rings (ring_identifier, ring_name, model_id, status, material, price) VALUES ('SR002', 'Sam & Casey Ring', ?, 'ASSIGNED', 'Silver', 350.00)`, [modelId]);
+    await connection.execute(`INSERT IGNORE INTO rings (ring_identifier, ring_name, model_id, status, material, price) VALUES ('SR003', 'Taylor & Morgan Ring', ?, 'ASSIGNED', 'Titanium', 750.00)`, [modelId]);
+    await connection.execute(`INSERT IGNORE INTO rings (ring_identifier, ring_name, model_id, status, material, price) VALUES ('SR004', 'Available Ring 1', ?, 'AVAILABLE', 'Gold', 550.00)`, [modelId]);
+    await connection.execute(`INSERT IGNORE INTO rings (ring_identifier, ring_name, model_id, status, material, price) VALUES ('SR005', 'Available Ring 2', ?, 'AVAILABLE', 'Silver', 350.00)`, [modelId]);
+  }
+  console.log('Inserted rings');
 
-  // Insert relationship pairs
-  await connection.execute(`
-    INSERT IGNORE INTO relationship_pairs (pair_code, status, created_by_user_id) VALUES 
-    ('PAIR001', 'CONNECTED', ?),
-    ('PAIR002', 'SYNCING', ?),
-    ('PAIR003', 'PENDING', ?)
-  `, [alex.id, jordan.id, sam.id]);
+  // Insert relationship pairs (only if we have users)
+  if (alex) {
+    await connection.execute(`INSERT IGNORE INTO relationship_pairs (pair_code, status, created_by_user_id) VALUES ('PAIR001', 'CONNECTED', ?)`, [alex.id]);
+  }
+  if (jordan) {
+    await connection.execute(`INSERT IGNORE INTO relationship_pairs (pair_code, status, created_by_user_id) VALUES ('PAIR002', 'SYNCING', ?)`, [jordan.id]);
+  }
+  if (sam) {
+    await connection.execute(`INSERT IGNORE INTO relationship_pairs (pair_code, status, created_by_user_id) VALUES ('PAIR003', 'PENDING', ?)`, [sam.id]);
+  }
+  console.log('Inserted relationship_pairs');
 
   // Get pair IDs
   const [pairs] = await connection.execute('SELECT id, pair_code FROM relationship_pairs');
@@ -160,40 +158,59 @@ async function insertSampleData(connection) {
   const pair3 = pairs.find(p => p.pair_code === 'PAIR003');
 
   // Insert pair members
-  await connection.execute(`
-    INSERT IGNORE INTO pair_members (pair_id, user_id, member_role) VALUES 
-    (?, ?, 'PARTNER_A'), (?, ?, 'PARTNER_B'),
-    (?, ?, 'PARTNER_A'), (?, ?, 'PARTNER_B'),
-    (?, ?, 'PARTNER_A'), (?, ?, 'PARTNER_B')
-  `, [
-    pair1.id, alex.id, pair1.id, jordan.id,
-    pair2.id, sam.id, pair2.id, casey.id,
-    pair3.id, taylor.id, pair3.id, morgan.id
-  ]);
+  if (pair1 && alex && jordan) {
+    await connection.execute(`INSERT IGNORE INTO pair_members (pair_id, user_id, member_role) VALUES (?, ?, 'OWNER')`, [pair1.id, alex.id]);
+    await connection.execute(`INSERT IGNORE INTO pair_members (pair_id, user_id, member_role) VALUES (?, ?, 'PARTNER')`, [pair1.id, jordan.id]);
+  }
+  if (pair2 && sam && casey) {
+    await connection.execute(`INSERT IGNORE INTO pair_members (pair_id, user_id, member_role) VALUES (?, ?, 'OWNER')`, [pair2.id, sam.id]);
+    await connection.execute(`INSERT IGNORE INTO pair_members (pair_id, user_id, member_role) VALUES (?, ?, 'PARTNER')`, [pair2.id, casey.id]);
+  }
+  if (pair3 && taylor && morgan) {
+    await connection.execute(`INSERT IGNORE INTO pair_members (pair_id, user_id, member_role) VALUES (?, ?, 'OWNER')`, [pair3.id, taylor.id]);
+    await connection.execute(`INSERT IGNORE INTO pair_members (pair_id, user_id, member_role) VALUES (?, ?, 'PARTNER')`, [pair3.id, morgan.id]);
+  }
+  console.log('Inserted pair_members');
 
-  // Get ring IDs
+  // Insert pair invitations
+  if (alex && pair1) {
+    await connection.execute(`INSERT IGNORE INTO pair_invitations (inviter_user_id, invitee_handle, status, pair_id) VALUES (?, 'jordan', 'ACCEPTED', ?)`, [alex.id, pair1.id]);
+  }
+  if (sam && pair2) {
+    await connection.execute(`INSERT IGNORE INTO pair_invitations (inviter_user_id, invitee_handle, status, pair_id) VALUES (?, 'casey', 'ACCEPTED', ?)`, [sam.id, pair2.id]);
+  }
+  if (taylor && pair3) {
+    await connection.execute(`INSERT IGNORE INTO pair_invitations (inviter_user_id, invitee_handle, status, pair_id) VALUES (?, 'morgan', 'PENDING', ?)`, [taylor.id, pair3.id]);
+  }
+  console.log('Inserted pair_invitations');
+
+  // Link rings to pairs and users
   const [rings] = await connection.execute('SELECT id, ring_identifier FROM rings');
   const ring1 = rings.find(r => r.ring_identifier === 'SR001');
   const ring2 = rings.find(r => r.ring_identifier === 'SR002');
   const ring3 = rings.find(r => r.ring_identifier === 'SR003');
 
-  // Link rings to pairs
-  await connection.execute(`
-    INSERT IGNORE INTO ring_pair_links (pair_id, ring_id) VALUES 
-    (?, ?), (?, ?), (?, ?)
-  `, [pair1.id, ring1.id, pair2.id, ring2.id, pair3.id, ring3.id]);
+  if (pair1 && ring1) {
+    await connection.execute(`INSERT IGNORE INTO ring_pair_links (pair_id, ring_id, side) VALUES (?, ?, 'A')`, [pair1.id, ring1.id]);
+  }
+  if (pair1 && ring2) {
+    await connection.execute(`INSERT IGNORE INTO ring_pair_links (pair_id, ring_id, side) VALUES (?, ?, 'B')`, [pair1.id, ring2.id]);
+  }
+  if (pair2 && ring3) {
+    await connection.execute(`INSERT IGNORE INTO ring_pair_links (pair_id, ring_id, side) VALUES (?, ?, 'A')`, [pair2.id, ring3.id]);
+  }
 
-  // Insert pair invitations
-  await connection.execute(`
-    INSERT IGNORE INTO pair_invitations (inviter_user_id, invitee_handle, status, pair_id) VALUES 
-    (?, ?, 'ACCEPTED', ?),
-    (?, ?, 'ACCEPTED', ?),
-    (?, ?, 'PENDING', ?)
-  `, [
-    alex.id, 'jordan@smartring.com', pair1.id,
-    sam.id, 'casey@smartring.com', pair2.id,
-    taylor.id, 'morgan@smartring.com', pair3.id
-  ]);
+  // Assign rings to users
+  if (alex && ring1) {
+    await connection.execute(`INSERT IGNORE INTO users_ring (user_id, ring_id, ring_status) VALUES (?, ?, 'ASSIGNED')`, [alex.id, ring1.id]);
+  }
+  if (jordan && ring2) {
+    await connection.execute(`INSERT IGNORE INTO users_ring (user_id, ring_id, ring_status) VALUES (?, ?, 'ASSIGNED')`, [jordan.id, ring2.id]);
+  }
+  if (sam && ring3) {
+    await connection.execute(`INSERT IGNORE INTO users_ring (user_id, ring_id, ring_status) VALUES (?, ?, 'ASSIGNED')`, [sam.id, ring3.id]);
+  }
+  console.log('Inserted ring links and user rings');
 }
 
 if (require.main === module) {
@@ -201,3 +218,4 @@ if (require.main === module) {
 }
 
 module.exports = { initDatabase };
+

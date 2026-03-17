@@ -149,7 +149,7 @@ async function generateRecentAlerts(totalUsers, totalRingsSold, activeRelationsh
     const alerts = [];
 
     // Get recent user activities (last 24 hours)
-    const [recentUsers] = await query(`
+    const recentUsers = await query(`
       SELECT 
         u.id,
         u.full_name,
@@ -171,7 +171,7 @@ async function generateRecentAlerts(totalUsers, totalRingsSold, activeRelationsh
     `);
 
     // Get recent ring activities
-    const [recentRings] = await query(`
+    const recentRings = await query(`
       SELECT 
         rg.id,
         rg.ring_name,
@@ -186,7 +186,7 @@ async function generateRecentAlerts(totalUsers, totalRingsSold, activeRelationsh
     `);
 
     // Get recent relationship activities
-    const [recentPairs] = await query(`
+    const recentPairs = await query(`
       SELECT 
         rp.id,
         rp.status,
@@ -204,7 +204,7 @@ async function generateRecentAlerts(totalUsers, totalRingsSold, activeRelationsh
     `);
 
     // Get recent pairing invitation activities
-    const [recentInvitations] = await query(`
+    const recentInvitations = await query(`
       SELECT 
         pi.id,
         pi.status,
@@ -393,7 +393,7 @@ function parseTimeAgo(timeAgo) {
 async function generateWeeklyConnectivity() {
   try {
     // Get real activity data for the last 7 days with weighted scoring
-    const [activityRows] = await query(`
+    const activityRows = await query(`
       SELECT 
         DAYOFWEEK(activity_date) as day_of_week,
         SUM(activity_weight) as total_weight
@@ -485,10 +485,20 @@ async function generateWeeklyConnectivity() {
 
 router.get('/', async (_req, res) => {
   try {
-    const [userCountRows, ringSoldRows, activePairsRows] = await Promise.all([
+    const [userCountRows, ringSoldRows, activePairsRows, userRingStats] = await Promise.all([
       query("SELECT COUNT(*) AS total FROM users WHERE account_status <> 'DELETED'"),
       query("SELECT COUNT(*) AS total FROM rings WHERE status = 'ASSIGNED'"),
       query("SELECT COUNT(*) AS total FROM relationship_pairs WHERE status IN ('CONNECTED', 'SYNCING')"),
+      // Get user_ring statistics
+      query(`
+        SELECT 
+          COUNT(*) as total_assigned,
+          SUM(CASE WHEN ring_status = 'ASSIGNED' THEN 1 ELSE 0 END) as assigned_count,
+          SUM(CASE WHEN ring_status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
+          SUM(CASE WHEN ring_status = 'UNASSIGNED' THEN 1 ELSE 0 END) as unassigned_count,
+          COUNT(DISTINCT user_id) as total_users_with_rings
+        FROM users_ring
+      `),
     ]);
 
     const [usersRows, ringSalesRows, pairRows, invitationRows] = await Promise.all([
@@ -536,24 +546,17 @@ router.get('/', async (_req, res) => {
       `),
       query(`
         SELECT
-          pm.id,
           pm.pair_id,
           pm.user_id,
           pm.member_role,
-          pm.created_at,
-          pm.updated_at,
+          pm.joined_at,
           u.full_name,
           u.email,
           u.account_status,
+          u.created_at,
           COALESCE(rm.model_name, 'SmartRing') AS model_name,
           CASE 
-            WHEN EXISTS (
-              SELECT 1 FROM rings rg 
-              WHERE rg.id IN (
-                SELECT rpl.ring_id FROM ring_pair_links rpl 
-                WHERE rpl.pair_id = pm.pair_id AND rpl.unassigned_at IS NULL
-              )
-            ) THEN 'Ring Purchased'
+            WHEN ur.id IS NOT NULL THEN 'Ring Purchased'
             ELSE 'No Ring'
           END AS ring_status,
           rp.status as pair_status,
@@ -565,18 +568,12 @@ router.get('/', async (_req, res) => {
         FROM pair_members pm
         LEFT JOIN users u ON u.id = pm.user_id
         LEFT JOIN relationship_pairs rp ON rp.id = pm.pair_id
-        LEFT JOIN ring_pair_links rpl ON rpl.pair_id = rp.id AND rpl.unassigned_at IS NULL
-        LEFT JOIN rings rg ON rg.id = rpl.ring_id
+        LEFT JOIN users_ring ur ON ur.user_id = u.id AND ur.ring_status = 'ASSIGNED'
+        LEFT JOIN rings rg ON rg.id = ur.ring_id
         LEFT JOIN ring_models rm ON rm.id = rg.model_id
         WHERE u.account_status <> 'DELETED'
-          AND EXISTS (
-            SELECT 1 FROM rings rg 
-            WHERE rg.id IN (
-              SELECT rpl.ring_id FROM ring_pair_links rpl 
-              WHERE rpl.pair_id = pm.pair_id AND rpl.unassigned_at IS NULL
-            )
-          )
-        ORDER BY pm.created_at DESC
+          AND ur.id IS NOT NULL
+        ORDER BY pm.joined_at DESC
         LIMIT 10
       `),
     ]);
@@ -584,6 +581,14 @@ router.get('/', async (_req, res) => {
     const totalUsers = Number(userCountRows[0]?.total || 0);
     const totalRingsSold = Number(ringSoldRows[0]?.total || 0);
     const activeRelationships = Number(activePairsRows[0]?.total || 0);
+
+    // Extract user_ring statistics
+    const userRingStatsData = userRingStats[0] || {};
+    const totalAssigned = Number(userRingStatsData.total_assigned || 0);
+    const assignedCount = Number(userRingStatsData.assigned_count || 0);
+    const pendingCount = Number(userRingStatsData.pending_count || 0);
+    const unassignedCount = Number(userRingStatsData.unassigned_count || 0);
+    const usersWithRings = Number(userRingStatsData.total_users_with_rings || 0);
 
     const systemUsers = usersRows.map((row) => ({
       id: `usr-${row.id}`,
@@ -638,6 +643,14 @@ router.get('/', async (_req, res) => {
         relationshipsChange: '+2%',
         connectivityPercent: 94,
         connectivityChange: '+1.2%',
+      },
+      // User ring statistics from user_ring table
+      userRingStats: {
+        totalAssigned,
+        assignedCount,
+        pendingCount,
+        unassignedCount,
+        usersWithRings,
       },
       systemUsers,
       ringSales,

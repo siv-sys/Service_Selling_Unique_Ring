@@ -8,7 +8,8 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle2,
-  Info
+  Info,
+  CircleDot
 } from 'lucide-react';
 import {
   BarChart,
@@ -97,6 +98,13 @@ type DashboardResponse = {
     connectivityPercent: number;
     connectivityChange: string;
   };
+  userRingStats?: {
+    totalAssigned: number;
+    assignedCount: number;
+    pendingCount: number;
+    unassignedCount: number;
+    usersWithRings: number;
+  };
   systemUsers: SystemUser[];
   ringSales: RingSale[];
   relationshipFollows: RelationshipFollow[];
@@ -104,7 +112,7 @@ type DashboardResponse = {
   relationshipUserAlerts: RelationshipUserAlert[];
   weeklyConnectivity: WeeklyConnectivityPoint[];
 };
-const Dashboard = () => {
+const Dashboard_admin = () => {
   const [lastExport, setLastExport] = useState('');
   const [dashboardError, setDashboardError] = useState('');
   const [dbConnected, setDbConnected] = useState(false);
@@ -118,14 +126,22 @@ const Dashboard = () => {
     connectivityPercent: 94,
     connectivityChange: '+1.2%',
   });
+  const [userRingStats, setUserRingStats] = useState<{
+    totalAssigned: number;
+    assignedCount: number;
+    pendingCount: number;
+    unassignedCount: number;
+    usersWithRings: number;
+  } | null>(null);
+
   const [weeklyConnectivity, setWeeklyConnectivity] = useState<WeeklyConnectivityPoint[]>(data);
   const [activeManagePanel, setActiveManagePanel] = useState<'users' | 'rings' | 'relationships' | null>(null);
-  const [systemUsers, setSystemUsers] = useState<SystemUser[]>([
-    { id: 'usr-1001', name: 'Alex Rivera', email: 'alex@smartring.com', role: 'Admin', status: 'Active', lastActive: '2 minutes ago' },
-    { id: 'usr-1002', name: 'Jordan Lee', email: 'jordan@smartring.com', role: 'Manager', status: 'Active', lastActive: '8 minutes ago' },
-    { id: 'usr-1003', name: 'Sam Carter', email: 'sam@smartring.com', role: 'User', status: 'Suspended', lastActive: '1 hour ago' },
-    { id: 'usr-1004', name: 'Casey Morgan', email: 'casey@smartring.com', role: 'User', status: 'Active', lastActive: '4 minutes ago' }
-  ]);
+
+  // Individual state management for each panel - ensures each button manages only its specific function
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showRingManagement, setShowRingManagement] = useState(false);
+  const [showRelationshipManagement, setShowRelationshipManagement] = useState(false);
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
 
   const [ringSales, setRingSales] = useState<RingSale[]>([
     { id: 'sale-001', orderNo: '#R-1201', customer: 'Nika Dara', model: 'SmartRing Lover Edition', status: 'Sold', soldAt: 'Today 10:45 AM' },
@@ -203,6 +219,9 @@ const Dashboard = () => {
 
   const applyDashboardResponse = (response: DashboardResponse) => {
     setDashboardStats((prev) => response.stats || prev);
+    if (response.userRingStats) {
+      setUserRingStats(response.userRingStats);
+    }
     if (Array.isArray(response.weeklyConnectivity)) {
       setWeeklyConnectivity(response.weeklyConnectivity);
     }
@@ -495,6 +514,9 @@ const Dashboard = () => {
             subtext="Click to follow relationships"
           />
         </div>
+
+        {/* User Ring Stats - from users_ring database */}
+        {/* User Ring Assignments section removed as requested */}
 
         {activeManagePanel === 'users' && (
           <div className="bg-white rounded-xl border border-pink-300 shadow-sm overflow-hidden">
@@ -1016,5 +1038,5 @@ const ReviewModal = ({
   );
 };
 
-export default Dashboard;
+export default Dashboard_admin;
 

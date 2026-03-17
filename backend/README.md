@@ -13,6 +13,8 @@
    `mysql -u root -p < sql/schema.sql`
    `mysql -u root -p < sql/inventory.sql`
 
+   The schema now builds the `user_ring` database (the backend default) and the `users_ring` assignment table that feeds the dashboard alerts.
+
 ## 2) Start server
 
 Development:

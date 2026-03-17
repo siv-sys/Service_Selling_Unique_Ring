@@ -1,8 +1,4 @@
-﻿CREATE DATABASE IF NOT EXISTS ring_app;
-USE ring_app;
-
-SET NAMES utf8mb4;
-SET time_zone = '+00:00';
+-- Database Schema for Service Selling Unique Ring
 
 CREATE TABLE IF NOT EXISTS roles (
   id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -87,10 +83,6 @@ CREATE TABLE IF NOT EXISTS ring_models (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- Migration for existing databases (run once if ring_models already exists):
-ALTER TABLE ring_models
-ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL AFTER description;
-
 CREATE TABLE IF NOT EXISTS ring_batches (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   batch_code VARCHAR(40) NOT NULL UNIQUE,
@@ -133,6 +125,18 @@ CREATE TABLE IF NOT EXISTS ring_pair_links (
   KEY idx_ring_pair_links_unassigned_at (unassigned_at),
   CONSTRAINT fk_ring_pair_links_pair FOREIGN KEY (pair_id) REFERENCES relationship_pairs(id),
   CONSTRAINT fk_ring_pair_links_ring FOREIGN KEY (ring_id) REFERENCES rings(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS users_ring (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  ring_id BIGINT UNSIGNED NOT NULL,
+  ring_status ENUM('ASSIGNED', 'AVAILABLE', 'PENDING', 'UNASSIGNED') NOT NULL DEFAULT 'ASSIGNED',
+  assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_users_ring_user_ring (user_id, ring_id),
+  CONSTRAINT fk_users_ring_user FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT fk_users_ring_ring FOREIGN KEY (ring_id) REFERENCES rings(id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS memories (
@@ -215,6 +219,7 @@ CREATE TABLE IF NOT EXISTS security_policies (
   CONSTRAINT fk_security_policies_user FOREIGN KEY (updated_by_user_id) REFERENCES users(id)
 ) ENGINE=InnoDB;
 
+-- Insert default roles
 INSERT INTO roles (code, description)
 VALUES
   ('USER', 'Standard end-user account'),
@@ -222,6 +227,7 @@ VALUES
   ('ADMIN', 'Administrator account')
 ON DUPLICATE KEY UPDATE description = VALUES(description);
 
+-- Insert default security policies
 INSERT INTO security_policies (id, mfa_required, strict_password_policy, session_timeout_minutes, max_login_attempts)
 VALUES (1, 1, 1, 30, 5)
 ON DUPLICATE KEY UPDATE
@@ -229,128 +235,4 @@ ON DUPLICATE KEY UPDATE
   strict_password_policy = VALUES(strict_password_policy),
   session_timeout_minutes = VALUES(session_timeout_minutes),
   max_login_attempts = VALUES(max_login_attempts);
-
-
-____________________________________________
-
-INSERT INTO users 
-(username, full_name, email, password_hash, city)
-VALUES
-('john123', 'John Carter', 'john@example.com', 'hashed_password_1', 'New York'),
-('anna456', 'Anna Lee', 'anna@example.com', 'hashed_password_2', 'Los Angeles');
-
-
-INSERT INTO user_roles (user_id, role_id)
-VALUES
-(1, 1),
-(2, 1);
-
-
-INSERT INTO relationship_pairs
-(pair_code, status, created_by_user_id, established_at)
-VALUES
-('PAIR001', 'CONNECTED', 1, '2025-01-01'),
-('PAIR002', 'PENDING', 2, NULL);
-
-
-INSERT INTO pair_members
-(pair_id, user_id, member_role)
-VALUES
-(1, 1, 'OWNER'),
-(1, 2, 'PARTNER');
-
-
-INSERT INTO pair_invitations
-(pair_id, inviter_user_id, invitee_user_id, invitation_token, expires_at)
-VALUES
-(2, 2, 1, 'uuid-token-1111-aaaa', '2026-12-31'),
-(1, 1, 2, 'uuid-token-2222-bbbb', '2026-12-31');
-
-
-INSERT INTO ring_models
-(model_name, collection_name, material, image_url, base_price)
-VALUES
-('Eternal Love', 'Classic Series', 'Gold', 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600&h=800&fit=crop', 499.99),
-('Infinity Bond', 'Premium Series', 'Platinum', 'https://images.unsplash.com/photo-1598560917505-59a3ad559071?q=80&w=600&h=800&fit=crop', 899.99);
-
-
-INSERT INTO ring_batches
-(batch_code, manufactured_at)
-VALUES
-('BATCH001', '2025-01-10'),
-('BATCH002', '2025-02-15');
-
-
-INSERT INTO rings
-(ring_identifier, ring_name, model_id, batch_id, material, price)
-VALUES
-('RING-001', 'John Ring', 1, 1, 'Gold', 550.00),
-('RING-002', 'Anna Ring', 2, 2, 'Platinum', 950.00);
-
-
-INSERT INTO ring_pair_links
-(pair_id, ring_id, side)
-VALUES
-(1, 1, 'A'),
-(1, 2, 'B');
-
-
-INSERT INTO memories
-(pair_id, uploader_user_id, media_url, caption, memory_date)
-VALUES
-(1, 1, 'https://example.com/photo1.jpg', 'Our first trip', '2025-01-20'),
-(1, 2, 'https://example.com/photo2.jpg', 'Anniversary dinner', '2025-02-14');
-
-
-
-INSERT INTO ring_scans
-(ring_id, scanned_by_user_id, pair_id, scan_mode, scan_source, scan_status)
-VALUES
-(1, 1, 1, 'LOGIN', 'NFC', 'SUCCESS'),
-(2, 2, 1, 'PAIR_SYNC', 'BLUETOOTH', 'SUCCESS');
-
-
-INSERT INTO security_logs
-(event_type, severity, actor_user_id, details)
-VALUES
-('LOGIN_SUCCESS', 'SUCCESS', 1, 'User logged in successfully'),
-('PAIR_CREATED', 'MEDIUM', 1, 'Relationship pair created');
-
-
-INSERT INTO proximity_preferences
-(pair_id, threshold_meters)
-VALUES
-(1, 100),
-(2, 75);
-
-
-INSERT INTO platform_settings
-(setting_key, setting_value)
-VALUES
-('DEFAULT_CURRENCY', 'USD'),
-('MAX_MEMORY_UPLOAD_MB', '50');
-
-
-
-USE ring_app;
-
--- 1) Insert shop products (ring models)
-INSERT INTO ring_models
-(model_name, collection_name, material, description, image_url, base_price, currency_code)
-VALUES
-('Eternal Bond Gold', 'Classic Series', '18K Gold', 'Premium gold couple ring set with engraved inner band.', 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600&h=800&fit=crop', 1200.00, 'USD'),
-('Twin Souls Silver', 'Modern Series', 'Sterling Silver', 'Minimalist silver pair with hammered finish.', 'https://images.unsplash.com/photo-1598560917505-59a3ad559071?q=80&w=600&h=800&fit=crop', 850.00, 'USD'),
-('Vintage Rose Promise', 'Heritage Series', 'Rose Gold', 'Vintage-inspired rose gold design with filigree detail.', 'https://images.unsplash.com/photo-1544441893-675973e31985?q=80&w=600&h=800&fit=crop', 1450.00, 'USD');
-
--- 2) (Optional but recommended) Insert ring inventory so availableUnits > 0 in shop
--- Assume model IDs 1,2,3 already exist or use the IDs returned by your DB.
-INSERT INTO rings
-(ring_identifier, ring_name, model_id, batch_id, size, material, status, location_type, location_label, price)
-VALUES
-('SHOP-EBG-001', 'Eternal Bond Gold A', 1, NULL, '7', '18K Gold', 'AVAILABLE', 'WAREHOUSE', 'Main WH', 1200.00),
-('SHOP-EBG-002', 'Eternal Bond Gold B', 1, NULL, '8', '18K Gold', 'AVAILABLE', 'WAREHOUSE', 'Main WH', 1200.00),
-('SHOP-TSS-001', 'Twin Souls Silver A', 2, NULL, '6', 'Sterling Silver', 'AVAILABLE', 'WAREHOUSE', 'Main WH', 850.00),
-('SHOP-VRP-001', 'Vintage Rose Promise A', 3, NULL, '7', 'Rose Gold', 'AVAILABLE', 'WAREHOUSE', 'Main WH', 1450.00);
-
-
 
