@@ -350,7 +350,7 @@ const MyRingView: React.FC = () => {
         <div className="flex items-center justify-center py-20">
           <div className="text-center p-12 max-w-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-3xl shadow-2xl">
             <span className="material-symbols-outlined text-6xl text-primary mb-4">dangerous</span>
-            <h1 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">No Ring Selected</h1>
+            <h1 className="text-2xl font-bold mb-4 text-slate-900 text-black">No Ring Selected</h1>
             <p className="mb-8 text-slate-600 dark:text-slate-400">Please select a ring from the Eternal Rings catalog first.</p>
             <Link 
               to="/shop" 
@@ -451,7 +451,7 @@ const MyRingView: React.FC = () => {
               <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-2 block">
                 BondKeeper · Eternal
               </span>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-4 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-black text-slate-900 text-black mb-4 leading-tight">
                 {ringData.name}
               </h1>
               
@@ -474,7 +474,7 @@ const MyRingView: React.FC = () => {
               <div className="space-y-8">
                 {/* Metal selection */}
                 <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white mb-4 block uppercase tracking-wider">
+                  <span className="text-sm font-bold text-slate-900 text-black mb-4 block uppercase tracking-wider">
                     Metal / Material
                   </span>
                   <div className="flex gap-4 flex-wrap">
@@ -517,7 +517,7 @@ const MyRingView: React.FC = () => {
                 {/* Size selection */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                    <span className="text-sm font-bold text-slate-900 text-black uppercase tracking-wider">
                       Ring Size (US)
                     </span>
                     <button className="text-xs font-bold text-primary underline underline-offset-4">

@@ -15,7 +15,7 @@ const Dashboard: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
 
-  // Sample recently viewed rings data
+
   const recentlyViewedRings: RecentlyViewedRing[] = [
     {
       id: 1,
