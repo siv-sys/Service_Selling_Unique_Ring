@@ -639,7 +639,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <h2 className="heading-serif text-5xl md:text-6xl font-light tracking-tight mb-4">
               The Signature <span className="font-bold text-primary">Collection</span>
             </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
+            <p className="text-slate-600 dark:text-black-400 text-lg leading-relaxed">
               Explore our curated selection of handcrafted rings, where timeless elegance meets modern ethical sourcing.
             </p>
           </div>
@@ -647,7 +647,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <select 
               value={filters.material}
               onChange={handleMaterialChange}
-              className="px-6 py-3 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
+              className="px-6 py-3 bg-yellow  dark:bg-slate-300 border border-slate-500 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
             >
               <option value="">All Materials</option>
               {materials.map(material => (
@@ -657,7 +657,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <select 
               value={filters.sort}
               onChange={handleSortChange}
-              className="px-6 py-3 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
+              className="px-6 py-3 bg-white dark:bg-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
             >
               <option value="featured">Sort by: Featured</option>
               <option value="low-high">Price: Low to High</option>

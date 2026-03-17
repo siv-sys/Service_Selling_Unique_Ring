@@ -197,7 +197,7 @@ const Dashboard: React.FC = () => {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
           {/* couple shop card */}
-          <Link to="/shop" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
+          <Link to="/shop" className="group bg-pink dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-black dark:border-slate-300 hover:border-primary/20 transition-all shadow-premium">
             <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">storefront</span>
             </div>
@@ -209,7 +209,7 @@ const Dashboard: React.FC = () => {
           </Link>
           
           {/* my ring card */}
-          <Link to="/myring" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
+          <Link to="/myring" className="group bg-pink dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-black dark:border-slate-300 hover:border-primary/20 transition-all shadow-premium">
             <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">diamond</span>
             </div>
@@ -221,7 +221,7 @@ const Dashboard: React.FC = () => {
           </Link>
           
           {/* couple profile card */}
-          <Link to="/profile" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
+          <Link to="/profile" className="group bg-pink dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-black dark:border-slate-300 hover:border-primary/20 transition-all shadow-premium">
             <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">people</span>
             </div>
@@ -236,7 +236,7 @@ const Dashboard: React.FC = () => {
           <a 
             href="#" 
             onClick={(e) => handleNavClick(e, 'Settings')}
-            className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium"
+            className="group bg-pink dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-black dark:border-slate-300 hover:border-primary/20 transition-all shadow-premium"
           >
             <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">settings</span>

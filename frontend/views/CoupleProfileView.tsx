@@ -317,7 +317,7 @@ const CoupleProfileView: React.FC = () => {
         <section className="max-w-7xl mx-auto px-6 my-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left large card: Ring Main */}
-            <div className="lg:col-span-2 bg-white dark:bg-pink-200 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
+            <div className="lg:col-span-2 bg-white dark:bg-pink-100 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-200">
               <div className="flex justify-between items-start mb-8">
                 <div className="flex items-center gap-4">
                   <div className="size-14 bg-slate-100 dark:bg-pink-700 rounded-2xl flex items-center justify-center">
@@ -400,7 +400,7 @@ const CoupleProfileView: React.FC = () => {
               </div>
             </div>
             {/* Right card: Pairing Management */}
-            <div className="bg-white dark:bg-pink-200 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
+            <div className="bg-white dark:bg-pink-100 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-200">
               <h3 className="text-lg font-bold mb-6 text-primary text-primary">Pairing Management</h3>
               <div className="space-y-4 mb-10">
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
@@ -430,70 +430,10 @@ const CoupleProfileView: React.FC = () => {
           </div>
         </section>
 
-        {/* SHARED SAFEGUARDS (single card) */}
-        <div className="max-w-7xl mx-auto px-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-primary text-primary">Shared Safeguards</h3>
-                <span className="material-symbols-outlined text-primary"></span>
-              </div>
-              <div className="bg-white dark:bg-white-200 p-6 rounded-3xl border border-slate-50 dark:border-black-300 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">Proximity Awareness</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      defaultChecked 
-                      className="sr-only peer"
-                    />
-                    <div className="w-12 h-6 bg-slate-200 dark:bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Sensitivity Threshold</p>
-                    <span className="text-xs font-bold text-primary">{proximityThreshold}m</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="100" 
-                    value={proximityThreshold}
-                    onChange={(e) => setProximityThreshold(parseInt(e.target.value))}
-                    className="w-full h-1 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
-                </div>
-                <br />
-                <a 
-                  href="#" 
-                  onClick={(e) => handleNavClick(e, 'Pair New Device')}
-                  className="flex items-center gap-1 font-bold hover:underline text-slate-900 dark:text-white"
-                >
-                  <span className="material-symbols-outlined text-lg">add_circle</span>Pair New Device
-                </a>
-                <br />
-                <div className="w-full">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-[10px] font-bold text-pink-400 dark:text-slate-500 uppercase">Cloud Storage</p>
-                    <p className="text-[10px] font-bold text-primary">{cloudStorageUsed}GB / {cloudStorageTotal}GB</p>
-                  </div>
-                  <div className="w-full bg-pink-100 dark:bg-pink-70 rounded-full h-1.5">
-                    <div 
-                      className="bg-primary h-1.5 rounded-full" 
-                      style={{ width: `${(cloudStorageUsed / cloudStorageTotal) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Empty placeholder for symmetry */}
-            <div></div>
-          </div>
-        </div>
+
 
         {/* TWO COLUMN LAYOUT: EMERGENCY CONTACT (left) + VISIBILITY SETTINGS (right) */}
-        <div className="max-w-7xl mx-auto px-6 mb-8">
+        <div className="max-w-7xl mx-auto px-6 mb-8 mt-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* LEFT: Emergency Contact card */}
             <div className="space-y-4">
