@@ -1,15 +1,11 @@
 import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
-<<<<<<< HEAD
 import DashboardView from './views/DashboardView_admin';
-=======
-import DashboardView from './views/DashboardView';
 import InventoryView from './views/InventoryView';
 import UserPairMgmt from './views/UserPairMgmt';
 import AdminSeedView from './views/AdminSeedView';
 import SettingsView from './views/SettingsView';
->>>>>>> fe7d2817875ee6ffc21937a9047a12fff7932282
 
 export default function App() {
   return (
