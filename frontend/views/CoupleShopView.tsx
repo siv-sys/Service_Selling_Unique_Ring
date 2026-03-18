@@ -894,7 +894,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
       )}
 
       {/* FOOTER */}
-      <footer className="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
+      <footer className="bg-white dark:bg-black/10 border-t border-primary/10 pt-20 pb-10 mt-20">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center gap-2 mb-6">
@@ -930,7 +930,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
             <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
             <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+              <input className="flex-1 bg-pink-50 bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
               <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
             </div>
           </div>

@@ -233,7 +233,7 @@ const CoupleProfileView: React.FC = () => {
         <section className="px-4 py-6">
           <div className="max-w-7xl mx-auto px-6 pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-black">Welcome back, {memberName}</h2>
+              <h2 className="text-3xl font-bold text-pink-90 dark:text-pink">Welcome back, {memberName}</h2>
               <p className="text-slate-400 dark:text-slate-500 mt-1">Everything looks great today.</p>
             </div>
             <div className="w-full max-w-md">
@@ -578,48 +578,56 @@ const CoupleProfileView: React.FC = () => {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-20 pt-16 pb-12">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <span className="material-symbols-outlined text-primary">diamond</span>
-              <span className="heading-serif text-xl font-semibold">BondKeeper</span>
-            </div>
-            <p className="text-sm text-charcoal/60 dark:text-cream/60 leading-relaxed">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Experience</h4>
-            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
-              <li><Link to="/shop" className="hover:text-primary transition-colors">Browse rings</Link></li>
-              <li><Link to="/myring" className="hover:text-primary transition-colors">My ring</Link></li>
-              <li><Link to="/profile" className="hover:text-primary transition-colors">Couple profile</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Support</h4>
-            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
-              <li><Link to="/sizing" className="hover:text-primary transition-colors">Sizing guide</Link></li>
-              <li><Link to="/returns" className="hover:text-primary transition-colors">Shipping & returns</Link></li>
-              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQ / help</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Mailing list</h4>
-            <div className="flex gap-2">
-              <input className="flex-1 bg-transparent border border-primary/20 rounded-full px-5 py-2.5 text-sm placeholder:text-charcoal/40 dark:placeholder:text-cream/40 focus:border-primary/70" placeholder="your@email.com" />
-              <button className="bg-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-primary-dark transition-colors">join</button>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 mt-16 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-charcoal/40 dark:text-cream/40">
-          <p>© BondKeeper · Eternal Rings. All rights reserved.</p>
-          <div className="flex gap-6">
-            <Link to="/privacy" className="hover:text-primary transition">Privacy</Link>
-            <Link to="/terms" className="hover:text-primary transition">Terms</Link>
-          </div>
-        </div>
-      </footer>
+      {/* FOOTER */}
+            <footer className="bg-white dark:bg-black/10 border-t border-primary/10 pt-20 pb-10 mt-20">
+              <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
+                <div className="col-span-1 md:col-span-1">
+                  <div className="flex items-center gap-2 mb-6">
+                    <span className="material-symbols-outlined text-primary">diamond</span>
+                    <h2 className="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical craftsmanship and timeless design. Every ring tells a story.</p>
+                  <div className="flex gap-4">
+                    <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
+                      <span className="material-symbols-outlined text-lg">share</span>
+                    </a>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Experience</h4>
+                  <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+                    <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
+                    <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
+                    <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
+                    <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Support</h4>
+                  <ul className="flex flex-col gap-4 text-sm">
+                    <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
+                    <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
+                    <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
+                    <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
+                  <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
+                  <div className="flex gap-2">
+                    <input className="flex-1 bg-pink-50 bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+                    <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
+                  </div>
+                </div>
+              </div>
+              <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
+                <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
+                  <Link to="/privacy" className="hover:text-primary">Privacy</Link>
+                  <Link to="/terms" className="hover:text-primary">Terms</Link>
+                </div>
+              </div>
+            </footer>
 
       {/* Add animations */}
       <style>{`

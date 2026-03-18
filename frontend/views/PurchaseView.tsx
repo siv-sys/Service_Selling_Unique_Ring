@@ -523,9 +523,9 @@ const PurchaseView: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* LEFT: ring details with image from selected ring */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white dark:bg-pink-200 rounded-3xl p-6 border border-primary/10 shadow-premium sticky top-28">
-              <h3 className="heading-serif text-2xl font-semibold mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">diamond</span> Your selection
+            <div className="bg-white dark:bg-pink-100 rounded-3xl p-6 border border-primary/10 shadow-premium sticky top-28">
+              <h3 className="heading-serif text-2xl font-semibold mb-4 flex items-center gap-2 font-bold text-pink-90 dark:text-pink-600">
+                <span className="material-symbols-outlined ">diamond</span> Your selection
               </h3>
               <div className="aspect-square rounded-2xl overflow-hidden bg-slate-100 mb-5">
                 <img
@@ -579,8 +579,8 @@ const PurchaseView: React.FC = () => {
             {/* STEP 1 FORM */}
             {currentStep === 1 && (
               <div className="step-form space-y-8">
-                <div className="bg-white dark:bg-pink-200 rounded-3xl p-8 border border-primary/10 shadow-premium">
-                  <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
+                <div className="bg-white dark:bg-pink-100 rounded-3xl p-8 border border-primary/10 shadow-premium">
+                  <h3 className="heading-serif text-2xl font-semibold mb-4 flex items-center gap-2 font-bold text-pink-90 dark:text-pink-600">
                     <span className="material-symbols-outlined text-primary">favorite</span> Register your relationship
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -657,8 +657,8 @@ const PurchaseView: React.FC = () => {
             {/* STEP 2 FORM */}
             {currentStep === 2 && (
               <div className="step-form space-y-8">
-                <div className="bg-white dark:bg-pink-200 rounded-3xl p-8 border border-primary/10 shadow-premium">
-                  <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
+                <div className="bg-white dark:bg-pink-100 rounded-3xl p-8 border border-primary/10 shadow-premium">
+                  <h3 className="heading-serif text-2xl font-semibold mb-4 flex items-center gap-2 font-bold text-pink-90 dark:text-pink-600">
                     <span className="material-symbols-outlined text-primary">contact_mail</span> Delivery & identity
                   </h3>
                   <div className="space-y-6">
@@ -784,14 +784,14 @@ const PurchaseView: React.FC = () => {
             {/* STEP 3 FORM */}
             {currentStep === 3 && (
               <div className="step-form space-y-8">
-                <div className="bg-white dark:bg-pink-200 rounded-3xl p-8 border border-primary/10 shadow-premium">
-                  <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
+                <div className="bg-white dark:bg-pink-100 rounded-3xl p-8 border border-primary/10 shadow-premium">
+                  <h3 className="heading-serif text-2xl font-semibold mb-4 flex items-center gap-2 font-bold text-pink-90 dark:text-pink-600">
                     <span className="material-symbols-outlined text-primary">credit_card</span> Payment & confirmation
                   </h3>
 
                   {/* Order summary */}
                   <div className="bg-primary/5 rounded-2xl p-6 mb-8">
-                    <h4 className="font-bold mb-4 flex items-center gap-2">
+                    <h4 className="font-bold mb-4 flex items-center gap-2 text-primary text-lg">
                       <span className="material-symbols-outlined text-primary">shopping_bag</span> Order summary
                     </h4>
                     <div className="space-y-3 text-sm">
@@ -809,7 +809,7 @@ const PurchaseView: React.FC = () => {
                         <span className="text-slate-600 dark:text-slate-400">Tax (estimated)</span>
                         <span className="font-bold">${tax}</span>
                       </div>
-                      <div className="border-t border-primary/10 pt-3 flex justify-between font-bold text-lg">
+                      <div className="border-t border-primary/10 pt-3 flex justify-between font-bold text-lg text-primary">
                         <span>Total</span>
                         <span className="text-primary">${total}</span>
                       </div>
@@ -832,7 +832,7 @@ const PurchaseView: React.FC = () => {
                             onChange={(e) => setPaymentMethod(e.target.value)}
                             className="text-primary h-4 w-4"
                           />
-                          <span className="flex items-center gap-2">
+                          <span className="flex items-center gap-2 text-primary">
                             <span className="material-symbols-outlined text-primary">credit_card</span> Credit card
                           </span>
                         </label>
@@ -845,7 +845,7 @@ const PurchaseView: React.FC = () => {
                             onChange={(e) => setPaymentMethod(e.target.value)}
                             className="text-primary h-4 w-4"
                           />
-                          <span className="flex items-center gap-2">
+                          <span className="flex items-center gap-2 text-primary">
                             <span className="material-symbols-outlined text-primary">account_balance</span> ABA Pay
                           </span>
                         </label>
@@ -952,7 +952,7 @@ const PurchaseView: React.FC = () => {
       )}
 
       {/* Footer */}
-      <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-20 pt-12 pb-8">
+      <footer className="bg-white dark:bg-black/10 border-t border-primary/10 mt-20 pt-12 pb-8">
         <div className="max-w-7xl mx-auto px-6 text-center text-xs text-slate-400">
           <p>© BondKeeper · 3‑step secure checkout. All rights reserved.</p>
         </div>

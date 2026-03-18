@@ -177,31 +177,31 @@ const ThankYou: React.FC = () => {
             <p className="text-center text-slate-600 dark:text-cream/70 mt-2">Your bond is now forever registered.</p>
 
             {/* purchase details (dynamic) */}
-            <div className="mt-8 bg-primary/5 rounded-2xl p-6 space-y-3 text-sm border border-primary/10">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Couple</span>
-                <span className="font-bold">{purchaseData.partner1} & {purchaseData.partner2}</span>
+            <div className="mt-8 bg-primary/5 rounded-2xl p-6 space-y-3 text-sm border border-primary/10 ">
+              <div className="flex justify-between text-sm text-pink-500">
+                <span className="text-pink-50">Couple</span>
+                <span className="font-bold text-pink-500">{purchaseData.partner1} & {purchaseData.partner2}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Ring</span>
-                <span className="font-bold">{purchaseData.ring} ({purchaseData.sku})</span>
+              <div className="flex justify-between text-sm text-pink-500">
+                <span className="text-pink-50">Ring</span>
+                <span className="font-bold text-pink-500">{purchaseData.ring} ({purchaseData.sku})</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Total paid</span>
-                <span className="font-bold text-primary">${purchaseData.price}</span>
+              <div className="flex justify-between text-sm text-pink-500">
+                <span className="text-pink-50 ">Total paid</span>
+                <span className="font-bold text-pink-500  ">${purchaseData.price}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Stock left</span>
-                <span className="font-bold">{purchaseData.newStock}</span>
+              <div className="flex justify-between text-sm text-pink-500 ">
+                <span className="text-pink-50">Stock left</span>
+                <span className="font-bold text-pink-500 ">{purchaseData.newStock}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Purchase date</span>
-                <span className="font-bold">{purchaseData.date}</span>
+              <div className="flex justify-between text-sm text-pink-500">
+                <span className="text-pink-50">Purchase date</span>
+                <span className="font-bold text-pink-500">{purchaseData.date}</span>
               </div>
             </div>
 
             {/* heartwarming message */}
-            <div className="mt-6 text-center text-slate-500 dark:text-cream/60 italic">
+            <div className="mt-6 text-center text-slate-50 dark:text-cream/60 italic">
               “Every great love story starts with a single step.<br /> Yours is now etched in eternity.”
             </div>
 

@@ -254,9 +254,9 @@ const Cart: React.FC = () => {
         {/* LEFT: cart items list */}
         <div className="lg:col-span-2 space-y-5">
           {cartItems.length === 0 ? (
-            <div className="bg-white dark:bg-surface-dark/80 rounded-2xl p-12 text-center border border-slate-100 dark:border-slate-700">
+            <div className="bg-background-light dark:bg-surface-dark/80 rounded-2xl p-12 text-center border border-slate-100 dark:border-slate-700">
               <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">shopping_cart</span>
-              <h3 className="text-xl font-bold mb-2">Your cart is empty</h3>
+              <h3 className="text-xl font-bold mb-2 text-slate-700 dark:text-slate-30">Your cart is empty</h3>
               <p className="text-slate-500 mb-6">Start adding some beautiful rings to your collection.</p>
               <Link 
                 to="/shop" 
@@ -283,7 +283,7 @@ const Cart: React.FC = () => {
                 </div>
                 <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-bold text-lg">{item.ring_name}</h3>
+                    <h3 className="font-bold text-lg text-primary">{item.ring_name}</h3>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
                       <span>SKU: {item.ring_identifier}</span>
                       <span>Type: {item.material}</span>
@@ -294,18 +294,18 @@ const Cart: React.FC = () => {
                       <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">in stock</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center border border-slate-200 dark:border-slate-600 rounded-full">
+                  <div className="flex items-center gap-4 ">
+                    <div className="flex items-center border border-black dark:border-pink-60 rounded-full overflow-hidden">
                       <button 
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
+                        className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors text-slate-400"
                       >
                         −
                       </button>
                       <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                       <button 
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
+                        className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors text-slate-400"
                       >
                         +
                       </button>
@@ -325,7 +325,7 @@ const Cart: React.FC = () => {
           {/* continue shopping link */}
           <div className="pt-4 flex items-center gap-2 text-sm">
             <Link to="/shop" className="text-primary hover:underline flex items-center gap-1">
-              <span className="material-symbols-outlined text-lg">arrow_back</span> Continue shopping
+              <span className="material-symbols-outlined text-lg text-primary">arrow_back</span> Continue shopping
             </Link>
           </div>
         </div>
@@ -335,23 +335,23 @@ const Cart: React.FC = () => {
           <div className="lg:col-span-1 space-y-6">
             {/* summary card */}
             <div className="bg-white dark:bg-surface-dark/80 rounded-3xl p-8 border border-primary/10 shadow-premium sticky top-28">
-              <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
+              <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2 text-primary">
                 <span className="material-symbols-outlined text-primary">shopping_cart</span> Order summary
               </h3>
               <div className="space-y-4 mb-6">
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm text-slate-500">
                   <span className="text-slate-500">Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
-                  <span className="font-bold">$ {subtotal.toLocaleString()}</span>
+                  <span className="font-bold text-lg">$ {subtotal.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm text-slate-500">
                   <span className="text-slate-500">Shipping</span>
                   <span className="font-bold">$ {shipping}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm text-slate-500">
                   <span className="text-slate-500">Tax (est.)</span>
                   <span className="font-bold">$ {tax}</span>
                 </div>
-                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between text-lg text-primary font-bold">
                   <span className="font-bold">Total</span>
                   <span className="text-2xl font-bold text-primary">$ {total.toLocaleString()}</span>
                 </div>

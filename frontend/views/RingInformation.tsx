@@ -451,7 +451,7 @@ const MyRingView: React.FC = () => {
               <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-2 block">
                 BondKeeper · Eternal
               </span>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-900 text-black mb-4 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-black text-pink-90 text-pink mb-4 leading-tight">
                 {ringData.name}
               </h1>
               
@@ -474,7 +474,7 @@ const MyRingView: React.FC = () => {
               <div className="space-y-8">
                 {/* Metal selection */}
                 <div>
-                  <span className="text-sm font-bold text-slate-900 text-black mb-4 block uppercase tracking-wider">
+                  <span className="text-sm font-bold text-pink-90 text-pink mb-4 block uppercase tracking-wider">
                     Metal / Material
                   </span>
                   <div className="flex gap-4 flex-wrap">
@@ -517,7 +517,7 @@ const MyRingView: React.FC = () => {
                 {/* Size selection */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm font-bold text-slate-900 text-black uppercase tracking-wider">
+                    <span className="text-sm font-bold text-pink-90 text-pink uppercase tracking-wider">
                       Ring Size (US)
                     </span>
                     <button className="text-xs font-bold text-primary underline underline-offset-4">
@@ -664,55 +664,55 @@ const MyRingView: React.FC = () => {
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
-          <div className="col-span-1 md:col-span-1">
-            <div className="flex items-center gap-2 mb-6">
-              <span className="material-symbols-outlined text-primary">diamond</span>
-              <h2 className="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
-            </div>
-            <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical craftsmanship and timeless design. Every ring tells a story.</p>
-            <div className="flex gap-4">
-              <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
-                <span className="material-symbols-outlined text-lg">share</span>
-              </a>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Experience</h4>
-            <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
-              <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
-              <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
-              <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
-              <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Support</h4>
-            <ul className="flex flex-col gap-4 text-sm">
-              <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
-              <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
-              <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
-              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
-            <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
-            <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
-              <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
-          <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
-            <Link to="/privacy" className="hover:text-primary">Privacy</Link>
-            <Link to="/terms" className="hover:text-primary">Terms</Link>
-          </div>
-        </div>
-      </footer>
+            <footer className="bg-white dark:bg-black/10 border-t border-primary/10 pt-20 pb-10 mt-20">
+              <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
+                <div className="col-span-1 md:col-span-1">
+                  <div className="flex items-center gap-2 mb-6">
+                    <span className="material-symbols-outlined text-primary">diamond</span>
+                    <h2 className="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical craftsmanship and timeless design. Every ring tells a story.</p>
+                  <div className="flex gap-4">
+                    <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
+                      <span className="material-symbols-outlined text-lg">share</span>
+                    </a>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Experience</h4>
+                  <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+                    <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
+                    <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
+                    <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
+                    <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Support</h4>
+                  <ul className="flex flex-col gap-4 text-sm">
+                    <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
+                    <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
+                    <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
+                    <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
+                  <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
+                  <div className="flex gap-2">
+                    <input className="flex-1 bg-pink-50 bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+                    <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
+                  </div>
+                </div>
+              </div>
+              <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
+                <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
+                  <Link to="/privacy" className="hover:text-primary">Privacy</Link>
+                  <Link to="/terms" className="hover:text-primary">Terms</Link>
+                </div>
+              </div>
+            </footer>
 
       {/* Add animations */}
       <style>{`
