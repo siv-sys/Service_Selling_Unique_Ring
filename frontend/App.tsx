@@ -6,16 +6,20 @@ import { GoogleAccountSelector } from './components/GoogleAccountSelector';
 import { api, type AuthUser } from './lib/api';
 import AdminSeedView from './views/AdminSeedView';
 import AdminDashboardView from './views/AdminDashboardView';
+import CartView from './views/cardView';
+import CoupleProfileView from './views/CoupleProfileView';
+import CoupleShopView from './views/CoupleShopView';
 import DashboardView from './views/DashboardView';
 import InventoryView from './views/InventoryView';
 import { LoginScreen } from './views/LoginView';
 import MemoriesView from './views/MemoriesView';
+import MyRingView from './views/MyRingView';
 import { RegisterScreen } from './views/RegisterView';
 import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
 
-const USER_HOME_PATH = '/member';
+const USER_HOME_PATH = '/dashboard';
 const ADMIN_HOME_PATH = '/admindashboard';
 
 function normalizeRole(role: string | null | undefined): AuthUser['role'] {
@@ -303,7 +307,14 @@ function AppRoutes() {
       />
 
       <Route path={USER_HOME_PATH} element={userOnly(<DashboardView />)} />
-      <Route path="/dashboard" element={<Navigate to={USER_HOME_PATH} replace />} />
+      <Route path="/member" element={<Navigate to={USER_HOME_PATH} replace />} />
+      <Route path="/shop" element={userOnly(<CoupleShopView />)} />
+      <Route path="/couple-shop" element={<Navigate to="/shop" replace />} />
+      <Route path="/myring" element={userOnly(<MyRingView />)} />
+      <Route path="/ring-view" element={<Navigate to="/myring" replace />} />
+      <Route path="/profile" element={userOnly(<CoupleProfileView />)} />
+      <Route path="/couple-profile" element={<Navigate to="/profile" replace />} />
+      <Route path="/cart" element={userOnly(<CartView />)} />
       <Route path={ADMIN_HOME_PATH} element={adminLayout(<AdminDashboardView />)} />
       <Route path="/admin-dashboard" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
       <Route path="/inventory" element={adminLayout(<InventoryView />)} />
