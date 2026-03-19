@@ -1,27 +1,17 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { query } = require('../config/db');
+const { execute, query } = require('../config/db');
+const { requireAuth } = require('../middleware/auth.middleware');
+const { issueAuthSession } = require('../services/auth-session.service');
+const { normalizeRole, toSafeUser } = require('../utils/auth');
 
 const router = express.Router();
 const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 9;
 
-function normalizeRole(role) {
-  return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
-}
-
-function toSafeUser(user) {
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name || '',
-    role: normalizeRole(user.role),
-  };
-}
-
 router.post('/register', async (req, res, next) => {
   try {
-    const { email, password, name, role } = req.body || {};
+    const { email, password, name, role, autoLogin } = req.body || {};
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
     if (!normalizedEmail || !password) {
@@ -41,52 +31,53 @@ router.post('/register', async (req, res, next) => {
     const displayName = String(name || '').trim() || normalizedEmail.split('@')[0];
     const passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
 
-    const result = await query(
-      'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
-      [normalizedEmail, passwordHash, displayName, safeRole],
+    const result = await execute(
+      'INSERT INTO users (email, password_hash, username, full_name, name, role) VALUES (?, ?, ?, ?, ?, ?)',
+      [normalizedEmail, passwordHash, displayName, displayName, displayName, safeRole],
     );
 
-    const createdUsers = await query('SELECT id, email, name, role FROM users WHERE id = ? LIMIT 1', [result.insertId]);
+    const createdUsers = await query(
+      'SELECT id, email, name, role FROM users WHERE id = ? LIMIT 1',
+      [result.insertId],
+    );
+    const user = createdUsers[0];
+
+    if (!autoLogin) {
+      return res.status(201).json({
+        message: 'Register successful.',
+        user: toSafeUser(user),
+      });
+    }
+
+    const session = await issueAuthSession(user, req);
     return res.status(201).json({
       message: 'Register successful.',
-      user: toSafeUser(createdUsers[0]),
+      ...session,
     });
   } catch (error) {
     return next(error);
   }
 });
 
-router.get('/me', async (req, res, next) => {
-  try {
-    const rawUserId = req.header('x-auth-user-id');
-    const userId = Number(rawUserId);
-
-    if (!rawUserId || Number.isNaN(userId)) {
-      return res.status(401).json({ message: 'Missing auth user id.' });
-    }
-
-    const users = await query('SELECT id, email, name, role FROM users WHERE id = ? LIMIT 1', [userId]);
-    if (!users.length) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-
-    return res.json({
-      message: 'Current user loaded.',
-      user: toSafeUser(users[0]),
-    });
-  } catch (error) {
-    return next(error);
-  }
+router.get('/me', requireAuth, async (req, res) => {
+  return res.json({
+    message: 'Current user loaded.',
+    user: req.auth.user,
+  });
 });
 
-router.post('/logout', async (req, res, next) => {
+router.post('/logout', requireAuth, async (req, res, next) => {
   try {
-    const rawUserId = req.body?.userId ?? req.header('x-auth-user-id');
-    const userId = Number(rawUserId);
-
-    if (rawUserId && !Number.isNaN(userId)) {
-      await query('UPDATE users SET remember_token = NULL WHERE id = ?', [userId]);
+    if (req.body?.all) {
+      await execute(
+        'UPDATE auth_sessions SET revoked_at = UTC_TIMESTAMP() WHERE user_id = ? AND revoked_at IS NULL',
+        [req.auth.user.id],
+      );
+    } else {
+      await execute('UPDATE auth_sessions SET revoked_at = UTC_TIMESTAMP() WHERE id = ?', [req.auth.sessionId]);
     }
+
+    await execute('UPDATE users SET remember_token = NULL WHERE id = ?', [req.auth.user.id]);
 
     return res.json({ message: 'Logout successful.' });
   } catch (error) {
@@ -113,7 +104,13 @@ router.post('/reset-password', async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(String(newPassword), BCRYPT_ROUNDS);
-    await query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, users[0].id]);
+    await execute('UPDATE users SET password_hash = ?, remember_token = NULL WHERE id = ?', [
+      passwordHash,
+      users[0].id,
+    ]);
+    await execute('UPDATE auth_sessions SET revoked_at = UTC_TIMESTAMP() WHERE user_id = ? AND revoked_at IS NULL', [
+      users[0].id,
+    ]);
 
     return res.json({ message: 'Password reset successful.' });
   } catch (error) {

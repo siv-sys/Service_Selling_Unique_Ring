@@ -1,25 +1,13 @@
 const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { query, pool } = require('../config/db');
+const { execute, pool, query } = require('../config/db');
+const { issueAuthSession } = require('../services/auth-session.service');
+const { normalizeRole, toSafeUser } = require('../utils/auth');
 
 const router = express.Router();
 const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 9;
-
-function normalizeRole(role) {
-  return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
-}
-
-function buildSafeUser(row) {
-  return {
-    id: row.id,
-    email: row.email,
-    name: row.name || '',
-    role: normalizeRole(row.role),
-    provider: row.provider || null,
-  };
-}
 
 function isBcryptHash(value) {
   return /^\$2[aby]\$\d{2}\$/.test(String(value || ''));
@@ -28,8 +16,9 @@ function isBcryptHash(value) {
 router.post('/', async (req, res, next) => {
   try {
     const { email, password, remember } = req.body || {};
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
@@ -38,8 +27,8 @@ router.post('/', async (req, res, next) => {
     }
 
     const users = await query(
-      'SELECT id, email, password_hash, name, role FROM users WHERE email = ? LIMIT 1',
-      [email.trim().toLowerCase()],
+      'SELECT id, email, password_hash, name, role, account_status FROM users WHERE email = ? LIMIT 1',
+      [normalizedEmail],
     );
 
     if (!users.length) {
@@ -47,6 +36,10 @@ router.post('/', async (req, res, next) => {
     }
 
     const user = users[0];
+    if (String(user.account_status || 'ACTIVE').toUpperCase() !== 'ACTIVE') {
+      return res.status(403).json({ message: 'This account is not active.' });
+    }
+
     const providedPassword = String(password);
     let passwordMatches = false;
 
@@ -55,22 +48,25 @@ router.post('/', async (req, res, next) => {
     } else if (String(user.password_hash) === providedPassword) {
       passwordMatches = true;
       const upgradedHash = await bcrypt.hash(providedPassword, BCRYPT_ROUNDS);
-      await query('UPDATE users SET password_hash = ? WHERE id = ?', [upgradedHash, user.id]);
+      await execute('UPDATE users SET password_hash = ? WHERE id = ?', [upgradedHash, user.id]);
     }
 
     if (!passwordMatches) {
-      return res.status(401).json({ message: 'Incorrect password' });
+      return res.status(401).json({ message: 'Incorrect password.' });
     }
 
     let rememberToken = null;
     if (remember) {
       rememberToken = crypto.randomUUID();
-      await query('UPDATE users SET remember_token = ? WHERE id = ?', [rememberToken, user.id]);
+      await execute('UPDATE users SET remember_token = ? WHERE id = ?', [rememberToken, user.id]);
+    } else {
+      await execute('UPDATE users SET remember_token = NULL WHERE id = ?', [user.id]);
     }
 
+    const session = await issueAuthSession(user, req);
     return res.json({
       message: 'Login successful.',
-      user: buildSafeUser(user),
+      ...session,
       rememberToken,
     });
   } catch (error) {
@@ -91,33 +87,37 @@ router.post('/google', async (req, res, next) => {
     await connection.beginTransaction();
 
     const [existingUsers] = await connection.execute(
-      'SELECT id, email, name, role FROM users WHERE email = ? LIMIT 1',
+      'SELECT id, email, name, role, account_status FROM users WHERE email = ? LIMIT 1',
       [normalizedEmail],
     );
 
-    let userId;
     let userRow;
     if (existingUsers.length) {
       userRow = existingUsers[0];
-      userId = userRow.id;
+      if (String(userRow.account_status || 'ACTIVE').toUpperCase() !== 'ACTIVE') {
+        await connection.rollback();
+        return res.status(403).json({ message: 'This account is not active.' });
+      }
     } else {
       const generatedPassword = `google_${crypto.randomUUID()}`;
       const generatedPasswordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
-      const fallbackName = name || normalizedEmail.split('@')[0];
+      const fallbackName = String(name || '').trim() || normalizedEmail.split('@')[0];
       const [insertResult] = await connection.execute(
-        'INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)',
-        [normalizedEmail, generatedPasswordHash, fallbackName, 'user'],
+        `
+          INSERT INTO users (email, password_hash, username, full_name, name, role)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [normalizedEmail, generatedPasswordHash, fallbackName, fallbackName, fallbackName, 'user'],
       );
-      userId = insertResult.insertId;
       userRow = {
-        id: userId,
+        id: insertResult.insertId,
         email: normalizedEmail,
         name: fallbackName,
         role: 'user',
       };
     }
 
-    const resolvedProviderId = String(providerId || normalizedEmail);
+    const resolvedProviderId = String(providerId || normalizedEmail).trim();
     const [providers] = await connection.execute(
       'SELECT id FROM user_providers WHERE provider = ? AND provider_id = ? LIMIT 1',
       ['google', resolvedProviderId],
@@ -126,18 +126,29 @@ router.post('/google', async (req, res, next) => {
     if (!providers.length) {
       await connection.execute(
         'INSERT INTO user_providers (user_id, provider, provider_id) VALUES (?, ?, ?)',
-        [userId, 'google', resolvedProviderId],
+        [userRow.id, 'google', resolvedProviderId],
       );
     }
 
     await connection.commit();
 
+    const session = await issueAuthSession(
+      {
+        ...userRow,
+        role: normalizeRole(userRow.role),
+      },
+      req,
+    );
+
     return res.json({
       message: 'Google login successful.',
       user: {
-        ...buildSafeUser(userRow),
+        ...toSafeUser(userRow),
         provider: 'google',
       },
+      accessToken: session.accessToken,
+      expiresAt: session.expiresAt,
+      rememberToken: null,
     });
   } catch (error) {
     await connection.rollback();

@@ -1,7 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const env = require('./config/env');
+const { requireAdmin, requireAuth } = require('./middleware/auth.middleware');
 
+const authRoutes = require('./routes/auth.routes');
+const loginRoutes = require('./routes/login.routes');
 const healthRoutes = require('./routes/health.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
@@ -57,6 +60,8 @@ app.get('/api', (_req, res) => {
 */
 
 app.use('/api/health', healthRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/auth/login', loginRoutes);
 
 /*
 |--------------------------------------------------------------------------
@@ -64,9 +69,9 @@ app.use('/api/health', healthRoutes);
 |--------------------------------------------------------------------------
 */
 
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/settings', settingsRoutes);
+app.use('/api/dashboard', requireAuth, dashboardRoutes);
+app.use('/api/inventory', requireAuth, requireAdmin, inventoryRoutes);
+app.use('/api/settings', requireAuth, settingsRoutes);
 
 /*
 |--------------------------------------------------------------------------

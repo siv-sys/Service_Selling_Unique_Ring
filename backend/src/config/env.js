@@ -12,6 +12,10 @@ const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: toNumber(process.env.PORT, 4000),
   frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+  auth: {
+    jwtSecret: process.env.JWT_SECRET || 'dev-jwt-secret-change-me',
+    accessTokenTtl: process.env.ACCESS_TOKEN_TTL || '12h',
+  },
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
     port: toNumber(process.env.DB_PORT, 3306),

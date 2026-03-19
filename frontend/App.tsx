@@ -1,10 +1,11 @@
+import type { ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import { GoogleAccountSelector } from './components/GoogleAccountSelector';
-import type { AuthUser } from './lib/api';
+import { api, type AuthUser } from './lib/api';
 import AdminSeedView from './views/AdminSeedView';
-import DashboardView from './views/DashboardView';
+import AdminDashboardView from './views/AdminDashboardView';
 import InventoryView from './views/InventoryView';
 import { LoginScreen } from './views/LoginView';
 import MemoriesView from './views/MemoriesView';
@@ -12,6 +13,10 @@ import { RegisterScreen } from './views/RegisterView';
 import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
+
+function normalizeRole(role: string | null | undefined): AuthUser['role'] {
+  return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+}
 
 function buildUserFromStorage(): AuthUser | null {
   const rawId = sessionStorage.getItem('auth_user_id');
@@ -27,11 +32,18 @@ function buildUserFromStorage(): AuthUser | null {
   return { id, email, name, role };
 }
 
+function normalizeUser(user: AuthUser): AuthUser {
+  return {
+    ...user,
+    role: normalizeRole(user.role),
+  };
+}
+
 function getStoredAccessToken(): string | null {
   return sessionStorage.getItem('auth_access_token') || localStorage.getItem('auth_access_token');
 }
 
-function persistAuth(user: AuthUser, accessToken: string, remember: boolean) {
+function persistAuth(user: AuthUser, accessToken: string, remember: boolean, rememberToken?: string | null) {
   sessionStorage.setItem('auth_user_id', String(user.id));
   sessionStorage.setItem('auth_roles', user.role);
   sessionStorage.setItem('auth_email', user.email);
@@ -40,8 +52,12 @@ function persistAuth(user: AuthUser, accessToken: string, remember: boolean) {
 
   if (remember) {
     localStorage.setItem('auth_access_token', accessToken);
+    if (rememberToken) {
+      localStorage.setItem('auth_remember_token', rememberToken);
+    }
   } else {
     localStorage.removeItem('auth_access_token');
+    localStorage.removeItem('auth_remember_token');
   }
 }
 
@@ -76,17 +92,35 @@ function AppRoutes() {
   const isAuthenticated = role !== null;
 
   useEffect(() => {
-    const accessToken = getStoredAccessToken();
-    if (!accessToken) {
-      clearAuth();
-      setAuthUser(null);
+    async function restoreAuth() {
+      const accessToken = getStoredAccessToken();
+      if (!accessToken) {
+        clearAuth();
+        setAuthUser(null);
+        setIsHydratingAuth(false);
+        return;
+      }
+
+      try {
+        const response = await api.me();
+        const user = normalizeUser(response.user);
+        setAuthUser(user);
+        persistAuth(user, accessToken, Boolean(localStorage.getItem('auth_access_token')));
+      } catch {
+        clearAuth();
+        setAuthUser(null);
+      } finally {
+        setIsHydratingAuth(false);
+      }
     }
-    setIsHydratingAuth(false);
+
+    void restoreAuth();
   }, []);
 
-  const goToRoleHome = (user: AuthUser, accessToken: string, remember: boolean) => {
-    setAuthUser(user);
-    persistAuth(user, accessToken, remember);
+  const goToRoleHome = (user: AuthUser, accessToken: string, remember: boolean, rememberToken?: string | null) => {
+    const normalizedUser = normalizeUser(user);
+    setAuthUser(normalizedUser);
+    persistAuth(normalizedUser, accessToken, remember, rememberToken);
     navigate('/dashboard', { replace: true });
   };
 
@@ -94,15 +128,11 @@ function AppRoutes() {
     try {
       setIsLoggingIn(true);
       setLoginError(null);
-      const user: AuthUser = {
-        id: 1,
-        email: payload.email || 'guest@example.com',
-        name: payload.email ? payload.email.split('@')[0] : 'Guest',
-        role: 'admin',
-      };
-      goToRoleHome(user, 'local-session-token', payload.remember);
-    } catch {
-      setLoginError('Login failed.');
+      const response = await api.login(payload);
+      goToRoleHome(response.user, response.accessToken, payload.remember, response.rememberToken);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed.';
+      setLoginError(message);
     } finally {
       setIsLoggingIn(false);
     }
@@ -112,16 +142,15 @@ function AppRoutes() {
     try {
       setIsGoogleLoggingIn(true);
       setLoginError(null);
-      const user: AuthUser = {
-        id: 1,
+      const response = await api.googleLogin({
         email,
+        providerId: email,
         name: email.split('@')[0],
-        role: 'admin',
-        provider: 'google',
-      };
-      goToRoleHome(user, 'local-google-session-token', false);
-    } catch {
-      setLoginError('Google login failed.');
+      });
+      goToRoleHome(response.user, response.accessToken, false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Google login failed.';
+      setLoginError(message);
       navigate('/login', { replace: true });
     } finally {
       setIsGoogleLoggingIn(false);
@@ -133,6 +162,7 @@ function AppRoutes() {
       setIsRegistering(true);
       setRegisterError(null);
       setRegisterSuccess(null);
+      await api.register(payload);
       clearAuth();
       setAuthUser(null);
       setRegisterSuccess(`Registration completed for ${payload.email}.`);
@@ -141,8 +171,9 @@ function AppRoutes() {
         replace: true,
         state: { successMessage: 'Registration succeeded. Please log in.' },
       });
-    } catch {
-      setRegisterError('Register failed.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Register failed.';
+      setRegisterError(message);
     } finally {
       setIsRegistering(false);
     }
@@ -153,24 +184,38 @@ function AppRoutes() {
       setIsResettingPassword(true);
       setResetError(null);
       setResetSuccess(null);
-      setResetSuccess(`Password reset completed for ${payload.email}.`);
-    } catch {
-      setResetError('Reset password failed.');
+      const response = await api.resetPassword(payload);
+      setResetSuccess(response.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Reset password failed.';
+      setResetError(message);
     } finally {
       setIsResettingPassword(false);
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Ignore logout API failures and continue local sign-out.
+    }
+
+    clearAuth();
+    setAuthUser(null);
+    navigate('/login', { replace: true });
+  };
+
   const adminLayout = useMemo(
-    () => (view: JSX.Element) => (isAdmin ? <Layout>{view}</Layout> : <Navigate to="/login" replace />),
+    () => (view: ReactElement) => (isAdmin ? <Layout>{view}</Layout> : <Navigate to="/login" replace />),
     [isAdmin],
   );
   const authLayout = useMemo(
-    () => (view: JSX.Element) => (isAuthenticated ? <Layout>{view}</Layout> : <Navigate to="/login" replace />),
+    () => (view: ReactElement) => (isAuthenticated ? <Layout>{view}</Layout> : <Navigate to="/login" replace />),
     [isAuthenticated],
   );
   const userOnly = useMemo(
-    () => (view: JSX.Element) => (isUser ? view : <Navigate to={isAdmin ? '/dashboard' : '/login'} replace />),
+    () => (view: ReactElement) => (isUser ? view : <Navigate to={isAdmin ? '/dashboard' : '/login'} replace />),
     [isAdmin, isUser],
   );
 
@@ -248,7 +293,7 @@ function AppRoutes() {
         }
       />
 
-      <Route path="/dashboard" element={authLayout(<DashboardView />)} />
+      <Route path="/dashboard" element={authLayout(<AdminDashboardView />)} />
       <Route path="/inventory" element={adminLayout(<InventoryView />)} />
       <Route path="/users" element={adminLayout(<UserPairMgmt />)} />
       <Route path="/catalog" element={adminLayout(<AdminSeedView />)} />

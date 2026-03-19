@@ -1,22 +1,11 @@
 ﻿
 const express = require('express');
 const { query } = require('../config/db');
+const { requireAdmin } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
-function requireAdmin(req, res, next) {
-  const roleHeader = String(req.header('x-auth-roles') || '')
-    .trim()
-    .toLowerCase();
-
-  if (roleHeader !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required.' });
-  }
-
-  return next();
-}
-
-router.get('/system', async (req, res, next) => {
+router.get('/system', requireAdmin, async (req, res, next) => {
   try {
     const rows = await query(
       'SELECT id, shop_name, support_email, currency, updated_at FROM system_settings ORDER BY id ASC LIMIT 1',
@@ -35,7 +24,7 @@ router.get('/system', async (req, res, next) => {
   }
 });
 
-router.put('/system', async (req, res, next) => {
+router.put('/system', requireAdmin, async (req, res, next) => {
   try {
     const { shop_name, support_email, currency } = req.body || {};
     const normalizedShopName = String(shop_name || '').trim();
@@ -95,6 +84,10 @@ router.get('/notifications/:userId', async (req, res, next) => {
       return res.status(400).json({ message: 'Valid userId is required.' });
     }
 
+    if (req.auth?.user?.role !== 'admin' && req.auth?.user?.id !== userId) {
+      return res.status(403).json({ message: 'You can only view your own notification preferences.' });
+    }
+
     const rows = await query(
       `SELECT id, user_id, system_updates, created_at
        FROM notification_preferences
@@ -122,6 +115,10 @@ router.put('/notifications/:userId', async (req, res, next) => {
     const userId = Number(req.params.userId);
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ message: 'Valid userId is required.' });
+    }
+
+    if (req.auth?.user?.role !== 'admin' && req.auth?.user?.id !== userId) {
+      return res.status(403).json({ message: 'You can only update your own notification preferences.' });
     }
 
     const systemUpdates = Boolean(req.body?.system_updates);

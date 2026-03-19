@@ -3,7 +3,7 @@ import { AuthScreen } from './types';
 import { LoginScreen } from '../views/LoginView';
 import { RegisterScreen } from '../views/RegisterView';
 import { ResetPasswordScreen } from '../views/ResetPasswordView';
-import { DashboardView } from '../views/DashboardView';
+import AdminDashboardView from '../views/AdminDashboardView';
 import { GoogleAccountSelector } from './GoogleAccountSelector';
 import { api, type AuthUser } from '../lib/api';
 
@@ -228,11 +228,11 @@ export default function App() {
       )}
 
       {screen === 'dashboard-user' && (
-        <DashboardView role="user" onBackToLogin={handleBackToLogin} />
+        <AdminDashboardView />
       )}
 
       {screen === 'dashboard-admin' && (
-        <DashboardView role="admin" onBackToLogin={handleBackToLogin} />
+        <AdminDashboardView />
       )}
     </div>
   );

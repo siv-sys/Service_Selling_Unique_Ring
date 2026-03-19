@@ -100,7 +100,7 @@ type DashboardResponse = {
   relationshipUserAlerts: RelationshipUserAlert[];
   weeklyConnectivity: WeeklyConnectivityPoint[];
 };
-const Dashboard = () => {
+const AdminDashboardView = () => {
   const [lastExport, setLastExport] = useState('');
   const [dashboardError, setDashboardError] = useState('');
   const [dbConnected, setDbConnected] = useState(false);
@@ -848,4 +848,4 @@ const PairingRow = ({ users, model, date, status }: any) => (
   </tr>
 );
 
-export default Dashboard;
+export default AdminDashboardView;
