@@ -800,116 +800,78 @@ const SettingsView = ({
         }
 
         .topbar {
-          height: 74px;
-          border-bottom: 1px solid var(--line);
-          background: rgba(255, 255, 255, 0.86);
-          backdrop-filter: blur(12px);
+          height: 72px;
+          border-bottom: 1px solid #ece7ed;
+          background: #ffffff;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 28px;
+          padding: 0 48px;
           position: sticky;
           top: 0;
           z-index: 15;
-          gap: 18px;
-          box-shadow: var(--shadow-soft);
+          gap: 20px;
         }
 
         .brand {
           display: flex;
           align-items: center;
           gap: 8px;
-          min-width: 180px;
           white-space: nowrap;
         }
 
         .brand-logo {
-          color: var(--accent);
-          font-size: 26px;
-          line-height: 1;
+          color: #f542a7;
+          font-size: 21px;
         }
 
         .brand-text {
-          color: var(--text);
-          font-size: 23px;
-          font-weight: 800;
-          letter-spacing: -0.025em;
+          color: #f542a7;
+          font-size: 26px;
+          font-weight: 600;
+          font-family: 'Times New Roman', Georgia, serif;
         }
 
         .main-nav {
-          margin-top: 20px;
           flex: 1;
           display: flex;
-          align-items: center;
-          gap: 26px;
-          display: flex;
+          gap: 22px;
           justify-content: center;
         }
 
         .main-nav button {
           border: 0;
           background: transparent;
-          color: #667891;
-          font-size: 14px;
-          font-weight: 700;
+          color: #27272a;
+          font-size: 12px;
+          font-weight: 400;
           cursor: pointer;
-          padding: 2px 2px 18px;
-          position: relative;
+          padding: 6px 0;
           white-space: nowrap;
-          transition: color 0.2s ease;
+          transition: color 0.18s ease;
         }
 
         .main-nav button:hover {
-          color: #27344d;
+          color: #f542a7;
         }
 
         .main-nav button.active {
           color: #ef2f5a;
-          background: #fff4f7;
-          border-radius: 999px;
-          padding: 8px 14px 18px;
+          font-weight: 700;
         }
 
         .main-nav button.active::after {
-          content: '';
-          position: absolute;
-          left: 12px;
-          right: 12px;
-          bottom: 2px;
-          height: 3px;
-          border-radius: 999px;
-          background: var(--accent);
+          content: none;
         }
 
         .top-actions {
           display: flex;
           align-items: center;
-          gap: 10px;
-          min-width: 206px;
-          justify-content: flex-end;
-        }
-
-        .basket-pill {
-          border: 1px solid #f2c4cf;
-          color: var(--accent);
-          border-radius: 999px;
-          padding: 7px 13px;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 0.09em;
-          text-transform: uppercase;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          background: #fff6f8;
-          line-height: 1;
-          box-shadow: 0 6px 16px rgba(233, 63, 102, 0.14);
+          gap: 16px;
         }
 
         .top-icon {
-          color: #5e708d;
-          font-size: 20px;
-          line-height: 1;
+          color: #27272a;
         }
 
         .icon-btn {
@@ -917,44 +879,45 @@ const SettingsView = ({
           background: transparent;
           padding: 0;
           cursor: pointer;
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: grid;
-          place-items: center;
-          transition: background 0.2s ease, color 0.2s ease;
+          width: auto;
+          height: auto;
+          border-radius: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.18s ease;
         }
 
         .icon-btn:hover {
-          background: #edf2f8;
-          color: var(--accent);
+          color: #f542a7;
         }
 
         .notification-wrap {
           position: relative;
+          display: inline-flex;
+          align-items: center;
         }
 
         .notification-btn {
           border: 0;
-          background: #f1f5fb;
+          background: transparent;
           padding: 0;
           cursor: pointer;
-          color: #61718d;
-          font-size: 18px;
+          color: #27272a;
+          font-size: 22px;
           line-height: 1;
           position: relative;
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: grid;
-          place-items: center;
-          transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+          width: auto;
+          height: auto;
+          border-radius: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.18s ease;
         }
 
         .notification-btn:hover {
-          background: #e7eef8;
-          color: var(--accent);
-          transform: translateY(-1px);
+          color: #f542a7;
         }
 
         .notification-btn-badge {
@@ -1198,13 +1161,24 @@ const SettingsView = ({
         }
 
         .avatar {
-          width: 38px;
-          height: 38px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
-          border: 2px solid #fff;
+          border: 1px solid #efedf1;
           object-fit: cover;
           cursor: pointer;
-          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+        }
+
+        .divider {
+          width: 1px;
+          height: 32px;
+          background: #e7e4ea;
+        }
+
+        .profile-name {
+          font-size: 14px;
+          font-weight: 500;
+          color: #27272a;
         }
 
         .page-body {
@@ -2849,7 +2823,6 @@ const SettingsView = ({
         }
 
         .settings-page.dark .main-nav button.active {
-          background: #2a3344;
           color: #ffd0dc;
         }
 
@@ -3077,15 +3050,14 @@ const SettingsView = ({
             justify-content: flex-start;
             overflow-x: auto;
             padding-bottom: 4px;
-            margin-top: 0;
           }
 
           .main-nav button {
-            padding: 4px 0 10px;
+            padding: 4px 0 8px;
           }
 
           .main-nav button.active {
-            padding: 4px 12px 10px;
+            padding: 4px 0 8px;
           }
 
           .main-nav button.active::after {
@@ -3233,7 +3205,8 @@ const SettingsView = ({
           }
 
           .top-actions .top-icon,
-          .top-actions .basket-pill {
+          .top-actions .divider,
+          .top-actions .profile-name {
             display: none;
           }
 
@@ -3250,13 +3223,13 @@ const SettingsView = ({
 
       <header className="topbar">
         <div className="brand">
-          <span className="brand-logo">{'\u2764'}</span>
-          <span className="brand-text">Eternal Rings</span>
+          <span className="material-symbols-outlined brand-logo">diamond</span>
+          <span className="brand-text">BondKeeper</span>
         </div>
 
         <nav className="main-nav" aria-label="Main">
-          <button type="button">Dashbroad</button>
-          <button type="button">Ring Scan</button>
+          <button type="button">Dashboard</button>
+          <button type="button">Couple Shop</button>
           <button type="button">My Ring</button>
           <button type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
           <button type="button" onClick={onNavigateRelationship}>Relationship</button>
@@ -3264,16 +3237,6 @@ const SettingsView = ({
         </nav>
 
         <div className="top-actions">
-          <span className="basket-pill">{'\u{1F9FA}'} BASKET</span>
-          <button
-            type="button"
-            className="icon-btn top-icon"
-            onClick={() => setThemeMode(isDarkTheme ? 'Light' : 'Dark')}
-            aria-label="Toggle dark mode"
-            title="Toggle dark mode"
-          >
-            {'\u263E'}
-          </button>
           <div className="notification-wrap" ref={notificationPanelRef}>
             <button
               type="button"
@@ -3282,7 +3245,7 @@ const SettingsView = ({
               aria-expanded={isNotificationOpen}
               onClick={() => setIsNotificationOpen((open) => !open)}
             >
-              {'\u{1F514}'}
+              <span className="material-symbols-outlined">notifications_none</span>
               {unreadCount > 0 ? <span className="notification-btn-badge" /> : null}
             </button>
             {isNotificationOpen ? (
@@ -3315,6 +3278,20 @@ const SettingsView = ({
               </section>
             ) : null}
           </div>
+          <button
+            type="button"
+            className="icon-btn top-icon"
+            onClick={() => setThemeMode(isDarkTheme ? 'Light' : 'Dark')}
+            aria-label="Toggle dark mode"
+            title="Toggle dark mode"
+          >
+            <span className="material-symbols-outlined">bedtime</span>
+          </button>
+          <button type="button" className="icon-btn top-icon" aria-label="Shopping cart">
+            <span className="material-symbols-outlined">shopping_cart</span>
+          </button>
+          <span className="divider" />
+          <span className="profile-name">Alex & Jamie</span>
           <img
             className="avatar"
             src={navAvatar}
