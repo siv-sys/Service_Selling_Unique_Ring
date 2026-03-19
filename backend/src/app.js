@@ -5,7 +5,6 @@ const path = require('path');
 const env = require('./config/env');
 const { ping } = require('./config/db');
 const dashboardRoutes = require('./routes/dashboard.routes');
-const userRingsRoutes = require('./routes/user-rings.routes');
 
 const app = express();
 
@@ -33,7 +32,6 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/user-rings', userRingsRoutes);
 
 const frontendDistDir = path.resolve(__dirname, '../../frontend/dist');
 const frontendIndexPath = path.join(frontendDistDir, 'index.html');

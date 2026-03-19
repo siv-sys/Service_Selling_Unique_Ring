@@ -4,8 +4,8 @@
   "description": "Backend API for Service Selling Unique Ring",
   "main": "src/server.js",
   "scripts": {
-    "dev": "node src/server.js",
-    "start": "node src/server.js",
+    "dev": "node start-clean.js",
+    "start": "node start-clean.js",
     "migrate": "node src/scripts/migrate.js",
     "migrate:seed": "node src/scripts/migrate-seed.js"
   },
