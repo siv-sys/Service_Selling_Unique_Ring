@@ -207,94 +207,122 @@ const RelationshipCertificateView: React.FC<Props> = ({
         }
         .relationship-topbar {
           height: 72px;
-          border-bottom: 1px solid #d8e1ee;
-          background: rgba(248, 251, 255, 0.85);
-          backdrop-filter: blur(10px);
-          box-shadow: 0 8px 20px rgba(19, 38, 72, 0.07);
+          border-bottom: 1px solid #ece7ed;
+          background: #ffffff;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 24px;
+          padding: 0 48px;
           position: sticky;
           top: 0;
-          z-index: 15;
-          gap: 18px;
+          z-index: 20;
+          gap: 20px;
         }
         .brand {
           display: flex;
           align-items: center;
           gap: 8px;
-          min-width: 180px;
           white-space: nowrap;
         }
-        .heart-logo {
-          color: #ef2f5a;
-          font-size: 26px;
-          line-height: 1;
+        .brand-logo {
+          color: #f542a7;
+          width: 21px;
+          height: 21px;
         }
         .brand-title {
-          color: #0f1934;
-          font-size: 24px;
-          font-weight: 900;
-          letter-spacing: -0.035em;
+          color: #f542a7;
+          font-size: 26px;
+          font-weight: 600;
+          font-family: 'Times New Roman', Georgia, serif;
         }
         .top-links {
-          margin-top: 20px;
           display: flex;
           align-items: center;
-          gap: 26px;
+          gap: 22px;
           flex: 1;
           justify-content: center;
         }
         .top-link {
           border: 0;
           background: transparent;
-          color: #6f7f99;
-          font-size: 15px;
-          font-weight: 700;
+          color: #27272a;
+          font-size: 12px;
+          font-weight: 400;
           cursor: pointer;
-          padding: 2px 2px 18px;
-          position: relative;
+          padding: 6px 0;
           white-space: nowrap;
         }
+        .top-link:hover {
+          color: #f542a7;
+        }
         .top-link.active {
-          color: #ef2f5a;
-          background: #fff1f5;
-          border-radius: 999px;
-          padding: 8px 12px 18px;
+          color: #f542a7;
+          font-weight: 700;
         }
         .top-actions {
           display: flex;
           align-items: center;
-          gap: 14px;
-          min-width: 206px;
-          justify-content: flex-end;
+          gap: 16px;
         }
-        .status-pill {
-          border: 1.4px solid #ef2f5a;
-          color: #ef2f5a;
-          border-radius: 999px;
-          padding: 6px 12px;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 0.09em;
-          text-transform: uppercase;
+        .top-icon-btn {
+          border: 0;
+          background: transparent;
+          cursor: pointer;
+          color: #27272a;
+          width: 22px;
+          height: 22px;
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          background: #fff3f6;
-          line-height: 1;
+          justify-content: center;
+          padding: 0;
+          position: relative;
         }
-        .action-icon {
-          color: #61718d;
-          font-size: 20px;
+        .top-icon-btn.notification-btn {
+          width: 30px;
+          height: 30px;
+          border-radius: 999px;
+          background: #f4f7fc;
+          border: 1px solid #e4ebf5;
+        }
+        .top-icon-btn:hover {
+          color: #f542a7;
+        }
+        .top-icon {
+          width: 22px;
+          height: 22px;
+          stroke: currentColor;
+          fill: none;
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        .notif-dot {
+          position: absolute;
+          top: 1px;
+          right: 1px;
+          width: 9px;
+          height: 9px;
+          border-radius: 50%;
+          background: #ef2f5a;
+          border: 2px solid #fff;
+          box-shadow: 0 0 0 2px rgba(239, 47, 90, 0.22);
+        }
+        .top-divider {
+          width: 1px;
+          height: 32px;
+          background: #e7e4ea;
+        }
+        .profile-name {
+          font-size: 14px;
+          font-weight: 500;
+          color: #27272a;
         }
         .mini-avatar {
-          width: 34px;
-          height: 34px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           object-fit: cover;
-          border: 1px solid #d4dbe6;
+          border: 1px solid #efedf1;
           cursor: pointer;
         }
         .relationship-wrap {
@@ -732,6 +760,27 @@ const RelationshipCertificateView: React.FC<Props> = ({
           }
         }
         @media (max-width: 680px) {
+          .relationship-topbar {
+            height: auto;
+            min-height: 68px;
+            padding: 10px 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          .top-links {
+            order: 3;
+            width: 100%;
+            justify-content: flex-start;
+            overflow-x: auto;
+            padding-bottom: 4px;
+          }
+          .top-actions {
+            margin-left: auto;
+          }
+          .top-actions .top-divider,
+          .top-actions .profile-name {
+            display: none;
+          }
           .relationship-wrap {
             padding: 34px 14px 48px;
           }
@@ -769,12 +818,16 @@ const RelationshipCertificateView: React.FC<Props> = ({
 
       <header className="relationship-topbar">
         <div className="brand">
-          <span className="heart-logo">{'\u2764'}</span>
-          <span className="brand-title">Eternal Rings</span>
+          <svg className="brand-logo" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 9L7 4H17L21 9L12 20L3 9Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M7 4L12 20L17 4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M3 9H21" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
+          <span className="brand-title">BondKeeper</span>
         </div>
         <div className="top-links" aria-label="Primary navigation">
           <button className="top-link">Dashboard</button>
-          <button className="top-link">Ring Scan</button>
+          <button className="top-link">Couple Shop</button>
           <button className="top-link">My Ring</button>
           <button className="top-link" type="button" onClick={onNavigateCoupleProfile}>
             Couple Profile
@@ -787,9 +840,27 @@ const RelationshipCertificateView: React.FC<Props> = ({
           </button>
         </div>
         <div className="top-actions">
-          <span className="status-pill">{'\u2923'} {status}</span>
-          <span className="action-icon">{'\u263E'}</span>
-          <span className="action-icon">{'\u{1F514}'}</span>
+          <button type="button" className="top-icon-btn notification-btn" aria-label="Notifications">
+            <svg className="top-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 17H9" />
+              <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
+            </svg>
+            <span className="notif-dot" />
+          </button>
+          <button type="button" className="top-icon-btn" aria-label="Theme">
+            <svg className="top-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
+            </svg>
+          </button>
+          <button type="button" className="top-icon-btn" aria-label="Shopping cart">
+            <svg className="top-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="9" cy="20" r="1.5" />
+              <circle cx="18" cy="20" r="1.5" />
+              <path d="M2 3h3l2.4 11.2a1 1 0 001 .8h9.7a1 1 0 001-.8L21 7H6" />
+            </svg>
+          </button>
+          <span className="top-divider" />
+          <span className="profile-name">Alex & Jamie</span>
           <img
             className="mini-avatar"
             src={owner?.avatarUrl || fallbackAvatar}

@@ -50,144 +50,124 @@ const RelationshipView: React.FC<Props> = ({ relationshipId }) => {
         .nav {
           position: sticky;
           top: 0;
-          z-index: 10;
-          backdrop-filter: blur(12px);
-          background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(245,248,255,0.92));
-          border-bottom: 1px solid rgba(228, 233, 244, 0.9);
-          box-shadow: 0 10px 24px rgba(20, 33, 61, 0.08);
+          z-index: 20;
+          background: #ffffff;
+          border-bottom: 1px solid #ece7ed;
         }
 
         .nav-inner {
-          max-width: 1180px;
+          max-width: 1800px;
           margin: 0 auto;
-          padding: 12px 22px;
+          padding: 0 48px;
+          min-height: 72px;
           display: grid;
           grid-template-columns: auto 1fr auto;
           align-items: center;
-          gap: 18px;
+          gap: 20px;
         }
 
         .brand {
           display: inline-flex;
           align-items: center;
-          gap: 10px;
-          color: #0b1428;
-          font-weight: 900;
-          letter-spacing: -0.02em;
-          font-size: 17px;
+          gap: 8px;
+          white-space: nowrap;
         }
 
-        .brand-mark {
-          width: 34px;
-          height: 34px;
-          border-radius: 12px;
-          background: radial-gradient(circle at 30% 35%, #ff7b8c, #f02752);
-          display: grid;
-          place-items: center;
-          color: #fff;
-          font-weight: 800;
-          font-size: 15px;
-          box-shadow: 0 8px 16px rgba(240, 39, 82, 0.24);
+        .brand-icon {
+          color: #f542a7;
+          width: 21px;
+          height: 21px;
+        }
+
+        .brand-text {
+          color: #f542a7;
+          font-size: 26px;
+          font-weight: 600;
+          font-family: 'Times New Roman', Georgia, serif;
         }
 
         .nav-links {
           display: inline-flex;
-          gap: 20px;
+          gap: 22px;
           justify-self: center;
         }
 
         .nav-link {
-          position: relative;
-          padding: 11px 14px;
-          border-radius: 999px;
-          font-weight: 700;
-          color: #4b5563;
-          font-size: 13px;
+          padding: 6px 0;
+          font-weight: 400;
+          color: #27272a;
+          font-size: 12px;
           text-decoration: none;
-          transition: color 140ms ease, background 160ms ease, box-shadow 160ms ease;
+          transition: color 180ms ease;
         }
 
         .nav-link::after {
-          content: '';
-          position: absolute;
-          left: 14px;
-          right: 14px;
-          bottom: 6px;
-          height: 2px;
-          border-radius: 999px;
-          background: #ea1b54;
-          transform: scaleX(0);
-          transform-origin: center;
-          transition: transform 180ms ease;
+          content: none;
         }
 
         .nav-link:hover {
-          color: #0f172a;
-          background: rgba(234, 27, 84, 0.06);
-        }
-
-        .nav-link:hover::after {
-          transform: scaleX(1);
+          color: #f542a7;
         }
 
         .nav-link.active {
-          color: #e11d48;
-          background: rgba(234, 27, 84, 0.14);
-          box-shadow: 0 10px 20px rgba(234, 27, 84, 0.12);
-        }
-
-        .nav-link.active::after {
-          transform: scaleX(1);
-          height: 3px;
-          bottom: 5px;
+          color: #f542a7;
+          font-weight: 700;
         }
 
         .nav-actions {
           display: inline-flex;
           align-items: center;
-          gap: 12px;
-          color: #4b5563;
-        }
-
-        .status-pill {
-          padding: 9px 12px;
-          border-radius: 999px;
-          border: 1.5px solid #f7c6d2;
-          background: rgba(255, 244, 247, 0.9);
-          color: #d81b52;
-          font-weight: 800;
-          font-size: 11px;
-          letter-spacing: 0.06em;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          box-shadow: 0 6px 14px rgba(216, 27, 82, 0.12);
-          cursor: pointer;
+          gap: 16px;
+          color: #27272a;
         }
 
         .icon-btn {
-          width: 18px;
-          height: 18px;
+          width: 22px;
+          height: 22px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          color: #4b5563;
-          transition: color 120ms ease, transform 120ms ease;
+          color: #27272a;
+          transition: color 180ms ease;
+          border: 0;
+          background: transparent;
+          padding: 0;
+          position: relative;
         }
 
         .icon-btn:hover {
-          color: #0f172a;
-          transform: translateY(-1px);
+          color: #f542a7;
+        }
+
+        .nav-icon {
+          width: 23px;
+          height: 23px;
+          stroke: currentColor;
+          fill: none;
+          stroke-width: 1.9;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        .divider {
+          width: 1px;
+          height: 32px;
+          background: #e7e4ea;
+        }
+
+        .profile-name {
+          font-size: 14px;
+          font-weight: 500;
+          color: #27272a;
         }
 
         .avatar {
-          width: 34px;
-          height: 34px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           background: url('https://i.pravatar.cc/68?img=65') center/cover no-repeat;
-          border: 2px solid #f3f4f6;
-          box-shadow: 0 4px 10px rgba(17, 24, 39, 0.08);
+          border: 1px solid #efedf1;
           cursor: pointer;
         }
 
@@ -377,6 +357,7 @@ const RelationshipView: React.FC<Props> = ({ relationshipId }) => {
           .nav-inner {
             grid-template-columns: 1fr;
             row-gap: 10px;
+            padding: 10px 14px;
           }
 
           .nav-links {
@@ -388,6 +369,11 @@ const RelationshipView: React.FC<Props> = ({ relationshipId }) => {
             justify-self: start;
           }
 
+          .nav-actions .divider,
+          .nav-actions .profile-name {
+            display: none;
+          }
+
           .search-card {
             grid-template-columns: 1fr;
           }
@@ -397,25 +383,44 @@ const RelationshipView: React.FC<Props> = ({ relationshipId }) => {
       <nav className="nav">
         <div className="nav-inner">
           <div className="brand">
-            <span className="brand-mark">♥</span>
-            Eternal Rings
+            <svg className="brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 9L7 4H17L21 9L12 20L3 9Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M7 4L12 20L17 4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M3 9H21" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            </svg>
+            <span className="brand-text">BondKeeper</span>
           </div>
 
           <div className="nav-links" aria-label="Primary navigation">
             <a className="nav-link" href="#home">Dashboard</a>
-            <a className="nav-link" href="#scan">Ring Scan</a>
+            <a className="nav-link" href="#shop">Couple Shop</a>
             <a className="nav-link" href="#ring">My Ring</a>
             <a className="nav-link" href="#couple">Couple Profile</a>
             <a className="nav-link active" href="#relationship">Relationship</a>
-            <a className="nav-link" href="#setting">Setting</a>
+            <a className="nav-link" href="#setting">Settings</a>
           </div>
 
           <div className="nav-actions">
-            <button className="status-pill" type="button" aria-label="Relationship status">
-              ↻ UNPAIRED
+            <button className="icon-btn" type="button" aria-label="Notifications">
+              <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M15 17H9" />
+                <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
+              </svg>
             </button>
-            <span className="icon-btn" role="img" aria-label="theme">🌙</span>
-            <span className="icon-btn" role="img" aria-label="notifications">🔔</span>
+            <button className="icon-btn" type="button" aria-label="Theme">
+              <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
+              </svg>
+            </button>
+            <button className="icon-btn" type="button" aria-label="Shopping cart">
+              <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="9" cy="20" r="1.5" />
+                <circle cx="18" cy="20" r="1.5" />
+                <path d="M2 3h3l2.4 11.2a1 1 0 001 .8h9.7a1 1 0 001-.8L21 7H6" />
+              </svg>
+            </button>
+            <span className="divider" />
+            <span className="profile-name">Alex & Jamie</span>
             <div className="avatar" aria-label="Profile" />
           </div>
         </div>
@@ -491,3 +496,4 @@ const RelationshipView: React.FC<Props> = ({ relationshipId }) => {
 };
 
 export default RelationshipView;
+
