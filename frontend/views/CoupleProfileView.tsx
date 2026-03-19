@@ -31,6 +31,8 @@ const CoupleProfileView: React.FC = () => {
   const [visibilityMode, setVisibilityMode] = useState<string>('partners');
   const [cloudStorageUsed, setCloudStorageUsed] = useState<number>(6.5);
   const [cloudStorageTotal, setCloudStorageTotal] = useState<number>(10);
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{show: boolean; message: string; onConfirm: () => void} | null>(null);
   
   // Emergency contact state
   const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>({
@@ -51,67 +53,45 @@ const CoupleProfileView: React.FC = () => {
     location: 'WAREHOUSE: Main WH'
   });
 
-  // Load dark mode preference
-  // Load dark mode preference
-useEffect(() => {
-  const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-  setIsDarkMode(savedDarkMode);
-  if (savedDarkMode) {
-    document.documentElement.classList.add('dark');
-  }
+  // Show notification function
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
-  // Show certification notification (replacing alert)
-  if (ringData?.id === 'TSS-002') {
-    showCertificationNotification();
-  }
-}, [ringData?.id]);
+  // Show confirm dialog (replaces window.confirm)
+  const showConfirm = (message: string, onConfirm: () => void) => {
+    setConfirmDialog({ show: true, message, onConfirm });
+  };
 
-// Certification notification function
-const showCertificationNotification = () => {
-  // Check if already shown to prevent duplicates
-  if (document.getElementById('cert-notification')) return;
-  
-  const notification = document.createElement('div');
-  notification.id = 'cert-notification';
-  notification.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
-  
-  notification.innerHTML = `
-    <div class="bg-primary text-white px-5 py-4 rounded-xl shadow-lg shadow-primary/30 flex items-start gap-3 max-w-md border border-white/20">
-      <div class="flex-shrink-0 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-        <span class="material-symbols-outlined text-lg">info</span>
-      </div>
-      <div class="flex-1">
-        <p class="font-bold text-sm mb-1">Ring Certification Update</p>
-        <p class="text-xs opacity-90 leading-relaxed">
-          Your ring is currently in the certification process. 
-          <span class="font-bold block mt-1">Estimated completion: 2 weeks</span>
-        </p>
-        <p class="text-xs opacity-80 mt-2">Thank you for your patience!</p>
-      </div>
-      <button 
-        class="flex-shrink-0 w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
-        onclick="this.closest('.fixed').remove()"
-      >
-        <span class="material-symbols-outlined text-sm">close</span>
-      </button>
-    </div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Auto remove after 8 seconds (longer for important message)
-  setTimeout(() => {
-    const notif = document.getElementById('cert-notification');
-    if (notif) {
-      notif.style.animation = 'slide-down-bottom 0.3s ease-out forwards';
-      setTimeout(() => {
-        if (notif.parentNode) {
-          notif.remove();
-        }
-      }, 300);
+  // Load dark mode preference
+  useEffect(() => {
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    setIsDarkMode(savedDarkMode);
+    if (savedDarkMode) {
+      document.documentElement.classList.add('dark');
     }
-  }, 8000);
-};
+
+    // Show certification notification (replacing alert)
+    if (ringData?.id === 'TSS-002') {
+      showCertificationNotification();
+    }
+  }, [ringData?.id]);
+
+  // Auto-hide notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Certification notification function
+  const showCertificationNotification = () => {
+    showNotification('Ring certification in progress. Estimated completion: 2 weeks', 'info');
+  };
 
   // Load cart count
   useEffect(() => {
@@ -151,48 +131,48 @@ const showCertificationNotification = () => {
 
   // Handle notification click
   const handleNotificationClick = () => {
-    alert('No new notifications');
+    showNotification('No new notifications', 'info');
   };
 
   // Handle navigation (for placeholder links)
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, page: string) => {
     e.preventDefault();
-    alert(`${page} page coming soon!`);
+    showNotification(`${page} page coming soon!`, 'info');
   };
 
   // Handle search
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchEmail.trim()) {
-      alert(`Searching for partner with email: ${searchEmail}`);
+      showNotification(`Searching for partner with email: ${searchEmail}`, 'info');
     }
   };
 
   // Handle emergency contact update
   const handleEmergencyContactUpdate = () => {
-    alert('Emergency contact updated successfully!');
+    showNotification('Emergency contact updated successfully!', 'success');
   };
 
   // Handle test connection
   const handleTestConnection = () => {
-    alert('Testing connection to your ring...');
+    showNotification('Testing connection to your ring...', 'info');
   };
 
   // Handle unpair device
   const handleUnpairDevice = () => {
-    if (window.confirm('Are you sure you want to unpair this device?')) {
-      alert('Device unpaired successfully');
-    }
+    showConfirm('Are you sure you want to unpair this device?', () => {
+      showNotification('Device unpaired successfully', 'success');
+    });
   };
 
   // Handle initialize link
   const handleInitializeLink = () => {
-    alert('Initializing pair link...');
+    showNotification('Initializing pair link...', 'info');
   };
 
   // Handle set reminder
   const handleSetReminder = () => {
-    alert('Reminder set for your anniversary!');
+    showNotification('Reminder set for your anniversary!', 'success');
   };
 
   // Handle update contact
@@ -254,7 +234,7 @@ const showCertificationNotification = () => {
         <section className="px-4 py-6">
           <div className="max-w-7xl mx-auto px-6 pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-bold text-slate-900 text-primary">Welcome back, {memberName}</h2>
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-black">Welcome back, {memberName}</h2>
               <p className="text-slate-400 dark:text-slate-500 mt-1">Everything looks great today.</p>
             </div>
             <div className="w-full max-w-md">
@@ -265,7 +245,7 @@ const showCertificationNotification = () => {
                     type="text"
                     value={searchEmail}
                     onChange={(e) => setSearchEmail(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-80 border-none rounded-2xl pl-12 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 shadow-sm placeholder-slate-400 dark:placeholder-slate-500 dark:text-white"
+                    className="w-full bg-white dark:bg-pink-80 border-none rounded-2xl pl-12 pr-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 shadow-sm placeholder-slate-400 dark:placeholder-slate-500 text-black dark:text-black"
                     placeholder="Find Email Partner"
                   />
                 </div>
@@ -299,8 +279,8 @@ const showCertificationNotification = () => {
                   <span className="material-symbols-outlined text-primary/70 text-3xl">timeline</span>
                   <div>
                     <p className="text-sm uppercase tracking-widest text-charcoal/40 dark:text-cream/40">Milestones</p>
-                    <p className="text-lg font-medium mt-1 dark:text-white">Engagement · 06.09.2022</p>
-                    <p className="text-lg font-medium dark:text-white">First ring scan · 12.2023</p>
+                    <p className="text-lg font-medium mt-1 dark:text-black">Engagement · 06.09.2022</p>
+                    <p className="text-lg font-medium dark:text-black">First ring scan · 12.2023</p>
                     <p className="text-sm text-charcoal/50 mt-2">➕ 3 more moments</p>
                   </div>
                 </div>
@@ -308,8 +288,8 @@ const showCertificationNotification = () => {
                   <span className="material-symbols-outlined text-primary/70 text-3xl">links</span>
                   <div>
                     <p className="text-sm uppercase tracking-widest text-charcoal/40 dark:text-cream/40">Linked rings</p>
-                    <p className="text-lg font-medium mt-1 dark:text-white">Hers: Elysian Halo</p>
-                    <p className="text-lg font-medium dark:text-white">His: Midnight Sapphire</p>
+                    <p className="text-lg font-medium mt-1 dark:text-black">Hers: Elysian Halo</p>
+                    <p className="text-lg font-medium dark:text-black">His: Midnight Sapphire</p>
                     <p className="ring-ID text-xs text-primary mt-2">Ring ID: {ringData.id}</p>
                     <p className="text-xs text-primary/70 mt-2">both certified · bond active</p>
                   </div>
@@ -318,7 +298,7 @@ const showCertificationNotification = () => {
                   <span className="material-symbols-outlined text-primary/70 text-3xl">celebration</span>
                   <div>
                     <p className="text-sm uppercase tracking-widest text-charcoal/40 dark:text-cream/40">Upcoming</p>
-                    <p className="text-lg font-medium mt-1 dark:text-white">3rd anniversary</p>
+                    <p className="text-lg font-medium mt-1 dark:text-black">3rd anniversary</p>
                     <p className="text-lg text-primary">in 94 days</p>
                     <a 
                       href="#" 
@@ -338,11 +318,11 @@ const showCertificationNotification = () => {
         <section className="max-w-7xl mx-auto px-6 my-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left large card: Ring Main */}
-            <div className="lg:col-span-2 bg-white dark:bg-slate-80 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
+            <div className="lg:col-span-2 bg-white dark:bg-pink-200 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
               <div className="flex justify-between items-start mb-8">
                 <div className="flex items-center gap-4">
-                  <div className="size-14 bg-slate-100 dark:bg-pink-200 rounded-2xl flex items-center justify-center">
-                    <span className="material-symbols-outlined text-slate-800 dark:text-pink-600 text-3xl">circle</span>
+                  <div className="size-14 bg-slate-100 dark:bg-pink-700 rounded-2xl flex items-center justify-center">
+                    <span className="material-symbols-outlined text-pink-50 dark:text-white-400 text-3xl">circle</span>
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-slate-900 dark:text-black">{ringData.name}</h3>
@@ -351,14 +331,14 @@ const showCertificationNotification = () => {
                     </p>
                   </div>
                 </div>
-                <span className="bg-green-100 dark:bg-green-90/30 text-green-600 dark:text-green-400 text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1">
+                <span className="bg-green-100 dark:bg-white-900/30 text-green-600 dark:text-green-400 text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1">
                   <span className="size-1.5 bg-green-500 rounded-full"></span> {ringData.status}
                 </span>
               </div>
               {/* three info cards (location with link, battery, signal) */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 {/* location card with link to PNC Cambodia & map directions */}
-                <div className="bg-slate-50/50 dark:bg-pink-200/50 p-4 rounded-3xl">
+                <div className="bg-slate-50/50 dark:bg-white 400/50 p-4 rounded-3xl">
                   <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-3">Current Location</p>
                   <div className="flex gap-3 mb-3">
                     <span className="material-symbols-outlined text-primary">location_on</span>
@@ -366,7 +346,7 @@ const showCertificationNotification = () => {
                       href="https://cambodia.passerellesnumeriques.org" 
                       target="_blank" 
                       rel="noopener noreferrer" 
-                      className="text-sm font-bold hover:text-primary hover:underline transition-colors dark:text-pink"
+                      className="text-sm font-bold hover:text-primary hover:underline transition-colors dark:text-black"
                     >
                       {ringData.location}
                     </a>
@@ -387,19 +367,19 @@ const showCertificationNotification = () => {
                     </span>
                   </a>
                 </div>
-                <div className="bg-slate-50/50 dark:bg-pink-200/50 p-4 rounded-3xl">
+                <div className="bg-slate-50/50 dark:bg-white 400/50 p-4 rounded-3xl">
                   <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-4">Battery Level</p>
                   <div className="flex items-center gap-3 mb-2">
                     <span className="material-symbols-outlined text-green-500">battery_charging_80</span>
-                    <p className="text-2xl font-bold dark:text-pink">{ringData.batteryLevel}%</p>
+                    <p className="text-2xl font-bold dark:text-black">{ringData.batteryLevel}%</p>
                   </div>
                   <p className="text-[10px] text-slate-400 dark:text-slate-500">Approx. 14 hours left</p>
                 </div>
-                <div className="bg-slate-50/50 dark:bg-pink-200/50 p-4 rounded-3xl">
+                <div className="bg-slate-50/50 dark:bg-white 400/50 p-4 rounded-3xl">
                   <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-4">Signal Strength</p>
                   <div className="flex items-center gap-3 mb-2">
                     <span className="material-symbols-outlined text-primary rotate-45">signal_cellular_4_bar</span>
-                    <p className="text-xl font-bold dark:text-pink">Excellent</p>
+                    <p className="text-xl font-bold dark:text-black">Excellent</p>
                   </div>
                   <p className="text-[10px] text-slate-400 dark:text-slate-500">Last ping: {ringData.lastPing}</p>
                 </div>
@@ -421,24 +401,24 @@ const showCertificationNotification = () => {
               </div>
             </div>
             {/* Right card: Pairing Management */}
-            <div className="bg-white  dark:bg-black-80 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
-              <h3 className="text-lg font-bold mb-6 text-primary ">Pairing Management</h3>
+            <div className="bg-white dark:bg-pink-200 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
+              <h3 className="text-lg font-bold mb-6 text-primary text-primary">Pairing Management</h3>
               <div className="space-y-4 mb-10">
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
                   <span className="text-sm text-slate-400 dark:text-slate-500">Pair Selection</span>
-                  <span className="text-sm font-bold text-primary ">No pair linked</span>
+                  <span className="text-sm font-bold text-primary text-primary">No pair linked</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
                   <span className="text-sm text-slate-400 dark:text-slate-500">Pair Code</span>
-                  <span className="text-sm font-bold text-primary ">N/A</span>
+                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
                   <span className="text-sm text-slate-400 dark:text-slate-500">Status</span>
-                  <span className="text-sm font-bold text-primary">N/A</span>
+                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
                 </div>
                 <div className="flex justify-between items-center pb-4">
                   <span className="text-sm text-slate-400 dark:text-slate-500">Established</span>
-                  <span className="text-sm font-bold text-primary ">N/A</span>
+                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
                 </div>
               </div>
               <button 
@@ -456,24 +436,24 @@ const showCertificationNotification = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-primary">Shared Safeguards</h3>
+                <h3 className="text-lg font-bold text-primary text-primary">Shared Safeguards</h3>
                 <span className="material-symbols-outlined text-primary"></span>
               </div>
-              <div className="bg-white dark:bg-slate-80 p-6 rounded-3xl border border-slate-50 dark:border-pink-200 shadow-sm">
+              <div className="bg-white dark:bg-white-200 p-6 rounded-3xl border border-slate-50 dark:border-black-300 shadow-sm">
                 <div className="flex items-center justify-between mb-8">
-                  <p className="text-sm font-bold dark:text-white">Proximity Awareness</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Proximity Awareness</p>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input 
                       type="checkbox" 
                       defaultChecked 
                       className="sr-only peer"
                     />
-                    <div className="w-12 h-6 bg-slate-200 dark:bg-blue-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    <div className="w-12 h-6 bg-slate-200 dark:bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                   </label>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-black text-slate-40 dark:text-slate-500 uppercase tracking-widest">Sensitivity Threshold</p>
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Sensitivity Threshold</p>
                     <span className="text-xs font-bold text-primary">{proximityThreshold}m</span>
                   </div>
                   <input 
@@ -482,24 +462,24 @@ const showCertificationNotification = () => {
                     max="100" 
                     value={proximityThreshold}
                     onChange={(e) => setProximityThreshold(parseInt(e.target.value))}
-                    className="w-full h-1 bg-slate-100 dark:bg-slate-70 rounded-lg appearance-none cursor-pointer accent-primary"
+                    className="w-full h-1 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
                   />
                 </div>
                 <br />
                 <a 
                   href="#" 
                   onClick={(e) => handleNavClick(e, 'Pair New Device')}
-                  className="flex items-center gap-1 font-bold hover:underline dark:text-white"
+                  className="flex items-center gap-1 font-bold hover:underline text-slate-900 dark:text-white"
                 >
                   <span className="material-symbols-outlined text-lg">add_circle</span>Pair New Device
                 </a>
                 <br />
                 <div className="w-full">
                   <div className="flex justify-between items-center mb-2">
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Cloud Storage</p>
+                    <p className="text-[10px] font-bold text-pink-400 dark:text-slate-500 uppercase">Cloud Storage</p>
                     <p className="text-[10px] font-bold text-primary">{cloudStorageUsed}GB / {cloudStorageTotal}GB</p>
                   </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-200 rounded-full h-1.5">
+                  <div className="w-full bg-pink-100 dark:bg-pink-70 rounded-full h-1.5">
                     <div 
                       className="bg-primary h-1.5 rounded-full" 
                       style={{ width: `${(cloudStorageUsed / cloudStorageTotal) * 100}%` }}
@@ -521,31 +501,31 @@ const showCertificationNotification = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-xl">emergency</span>
-                  <h3 className="text-lg font-bold text-primary">Emergency Contact</h3>
+                  <h3 className="text-lg font-bold text-primary text-primary">Emergency Contact</h3>
                 </div>
               </div>
-              <div className="bg-white dark:bg-slate-80 p-8 rounded-[2rem] border border-slate-50 dark:border-pink-200 shadow-sm">
+              <div className="bg-white dark:bg-white-800 p-8 rounded-[2rem] border border-slate-50 dark:border-slate-70 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">
+                    <label className="text-[10px] font-black text-pink-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">
                       Contact Name
                     </label>
                     <input 
                       type="text" 
                       value={emergencyContact.name}
                       onChange={(e) => setEmergencyContact({...emergencyContact, name: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-pink-200 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20 text-primary  "
+                      className="w-full bg-slate-50 dark:bg-pink-200 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20 text-slate-900 dark:text-black "
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">
+                    <label className="text-[10px] font-black text-pink-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">
                       Phone Number
                     </label>
                     <input 
                       type="text" 
                       value={emergencyContact.phone}
                       onChange={(e) => setEmergencyContact({...emergencyContact, phone: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-pink-200 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20 text-primary  "
+                      className="w-full bg-slate-50 dark:bg-pink-200 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20 text-slate-900 dark:text-black"
                     />
                   </div>
                 </div>
@@ -562,8 +542,8 @@ const showCertificationNotification = () => {
 
             {/* RIGHT: Visibility Settings */}
             <div className="space-y-4">
-              <h3 className="text-lg font-bold text-primary">Visibility Settings</h3>
-              <div className="bg-white dark:bg-slate-80 rounded-3xl border border-slate-50 dark:border-pink-200 overflow-hidden">
+              <h3 className="text-lg font-bold text-primary text-primary">Visibility Settings</h3>
+              <div className="bg-white dark:bg-slate-80 rounded-3xl border border-slate-50 dark:border-black-700 overflow-hidden">
                 <label className="flex items-center px-6 py-5 border-b border-slate-50 dark:border-slate-700 cursor-pointer">
                   <input 
                     type="radio" 
@@ -571,10 +551,10 @@ const showCertificationNotification = () => {
                     value="public"
                     checked={visibilityMode === 'public'}
                     onChange={(e) => setVisibilityMode(e.target.value)}
-                    className="text-primary focus:ring-primary h-4 w-4 border-pink-200 rounded-full"
+                    className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
                   />
                   <div className="ml-4">
-                    <p className="text-sm font-bold dark:text-white">Public Presence</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-black">Public Presence</p>
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Visible to all users in range</p>
                   </div>
                 </label>
@@ -588,7 +568,7 @@ const showCertificationNotification = () => {
                     className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
                   />
                   <div className="ml-4">
-                    <p className="text-sm font-bold dark:text-white">Partners Only</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-black">Partners Only</p>
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Only your linked partner can see you</p>
                   </div>
                 </label>
@@ -602,7 +582,7 @@ const showCertificationNotification = () => {
                     className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
                   />
                   <div className="ml-4">
-                    <p className="text-sm font-bold dark:text-white">Private Ghost Mode</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-black">Private Ghost Mode</p>
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Invisible to everyone, even your partner</p>
                   </div>
                 </label>
@@ -611,6 +591,53 @@ const showCertificationNotification = () => {
           </div>
         </div>
       </main>
+
+      {/* Custom Pink Notification */}
+      {notification && (
+        <div 
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
+            ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
+            text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+        >
+          <span className="material-symbols-outlined text-sm">
+            {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
+          </span>
+          <p className="text-sm font-medium flex-1">{notification.message}</p>
+          <button 
+            className="hover:bg-white/20 rounded-full p-1 transition-colors"
+            onClick={() => setNotification(null)}
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
+
+      {/* Custom Confirm Dialog (replaces window.confirm) */}
+      {confirmDialog && confirmDialog.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-charcoal rounded-2xl max-w-md w-full p-6 shadow-2xl border border-primary/20">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Confirm Action</h3>
+            <p className="text-slate-600 dark:text-cream/70 mb-6">{confirmDialog.message}</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  setConfirmDialog(null);
+                }}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-20 pt-16 pb-12">
@@ -654,6 +681,24 @@ const showCertificationNotification = () => {
           </div>
         </div>
       </footer>
+
+      {/* Add animations */}
+      <style>{`
+        @keyframes slideUpBottom {
+          from {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+        }
+        
+        .animate-slide-up-bottom {
+          animation: slideUpBottom 0.3s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 };

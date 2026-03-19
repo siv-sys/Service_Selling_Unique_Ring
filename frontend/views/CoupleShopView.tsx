@@ -112,6 +112,7 @@ const CoupleShopView: React.FC = () => {
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 10000 });
   const [cartCount, setCartCount] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   
   const [filters, setFilters] = useState<Filters>({
     material: '',
@@ -131,26 +132,51 @@ const CoupleShopView: React.FC = () => {
 
   // Load cart count
   useEffect(() => {
-    try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      setCartCount(cart.length);
-    } catch {
-      setCartCount(0);
-    }
-
+    fetchCartCount();
+    
     // Listen for cart updates
     const handleCartUpdate = () => {
-      try {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-        setCartCount(cart.length);
-      } catch {
-        setCartCount(0);
-      }
+      fetchCartCount();
     };
 
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
+
+  // Auto-hide notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // Fetch cart count from backend
+  const fetchCartCount = async () => {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) return;
+      
+      const response = await fetch(`${API_BASE_URL}/cart`, {
+        headers: {
+          'x-session-id': sessionId
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCartCount(data.data?.length || 0);
+      }
+    } catch (e) {
+      console.error('Error fetching cart count:', e);
+    }
+  };
+
+  // Show notification function
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+  };
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -167,7 +193,7 @@ const CoupleShopView: React.FC = () => {
 
   // Handle notification click
   const handleNotificationClick = () => {
-    alert('No new notifications');
+    showNotification('No new notifications', 'info');
   };
 
   // Load rings from API
@@ -421,40 +447,51 @@ const CoupleShopView: React.FC = () => {
     }
   };
 
-// Add to cart function with small bottom notification
-const addToCart = (ring: Ring) => {
+// CORRECTED Add to cart function with backend API
+const addToCart = async (ring: Ring) => {
   try {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    console.log('Adding to cart:', ring);
     
-    const existingItem = cart.find((item: any) => item.id === ring.id);
+    // Get existing session ID or null
+    let sessionId = localStorage.getItem('sessionId');
     
-    if (existingItem) {
-      existingItem.quantity = (existingItem.quantity || 1) + 1;
-    } else {
-      const cartItem = {
-        id: ring.id,
-        ring_identifier: ring.ring_identifier,
-        ring_name: ring.ring_name,
-        material: ring.material,
-        price: ring.price,
-        size: ring.size,
-        image_url: ring.image_url || ring.img,
+    const response = await fetch(`${API_BASE_URL}/cart/add`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(sessionId && { 'x-session-id': sessionId })
+      },
+      body: JSON.stringify({
+        ringId: ring.id,
         quantity: 1,
-        addedAt: new Date().toISOString()
-      };
-      cart.push(cartItem);
+        size: ring.size || '7',
+        material: ring.material
+      })
+    });
+    
+    const data = await response.json();
+    console.log('Add to cart response:', data);
+    
+    if (response.ok) {
+      // Save the session ID from server if it's new
+      if (data.sessionId && !sessionId) {
+        localStorage.setItem('sessionId', data.sessionId);
+        console.log('Saved new session ID:', data.sessionId);
+      }
+      
+      // Update cart count
+      setCartCount(data.data.length);
+      
+      // Show success notification
+      showBottomNotification(`${ring.ring_name} added to cart!`, 'success');
+      
+      // Dispatch event for header and cart page to update
+      window.dispatchEvent(new Event('cartUpdated'));
+    } else {
+      throw new Error(data.message || 'Failed to add to cart');
     }
-    
-    localStorage.setItem('cart', JSON.stringify(cart));
-    setCartCount(cart.length);
-    
-    // Show small pink notification at bottom
-    showBottomNotification(`${ring.ring_name} added to cart!`);
-    
-    // Dispatch event for header to update
-    window.dispatchEvent(new Event('cartUpdated'));
   } catch (e) {
-    // Show small pink error notification at bottom
+    console.error('Error adding to cart:', e);
     showBottomNotification('Error adding to cart', 'error');
   }
 };
@@ -491,11 +528,6 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
     }
   }, 2000);
 };
-
-  // Show notification
-  const showNotification = (message: string) => {
-    alert(message);
-  };
 
   // Toggle favorite
   const toggleFavorite = (ringId: number, event: React.MouseEvent) => {
@@ -842,6 +874,26 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
         )}
       </main>
 
+      {/* Custom Pink Notification */}
+      {notification && (
+        <div 
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
+            ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
+            text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+        >
+          <span className="material-symbols-outlined text-sm">
+            {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
+          </span>
+          <p className="text-sm font-medium flex-1">{notification.message}</p>
+          <button 
+            className="hover:bg-white/20 rounded-full p-1 transition-colors"
+            onClick={() => setNotification(null)}
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+      )}
+
       {/* FOOTER */}
       <footer className="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
@@ -879,7 +931,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
             <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
             <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+              <input className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
               <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
             </div>
           </div>
@@ -892,6 +944,53 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
           </div>
         </div>
       </footer>
+
+      {/* Add animations */}
+      <style>{`
+        @keyframes slideUpBottom {
+          from {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideDownBottom {
+          from {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+          to {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+        }
+        
+        .animate-slide-up-bottom {
+          animation: slideUpBottom 0.3s ease-out forwards;
+        }
+        
+        .animate-slide-down-bottom {
+          animation: slideDownBottom 0.3s ease-out forwards;
+        }
+
+        .loading-spinner {
+          border: 3px solid rgba(255,42,162,0.1);
+          border-top: 3px solid #ff2aa2;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

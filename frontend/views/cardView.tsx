@@ -4,16 +4,15 @@ import { Link, useNavigate } from 'react-router-dom';
 // Types
 interface CartItem {
   id: number;
-  name: string;
-  sku: string;
-  type: string;
+  ringId: number;
+  ring_name: string;
+  ring_identifier: string;
   material: string;
-  size: string;
-  ringId: string;
   price: number;
+  size: string;
+  image_url: string;
   quantity: number;
-  image: string;
-  inStock: boolean;
+  addedAt: string;
 }
 
 interface UpsellItem {
@@ -23,67 +22,17 @@ interface UpsellItem {
   image: string;
 }
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
+
 const Cart: React.FC = () => {
   const navigate = useNavigate();
   
   // State
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: 1,
-      name: 'Twin Souls Silver B',
-      sku: 'TSS-002',
-      type: 'Sterling Silver',
-      material: 'Sterling Silver',
-      size: '7',
-      ringId: '#R784',
-      price: 899,
-      quantity: 1,
-      image: 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900',
-      inStock: true
-    },
-    {
-      id: 2,
-      name: 'Midnight Sapphire',
-      sku: 'MS-119',
-      type: 'Platinum',
-      material: 'Platinum',
-      size: '8.5',
-      ringId: '#R932',
-      price: 1450,
-      quantity: 2,
-      image: 'https://loforay.com/cdn/shop/products/O1CN01yJYHgs1uzyLnogHKq__3222026109-0-cib.jpg?v=1677245225',
-      inStock: true
-    },
-    {
-      id: 3,
-      name: 'Rose Pavé Morganite',
-      sku: 'RPM-22',
-      type: 'Rose gold',
-      material: 'Rose gold',
-      size: '6.5',
-      ringId: '#R105',
-      price: 1090,
-      quantity: 1,
-      image: 'https://esdomera.com/cdn/shop/files/classic-pink-morganite-leaf-floral-engagement-his-and-hers-wedding-ring-pink-yellow-gold-promise-couple-rings-esdomera-2_1800x1800.png?v=1743672938',
-      inStock: true
-    },
-    {
-      id: 4,
-      name: 'Platinum Solitaire',
-      sku: 'PS-88',
-      type: 'Platinum',
-      material: 'Platinum',
-      size: '9',
-      ringId: '#R421',
-      price: 797,
-      quantity: 1,
-      image: 'https://m.media-amazon.com/images/I/61btVGnRO6L._AC_UF894,1000_QL80_.jpg',
-      inStock: true
-    }
-  ]);
-
-  const [cartCount, setCartCount] = useState<number>(4);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartCount, setCartCount] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Upsell items
   const upsellItems: UpsellItem[] = [
@@ -122,18 +71,115 @@ const Cart: React.FC = () => {
     }
   }, []);
 
-  // Update cart count in localStorage and dispatch event
+  // Load cart from backend on mount
   useEffect(() => {
-    try {
-      localStorage.setItem('cart', JSON.stringify(cartItems));
-      setCartCount(cartItems.reduce((sum, item) => sum + item.quantity, 0));
-      
-      // Dispatch event for header to update
-      window.dispatchEvent(new Event('cartUpdated'));
-    } catch (e) {
-      console.error('Error saving cart:', e);
+    fetchCart();
+
+    // Listen for cart updates from shop
+    const handleCartUpdate = () => {
+      console.log('Cart updated event received');
+      fetchCart();
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, []);
+
+  // Auto-hide notification
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
     }
-  }, [cartItems]);
+  }, [notification]);
+
+  // Fetch cart from backend
+  const fetchCart = async () => {
+    try {
+      setIsLoading(true);
+      const sessionId = localStorage.getItem('sessionId') || 'guest';
+      
+      const response = await fetch(`${API_BASE_URL}/cart`, {
+        headers: {
+          'x-session-id': sessionId
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch cart');
+      }
+      
+      const data = await response.json();
+      console.log('Cart loaded from backend:', data);
+      
+      setCartItems(data.data || []);
+      setCartCount(data.data?.length || 0);
+    } catch (e) {
+      console.error('Error loading cart:', e);
+      showNotification('Error loading cart', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Update cart item quantity
+  const updateQuantity = async (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    
+    try {
+      const sessionId = localStorage.getItem('sessionId') || 'guest';
+      
+      const response = await fetch(`${API_BASE_URL}/cart/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-id': sessionId
+        },
+        body: JSON.stringify({ quantity: newQuantity })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update quantity');
+      }
+      
+      await fetchCart(); // Refresh cart
+      showNotification('Cart updated', 'success');
+    } catch (e) {
+      console.error('Error updating quantity:', e);
+      showNotification('Error updating cart', 'error');
+    }
+  };
+
+  // Remove item from cart
+  const removeItem = async (itemId: number) => {
+    try {
+      const sessionId = localStorage.getItem('sessionId') || 'guest';
+      
+      const response = await fetch(`${API_BASE_URL}/cart/${itemId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-session-id': sessionId
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to remove item');
+      }
+      
+      await fetchCart(); // Refresh cart
+      showNotification('Item removed from cart', 'success');
+    } catch (e) {
+      console.error('Error removing item:', e);
+      showNotification('Error removing item', 'error');
+    }
+  };
+
+  // Show notification
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+  };
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -148,37 +194,37 @@ const Cart: React.FC = () => {
     }
   };
 
+  // Handle notification click
+  const handleNotificationClick = () => {
+    showNotification('No new notifications', 'info');
+  };
+
   // Calculate totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const shipping = 25;
-  const tax = Math.round(subtotal * 0.05); // 5% tax
+  const tax = Math.round(subtotal * 0.05);
   const total = subtotal + shipping + tax;
-
-  // Handle quantity change
-  const updateQuantity = (itemId: number, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  };
-
-  // Handle remove item
-  const removeItem = (itemId: number) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
-  };
 
   // Handle continue to checkout
   const handleCheckout = () => {
     if (cartItems.length === 0) {
-      alert('Your cart is empty. Add some rings before checkout.');
+      showNotification('Your cart is empty. Add some rings before checkout.', 'error');
       return;
     }
     navigate('/purchase');
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
+        <div className="flex items-center justify-center py-20">
+          <div className="loading-spinner mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading your cart...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-12">
@@ -189,17 +235,23 @@ const Cart: React.FC = () => {
           <h1 className="heading-serif text-5xl font-light mt-2">
             Shopping cart <span className="text-primary">· {itemCount} {itemCount === 1 ? 'ring' : 'rings'}</span>
           </h1>
-          <p className="text-slate-500 mt-2">Complete your purchase to register the relationship.</p>
+          <p className="text-slate-500 mt-2">
+            {cartItems.length > 0 
+              ? 'Complete your purchase to register the relationship.'
+              : 'Add rings from the shop to start your collection.'}
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-400">Subtotal:</span>
-          <span className="text-3xl font-bold text-primary" id="cart-total">$ {subtotal.toLocaleString()}</span>
-        </div>
+        {cartItems.length > 0 && (
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-400">Subtotal:</span>
+            <span className="text-3xl font-bold text-primary">$ {subtotal.toLocaleString()}</span>
+          </div>
+        )}
       </div>
 
-      {/* Cart items grid (all rings after add to cart) */}
+      {/* Cart items grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* LEFT: cart items list (2/3 width) */}
+        {/* LEFT: cart items list */}
         <div className="lg:col-span-2 space-y-5">
           {cartItems.length === 0 ? (
             <div className="bg-white dark:bg-surface-dark/80 rounded-2xl p-12 text-center border border-slate-100 dark:border-slate-700">
@@ -221,9 +273,9 @@ const Cart: React.FC = () => {
               >
                 <div className="sm:w-28 sm:h-28 rounded-xl bg-slate-100 overflow-hidden">
                   <img 
-                    src={item.image} 
+                    src={item.image_url} 
                     className="w-full h-full object-cover" 
-                    alt={item.name}
+                    alt={item.ring_name}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=200&h=200&fit=crop';
                     }}
@@ -231,18 +283,15 @@ const Cart: React.FC = () => {
                 </div>
                 <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-bold text-lg">{item.name}</h3>
+                    <h3 className="font-bold text-lg">{item.ring_name}</h3>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
-                      <span>SKU: {item.sku}</span>
-                      <span>Type: {item.type}</span>
+                      <span>SKU: {item.ring_identifier}</span>
+                      <span>Type: {item.material}</span>
                       <span>Size: {item.size}</span>
-                      <span>Ring ID: {item.ringId}</span>
                     </div>
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-sm font-semibold text-primary">$ {item.price}</span>
-                      {item.inStock && (
-                        <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">in stock</span>
-                      )}
+                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">in stock</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -281,109 +330,113 @@ const Cart: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT: order summary + relationship preview */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* summary card */}
-          <div className="bg-white dark:bg-surface-dark/80 rounded-3xl p-8 border border-primary/10 shadow-premium sticky top-28">
-            <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">shopping_cart</span> Order summary
-            </h3>
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
-                <span className="font-bold">$ {subtotal.toLocaleString()}</span>
+        {/* RIGHT: order summary */}
+        {cartItems.length > 0 && (
+          <div className="lg:col-span-1 space-y-6">
+            {/* summary card */}
+            <div className="bg-white dark:bg-surface-dark/80 rounded-3xl p-8 border border-primary/10 shadow-premium sticky top-28">
+              <h3 className="heading-serif text-2xl font-semibold mb-6 flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">shopping_cart</span> Order summary
+              </h3>
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+                  <span className="font-bold">$ {subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Shipping</span>
+                  <span className="font-bold">$ {shipping}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Tax (est.)</span>
+                  <span className="font-bold">$ {tax}</span>
+                </div>
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
+                  <span className="font-bold">Total</span>
+                  <span className="text-2xl font-bold text-primary">$ {total.toLocaleString()}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Shipping</span>
-                <span className="font-bold">$ {shipping}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Tax (est.)</span>
-                <span className="font-bold">$ {tax}</span>
-              </div>
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-4 flex justify-between">
-                <span className="font-bold">Total</span>
-                <span className="text-2xl font-bold text-primary">$ {total.toLocaleString()}</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-400 mb-5 flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm">info</span> Includes lifetime warranty & certificate
-            </p>
-            <button 
-              onClick={handleCheckout}
-              disabled={cartItems.length === 0}
-              className={`w-full bg-primary text-white text-center py-4 rounded-2xl font-bold text-lg hover:bg-primary/80 transition-all shadow-lg flex items-center justify-center gap-2 ${
-                cartItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              <span>Checkout</span>
-              <span className="material-symbols-outlined">lock</span>
-            </button>
-            <div className="mt-6 p-4 bg-primary/5 rounded-xl">
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary">favorite</span>
-                <span className="text-xs font-medium">Your relationship will be verified after purchase.</span>
-              </div>
-              <div className="mt-3 text-[10px] text-slate-500 flex items-center justify-between">
-                <span>Ring stock decreases</span>
-                <span>✓</span>
-              </div>
-              <div className="text-[10px] text-slate-500 flex items-center justify-between">
-                <span>Couple profile generated</span>
-                <span>✓</span>
-              </div>
-              <div className="text-[10px] text-slate-500 flex items-center justify-between">
-                <span>Duplicate protection</span>
-                <span>✓</span>
-              </div>
+              <p className="text-xs text-slate-400 mb-5 flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm">info</span> Includes lifetime warranty & certificate
+              </p>
+              <button 
+                onClick={handleCheckout}
+                className="w-full bg-primary text-white text-center py-4 rounded-2xl font-bold text-lg hover:bg-primary/80 transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <span>Checkout</span>
+                <span className="material-symbols-outlined">lock</span>
+              </button>
             </div>
           </div>
-          {/* help card */}
-          <div className="bg-white/50 dark:bg-slate-800/50 rounded-2xl p-6 border border-primary/10">
-            <h4 className="font-semibold flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">help</span> Need help?
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-              Contact our bond concierge at <span className="text-primary">support@bondkeeper.com</span>
-            </p>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* You may also like (upsell) */}
-      {cartItems.length > 0 && (
-        <section className="mt-20 border-t border-primary/10 pt-12">
-          <h3 className="heading-serif text-3xl font-light mb-8 flex items-center gap-4">
-            <span className="w-12 h-px bg-primary/30"></span> You may also like
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {upsellItems.map((item) => (
-              <Link 
-                key={item.id} 
-                to="/shop"
-                onClick={() => {
-                  // You could add to cart functionality here
-                  alert(`${item.name} added to cart!`);
-                }}
-                className="group"
-              >
-                <div className="aspect-square rounded-xl overflow-hidden bg-slate-100">
-                  <img 
-                    src={item.image} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500" 
-                    alt={item.name}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=400&fit=crop';
-                    }}
-                  />
-                </div>
-                <p className="mt-2 font-medium">{item.name}</p>
-                <p className="text-primary text-sm">$ {item.price.toLocaleString()}</p>
-              </Link>
-            ))}
-          </div>
-        </section>
+      {/* Custom Pink Notification */}
+      {notification && (
+        <div 
+          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
+            ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
+            text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+        >
+          <span className="material-symbols-outlined text-sm">
+            {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
+          </span>
+          <p className="text-sm font-medium flex-1">{notification.message}</p>
+          <button 
+            className="hover:bg-white/20 rounded-full p-1 transition-colors"
+            onClick={() => setNotification(null)}
+          >
+            <span className="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
       )}
+
+      {/* Add animations */}
+      <style>{`
+        @keyframes slideUpBottom {
+          from {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideDownBottom {
+          from {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+          to {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+        }
+        
+        .animate-slide-up-bottom {
+          animation: slideUpBottom 0.3s ease-out forwards;
+        }
+        
+        .animate-slide-down-bottom {
+          animation: slideDownBottom 0.3s ease-out forwards;
+        }
+
+        .loading-spinner {
+          border: 3px solid rgba(255,42,162,0.1);
+          border-top: 3px solid #ff2aa2;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </main>
   );
 };

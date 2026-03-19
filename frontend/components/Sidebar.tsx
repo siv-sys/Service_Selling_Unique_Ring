@@ -46,7 +46,7 @@ const Sidebar = () => {
   };
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/admindashboard' },
     { icon: Users, label: 'User & Pair Management', path: '/users' },
     { icon: Package, label: 'Ring Inventory', path: '/inventory' },
     { icon: Database, label: 'Catalog Seed', path: '/catalog' },

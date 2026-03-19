@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const path = require('path');
 const dotenv = require('dotenv');
 
@@ -27,3 +28,6 @@ const env = {
 };
 
 module.exports = env;
+=======
+﻿
+>>>>>>> integration_branch

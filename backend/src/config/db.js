@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const mysql = require('mysql2/promise');
 const env = require('./env');
 
@@ -197,3 +198,6 @@ module.exports = {
   ping,
   initializeCoreTables,
 };
+=======
+﻿
+>>>>>>> integration_branch

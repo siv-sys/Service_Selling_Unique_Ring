@@ -6,6 +6,7 @@ import { GoogleAccountSelector } from './components/GoogleAccountSelector';
 import { api, type AuthUser } from './lib/api';
 import AdminSeedView from './views/AdminSeedView';
 import AdminDashboardView from './views/AdminDashboardView';
+import DashboardView from './views/DashboardView';
 import InventoryView from './views/InventoryView';
 import { LoginScreen } from './views/LoginView';
 import MemoriesView from './views/MemoriesView';
@@ -14,8 +15,15 @@ import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
 
+const USER_HOME_PATH = '/dashboard';
+const ADMIN_HOME_PATH = '/admindashboard';
+
 function normalizeRole(role: string | null | undefined): AuthUser['role'] {
   return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+}
+
+function getRoleHomePath(role: string | null | undefined) {
+  return normalizeRole(role) === 'admin' ? ADMIN_HOME_PATH : USER_HOME_PATH;
 }
 
 function buildUserFromStorage(): AuthUser | null {
@@ -90,6 +98,7 @@ function AppRoutes() {
   const isAdmin = role === 'admin';
   const isUser = role === 'user';
   const isAuthenticated = role !== null;
+  const roleHomePath = isAuthenticated ? getRoleHomePath(role) : '/login';
 
   useEffect(() => {
     async function restoreAuth() {
@@ -121,7 +130,7 @@ function AppRoutes() {
     const normalizedUser = normalizeUser(user);
     setAuthUser(normalizedUser);
     persistAuth(normalizedUser, accessToken, remember, rememberToken);
-    navigate('/dashboard', { replace: true });
+    navigate(getRoleHomePath(normalizedUser.role), { replace: true });
   };
 
   const handleLogin = async (payload: { email: string; password: string; remember: boolean }) => {
@@ -207,16 +216,16 @@ function AppRoutes() {
   };
 
   const adminLayout = useMemo(
-    () => (view: ReactElement) => (isAdmin ? <Layout>{view}</Layout> : <Navigate to="/login" replace />),
-    [isAdmin],
-  );
-  const authLayout = useMemo(
-    () => (view: ReactElement) => (isAuthenticated ? <Layout>{view}</Layout> : <Navigate to="/login" replace />),
-    [isAuthenticated],
+    () =>
+      (view: ReactElement) =>
+        isAdmin ? <Layout>{view}</Layout> : <Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />,
+    [isAdmin, isAuthenticated, roleHomePath],
   );
   const userOnly = useMemo(
-    () => (view: ReactElement) => (isUser ? view : <Navigate to={isAdmin ? '/dashboard' : '/login'} replace />),
-    [isAdmin, isUser],
+    () =>
+      (view: ReactElement) =>
+        isUser ? view : <Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />,
+    [isAuthenticated, isUser, roleHomePath],
   );
 
   if (isHydratingAuth) {
@@ -225,13 +234,13 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
+      <Route path="/" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
 
       <Route
         path="/login"
         element={
           role ? (
-            <Navigate to="/dashboard" replace />
+            <Navigate to={roleHomePath} replace />
           ) : (
             <LoginScreen
               onRegister={() => navigate('/register')}
@@ -250,7 +259,7 @@ function AppRoutes() {
         path="/login/google"
         element={
           role ? (
-            <Navigate to="/dashboard" replace />
+            <Navigate to={roleHomePath} replace />
           ) : (
             <GoogleAccountSelector onBack={() => navigate('/login')} onSelect={handleGoogleLogin} />
           )
@@ -261,7 +270,7 @@ function AppRoutes() {
         path="/register"
         element={
           role ? (
-            <Navigate to="/dashboard" replace />
+            <Navigate to={roleHomePath} replace />
           ) : (
             <RegisterScreen
               onLogin={() => navigate('/login')}
@@ -279,7 +288,7 @@ function AppRoutes() {
         path="/reset-password"
         element={
           role ? (
-            <Navigate to="/dashboard" replace />
+            <Navigate to={roleHomePath} replace />
           ) : (
             <ResetPasswordScreen
               onBackToLogin={() => navigate('/login')}
@@ -293,14 +302,16 @@ function AppRoutes() {
         }
       />
 
-      <Route path="/dashboard" element={authLayout(<AdminDashboardView />)} />
+      <Route path={USER_HOME_PATH} element={userOnly(<DashboardView />)} />
+      <Route path={ADMIN_HOME_PATH} element={adminLayout(<AdminDashboardView />)} />
+      <Route path="/admin-dashboard" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
       <Route path="/inventory" element={adminLayout(<InventoryView />)} />
       <Route path="/users" element={adminLayout(<UserPairMgmt />)} />
       <Route path="/catalog" element={adminLayout(<AdminSeedView />)} />
       <Route path="/settings" element={adminLayout(<SettingsView />)} />
       <Route path="/memories" element={userOnly(<MemoriesView />)} />
 
-      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
     </Routes>
   );
 }

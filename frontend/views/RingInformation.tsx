@@ -13,6 +13,8 @@ interface RingData {
   ringId?: string;
 }
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
+
 const MyRingView: React.FC = () => {
   const navigate = useNavigate();
   const [ringData, setRingData] = useState<RingData | null>(null);
@@ -33,25 +35,35 @@ const MyRingView: React.FC = () => {
 
   // Load cart count
   useEffect(() => {
-    try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-      setCartCount(cart.length);
-    } catch {
-      setCartCount(0);
-    }
+    fetchCartCount();
 
     const handleCartUpdate = () => {
-      try {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-        setCartCount(cart.length);
-      } catch {
-        setCartCount(0);
-      }
+      fetchCartCount();
     };
 
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
+
+  // Fetch cart count from backend
+  const fetchCartCount = async () => {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId) return;
+      
+      const response = await fetch(`${API_BASE_URL}/cart`, {
+        headers: {
+          'x-session-id': sessionId
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCartCount(data.data?.length || 0);
+      }
+    } catch (e) {
+      console.error('Error fetching cart count:', e);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -89,71 +101,89 @@ const MyRingView: React.FC = () => {
 
   // Handle notification click
   const handleNotificationClick = () => {
-    alert('No new notifications');
+    showBottomNotification('No new notifications', 'info');
   };
 
-  // Add to cart function
-  const addToCart = () => {
-  if (!ringData) return;
-  
-  try {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+  // Add to cart function with backend API
+  const addToCart = async () => {
+    if (!ringData) return;
     
-    const cartItem = {
-      id: Date.now(),
-      name: ringData.name,
-      price: ringData.price,
-      material: selectedMetal,
-      size: selectedSize || ringData.size || '7',
-      image: ringData.img,
-      quantity: 1
-    };
-    
-    cart.push(cartItem);
-    localStorage.setItem('cart', JSON.stringify(cart));
-    setCartCount(cart.length);
-    
-    // Dispatch event for header to update
-    window.dispatchEvent(new Event('cartUpdated'));
-    
-    // Show small pink notification at bottom
-    showBottomNotification(`${ringData.name} added to cart!`);
-    
-  } catch (e) {
-    console.error('Error adding to cart:', e);
-    showBottomNotification('Error adding to cart', 'error');
-  }
-};
-
-// Small bottom notification function
-const showBottomNotification = (message: string, type: 'success' | 'error' = 'success') => {
-  const notification = document.createElement('div');
-  notification.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
-  
-  const bgColor = type === 'success' ? 'bg-[#ff2aa2]' : 'bg-red-500';
-  const icon = type === 'success' ? 'check_circle' : 'error';
-  
-  notification.innerHTML = `
-    <div class="${bgColor} text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 min-w-[240px] max-w-sm text-sm">
-      <span class="material-symbols-outlined text-sm">${icon}</span>
-      <span class="flex-1">${message}</span>
-    </div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Auto remove after 2 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.style.animation = 'slide-down-bottom 0.2s ease-out forwards';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
+    try {
+      // Get existing session ID or null
+      let sessionId = localStorage.getItem('sessionId');
+      
+      const response = await fetch(`${API_BASE_URL}/cart/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionId && { 'x-session-id': sessionId })
+        },
+        body: JSON.stringify({
+          ringId: ringData.id || Date.now(),
+          quantity: 1,
+          size: selectedSize || ringData.size || '7',
+          material: selectedMetal || ringData.metal
+        })
+      });
+      
+      const data = await response.json();
+      console.log('Add to cart response:', data);
+      
+      if (response.ok) {
+        // Save the session ID from server if it's new
+        if (data.sessionId && !sessionId) {
+          localStorage.setItem('sessionId', data.sessionId);
         }
-      }, 200);
+        
+        // Update cart count
+        setCartCount(data.data.length);
+        
+        // Show success notification
+        showBottomNotification(`${ringData.name} added to cart!`, 'success');
+        
+        // Dispatch event for header and cart page to update
+        window.dispatchEvent(new Event('cartUpdated'));
+      } else {
+        throw new Error(data.message || 'Failed to add to cart');
+      }
+    } catch (e) {
+      console.error('Error adding to cart:', e);
+      showBottomNotification('Error adding to cart', 'error');
     }
-  }, 2000);
-};
+  };
+
+  // Small bottom notification function
+  const showBottomNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const notification = document.createElement('div');
+    notification.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
+    
+    let bgColor = 'bg-[#ff2aa2]';
+    if (type === 'error') bgColor = 'bg-red-500';
+    else if (type === 'info') bgColor = 'bg-blue-500';
+    
+    const icon = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info';
+    
+    notification.innerHTML = `
+      <div class="${bgColor} text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 min-w-[240px] max-w-sm text-sm">
+        <span class="material-symbols-outlined text-sm">${icon}</span>
+        <span class="flex-1">${message}</span>
+      </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 2 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slide-down-bottom 0.2s ease-out forwards';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 200);
+      }
+    }, 2000);
+  };
 
   // Handle book consultation
   const handleBookConsultation = () => {
@@ -410,7 +440,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               </div>
             </div>
             {/* Main image */}
-            <div className="flex-1 rounded-xl overflow-hidden aspect-[4/5] bg-white dark:bg-background-pink  border border-primary/5 shadow-xl shadow-primary/5">
+            <div className="flex-1 rounded-xl overflow-hidden aspect-[4/5] bg-white dark:bg-slate-800 border border-primary/5 shadow-xl shadow-primary/5">
               <img className="w-full h-full object-cover" src={ringData.img || 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900'} alt={ringData.name} />
             </div>
           </div>
@@ -421,7 +451,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-2 block">
                 BondKeeper · Eternal
               </span>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-slate-100 mb-4 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-4 leading-tight">
                 {ringData.name}
               </h1>
               
@@ -444,7 +474,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               <div className="space-y-8">
                 {/* Metal selection */}
                 <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-4 block uppercase tracking-wider">
+                  <span className="text-sm font-bold text-slate-900 dark:text-white mb-4 block uppercase tracking-wider">
                     Metal / Material
                   </span>
                   <div className="flex gap-4 flex-wrap">
@@ -487,7 +517,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                 {/* Size selection */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                       Ring Size (US)
                     </span>
                     <button className="text-xs font-bold text-primary underline underline-offset-4">
@@ -581,7 +611,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             </div>
           </section>
 
-          {/* Story */}
+          {/* Story - Now using the ring's own image */}
           <div className="grid lg:grid-cols-2 gap-24 items-center">
             <div>
               <h3 className="text-4xl font-black mb-8">The Story</h3>
@@ -593,8 +623,11 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <div className="rounded-2xl overflow-hidden aspect-video shadow-2xl relative">
               <img 
                 className="w-full h-full object-cover" 
-                src="https://images.unsplash.com/photo-1605100804763-247f67b3557e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-                alt="craftsmanship" 
+                src={ringData.img || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'} 
+                alt={ringData.name}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent"></div>
               <div className="absolute bottom-8 left-8">
@@ -667,7 +700,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
             <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
             <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-50 border border-slate-200 dark:border-slate-500 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+              <input className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
               <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
             </div>
           </div>
@@ -680,6 +713,53 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
           </div>
         </div>
       </footer>
+
+      {/* Add animations */}
+      <style>{`
+        @keyframes slideUpBottom {
+          from {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+          to {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideDownBottom {
+          from {
+            transform: translate(-50%, 0);
+            opacity: 1;
+          }
+          to {
+            transform: translate(-50%, 100%);
+            opacity: 0;
+          }
+        }
+        
+        .animate-slide-up-bottom {
+          animation: slideUpBottom 0.3s ease-out forwards;
+        }
+        
+        .animate-slide-down-bottom {
+          animation: slideDownBottom 0.3s ease-out forwards;
+        }
+
+        .loading-spinner {
+          border: 3px solid rgba(255,42,162,0.1);
+          border-top: 3px solid #ff2aa2;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
