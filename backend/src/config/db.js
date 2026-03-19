@@ -86,6 +86,7 @@ async function initializeCoreTables() {
     ADD COLUMN IF NOT EXISTS full_name VARCHAR(120) NULL AFTER username,
     ADD COLUMN IF NOT EXISTS name VARCHAR(100) NULL AFTER email,
     ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500) NULL AFTER name,
+    ADD COLUMN IF NOT EXISTS phone_number VARCHAR(40) NULL AFTER avatar_url,
     ADD COLUMN IF NOT EXISTS role ENUM('admin', 'user') NOT NULL DEFAULT 'user' AFTER avatar_url,
     ADD COLUMN IF NOT EXISTS account_status ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE' AFTER role,
     ADD COLUMN IF NOT EXISTS remember_token VARCHAR(255) NULL AFTER account_status
@@ -126,6 +127,43 @@ async function initializeCoreTables() {
     ) role_map ON role_map.user_id = u.id
     SET u.role = CASE WHEN role_map.is_admin = 1 THEN 'admin' ELSE 'user' END
   `).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS roles (
+      id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      code VARCHAR(30) NOT NULL UNIQUE,
+      description VARCHAR(120) NULL
+    ) ENGINE=InnoDB
+  `);
+  await execute(`
+    CREATE TABLE IF NOT EXISTS user_roles (
+      user_id ${userIdType} NOT NULL,
+      role_id TINYINT UNSIGNED NOT NULL,
+      assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, role_id)
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE user_roles
+      ADD CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      ALTER TABLE user_roles
+      ADD CONSTRAINT fk_user_roles_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      INSERT INTO roles (code, description)
+      VALUES
+        ('ADMIN', 'Platform administrator'),
+        ('USER', 'Standard user')
+      ON DUPLICATE KEY UPDATE description = VALUES(description)
+    `,
+  ).catch(() => {});
 
   await execute(`
     CREATE TABLE IF NOT EXISTS user_providers (
@@ -302,6 +340,213 @@ async function initializeCoreTables() {
       ADD CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     `,
   ).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS relationship_pairs (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      pair_code VARCHAR(30) NOT NULL UNIQUE,
+      status ENUM('PENDING', 'CONNECTED', 'SYNCING', 'SUSPENDED', 'UNPAIRED') NOT NULL DEFAULT 'PENDING',
+      access_level ENUM('FULL_ACCESS', 'LIMITED', 'REVOKED') NOT NULL DEFAULT 'FULL_ACCESS',
+      established_at DATE NULL,
+      created_by_user_id ${userIdType} NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_relationship_pairs_status (status)
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE relationship_pairs
+      ADD CONSTRAINT fk_relationship_pairs_created_by FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS pair_members (
+      pair_id BIGINT NOT NULL,
+      user_id ${userIdType} NOT NULL,
+      member_role ENUM('OWNER', 'PARTNER') NOT NULL,
+      joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (pair_id, user_id),
+      UNIQUE KEY uq_pair_members_user (user_id)
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE pair_members
+      ADD CONSTRAINT fk_pair_members_pair FOREIGN KEY (pair_id) REFERENCES relationship_pairs(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      ALTER TABLE pair_members
+      ADD CONSTRAINT fk_pair_members_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS pair_invitations (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      pair_id BIGINT NULL,
+      inviter_user_id ${userIdType} NOT NULL,
+      invitee_user_id ${userIdType} NULL,
+      invitee_handle VARCHAR(50) NULL,
+      invitee_ring_identifier VARCHAR(60) NULL,
+      invitation_token CHAR(36) NOT NULL UNIQUE,
+      status ENUM('PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+      expires_at DATETIME NULL,
+      responded_at DATETIME NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE pair_invitations
+      ADD CONSTRAINT fk_pair_invitations_pair FOREIGN KEY (pair_id) REFERENCES relationship_pairs(id) ON DELETE SET NULL
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      ALTER TABLE pair_invitations
+      ADD CONSTRAINT fk_pair_invitations_inviter FOREIGN KEY (inviter_user_id) REFERENCES users(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      ALTER TABLE pair_invitations
+      ADD CONSTRAINT fk_pair_invitations_invitee FOREIGN KEY (invitee_user_id) REFERENCES users(id) ON DELETE SET NULL
+    `,
+  ).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS ring_models (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      model_name VARCHAR(120) NOT NULL,
+      collection_name VARCHAR(120) NULL,
+      material VARCHAR(80) NOT NULL,
+      description TEXT NULL,
+      image_url VARCHAR(500) NULL,
+      base_price DECIMAL(12,2) NOT NULL,
+      currency_code CHAR(3) NOT NULL DEFAULT 'USD',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `);
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS ring_batches (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      batch_code VARCHAR(40) NOT NULL UNIQUE,
+      manufactured_at DATE NULL,
+      notes VARCHAR(255) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `);
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS rings (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      ring_identifier VARCHAR(60) NOT NULL UNIQUE,
+      ring_name VARCHAR(120) NOT NULL,
+      model_id BIGINT NULL,
+      batch_id BIGINT NULL,
+      size VARCHAR(20) NULL,
+      material VARCHAR(80) NOT NULL,
+      status ENUM('AVAILABLE', 'RESERVED', 'ASSIGNED', 'LOST', 'MAINTENANCE') NOT NULL DEFAULT 'AVAILABLE',
+      location_type ENUM('WAREHOUSE', 'USER', 'TRANSIT', 'SERVICE') NOT NULL DEFAULT 'WAREHOUSE',
+      location_label VARCHAR(120) NULL,
+      battery_level TINYINT NULL,
+      last_seen_at DATETIME NULL,
+      last_seen_lat DECIMAL(9,6) NULL,
+      last_seen_lng DECIMAL(9,6) NULL,
+      price DECIMAL(12,2) NOT NULL,
+      image_url VARCHAR(500) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_rings_model_id (model_id),
+      KEY idx_rings_batch_id (batch_id),
+      KEY idx_rings_status (status)
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE rings
+      ADD CONSTRAINT fk_rings_model FOREIGN KEY (model_id) REFERENCES ring_models(id) ON DELETE SET NULL
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      ALTER TABLE rings
+      ADD CONSTRAINT fk_rings_batch FOREIGN KEY (batch_id) REFERENCES ring_batches(id) ON DELETE SET NULL
+    `,
+  ).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS ring_pair_links (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      pair_id BIGINT NOT NULL,
+      ring_id BIGINT NOT NULL,
+      side ENUM('A', 'B') NOT NULL,
+      assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      unassigned_at DATETIME NULL,
+      KEY idx_ring_pair_links_pair (pair_id),
+      KEY idx_ring_pair_links_ring (ring_id),
+      KEY idx_ring_pair_links_unassigned_at (unassigned_at)
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE ring_pair_links
+      ADD CONSTRAINT fk_ring_pair_links_pair FOREIGN KEY (pair_id) REFERENCES relationship_pairs(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      ALTER TABLE ring_pair_links
+      ADD CONSTRAINT fk_ring_pair_links_ring FOREIGN KEY (ring_id) REFERENCES rings(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS couple_profiles (
+      pair_id BIGINT PRIMARY KEY,
+      title VARCHAR(160) NOT NULL,
+      slug VARCHAR(160) NOT NULL,
+      headline VARCHAR(255) NULL,
+      hero_avatar_url VARCHAR(500) NULL,
+      linked_partner_label VARCHAR(255) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_couple_profiles_slug (slug)
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE couple_profiles
+      ADD CONSTRAINT fk_couple_profiles_pair FOREIGN KEY (pair_id) REFERENCES relationship_pairs(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS inventory_items (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      image_url VARCHAR(500) NULL,
+      model_name VARCHAR(120) NOT NULL,
+      color VARCHAR(80) NULL,
+      variant VARCHAR(160) NOT NULL,
+      sku VARCHAR(80) NOT NULL UNIQUE,
+      serial_number VARCHAR(120) NOT NULL UNIQUE,
+      status VARCHAR(40) NOT NULL DEFAULT 'In Stock',
+      stock_qty INT UNSIGNED NOT NULL DEFAULT 0,
+      stock_percent TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      status_color VARCHAR(20) NOT NULL DEFAULT 'emerald',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_inventory_model (model_name),
+      KEY idx_inventory_color (color),
+      KEY idx_inventory_status (status)
+    ) ENGINE=InnoDB
+  `);
 
   if (await tableExists('ring_models')) {
     await execute(`

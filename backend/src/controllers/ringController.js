@@ -1,10 +1,44 @@
-const { pool } = require('../../config/database');
-const { redisClient } = require('../../config/redis');
+const { pool } = require('../config/db');
+
+function mapModelRowToShopItem(row) {
+  return {
+    id: row.id,
+    ring_identifier: row.ring_identifier || `MODEL-${row.id}`,
+    ring_name: row.ring_name || row.model_name,
+    model_id: row.model_id ?? row.id,
+    batch_id: row.batch_id || null,
+    size: row.size || '',
+    material: row.material || '',
+    status: row.status || 'AVAILABLE',
+    location_type: row.location_type || 'WAREHOUSE',
+    location_label: row.location_label || null,
+    battery_level: row.battery_level || null,
+    last_seen_at: row.last_seen_at || null,
+    last_seen_lat: row.last_seen_lat || null,
+    last_seen_lng: row.last_seen_lng || null,
+    price: row.price || 0,
+    image_url: row.image_url || null,
+    created_at: row.created_at || null,
+    updated_at: row.updated_at || null,
+    model_name: row.model_name || row.ring_name || '',
+    collection_name: row.collection_name || null,
+    available_units: Number(row.available_units || 0),
+    representative_ring_id: row.representative_ring_id ? Number(row.representative_ring_id) : null,
+  };
+}
 
 // Get all rings (for admin)
 const getAllRings = async (req, res) => {
   try {
-    const [rows] = await pool.execute('SELECT * FROM rings ORDER BY created_at DESC');
+    const [rows] = await pool.execute(`
+      SELECT
+        r.*,
+        rm.model_name,
+        rm.collection_name
+      FROM rings r
+      LEFT JOIN ring_models rm ON rm.id = r.model_id
+      ORDER BY r.created_at DESC
+    `);
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error fetching all rings:', error);
@@ -19,41 +53,79 @@ const getAllRings = async (req, res) => {
 // Get rings for shop (with filters)
 const getShopRings = async (req, res) => {
   try {
-    const { material, minPrice, maxPrice, status, limit = 50, offset = 0 } = req.query;
+    const { material, minPrice, maxPrice, limit = 50, offset = 0 } = req.query;
     
-    let query = 'SELECT * FROM rings WHERE 1=1';
-    const params = [];
+    let whereClause = 'WHERE 1=1';
+    const filterParams = [];
     
     if (material) {
-      query += ' AND material LIKE ?';
-      params.push(`%${material}%`);
+      whereClause += ' AND rm.material LIKE ?';
+      filterParams.push(`%${material}%`);
     }
     
     if (minPrice) {
-      query += ' AND price >= ?';
-      params.push(parseFloat(minPrice));
+      whereClause += ' AND rm.base_price >= ?';
+      filterParams.push(parseFloat(minPrice));
     }
     
     if (maxPrice) {
-      query += ' AND price <= ?';
-      params.push(parseFloat(maxPrice));
+      whereClause += ' AND rm.base_price <= ?';
+      filterParams.push(parseFloat(maxPrice));
     }
-    
-    if (status) {
-      query += ' AND status = ?';
-      params.push(status);
-    }
-    
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
-    
-    const [rows] = await pool.execute(query, params);
-    
-    const [countResult] = await pool.execute('SELECT COUNT(*) as total FROM rings');
+
+    const groupedQuery = `
+      SELECT
+        rm.id AS id,
+        CONCAT('MODEL-', rm.id) AS ring_identifier,
+        rm.model_name AS ring_name,
+        rm.id AS model_id,
+        NULL AS batch_id,
+        COALESCE(stock.sample_size, '') AS size,
+        rm.material AS material,
+        CASE WHEN COALESCE(stock.available_units, 0) > 0 THEN 'AVAILABLE' ELSE 'UNAVAILABLE' END AS status,
+        'WAREHOUSE' AS location_type,
+        NULL AS location_label,
+        NULL AS battery_level,
+        NULL AS last_seen_at,
+        NULL AS last_seen_lat,
+        NULL AS last_seen_lng,
+        rm.base_price AS price,
+        NULLIF(rm.image_url, '') AS image_url,
+        rm.created_at AS created_at,
+        rm.updated_at AS updated_at,
+        rm.model_name,
+        rm.collection_name,
+        COALESCE(stock.available_units, 0) AS available_units,
+        stock.representative_ring_id
+      FROM ring_models rm
+      LEFT JOIN (
+        SELECT
+          r.model_id,
+          COUNT(*) AS available_units,
+          MIN(r.id) AS representative_ring_id,
+          MIN(COALESCE(NULLIF(r.size, ''), '')) AS sample_size
+        FROM rings r
+        WHERE r.status = 'AVAILABLE'
+        GROUP BY r.model_id
+      ) stock ON stock.model_id = rm.id
+      ${whereClause}
+    `;
+
+    const query = `
+      ${groupedQuery}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [rows] = await pool.execute(query, [...filterParams, parseInt(limit), parseInt(offset)]);
+    const [countResult] = await pool.execute(
+      `SELECT COUNT(*) AS total FROM (${groupedQuery}) grouped_models`,
+      filterParams
+    );
     
     res.json({
       success: true,
-      data: rows,
+      data: rows.map(mapModelRowToShopItem),
       pagination: {
         total: countResult[0].total,
         limit: parseInt(limit),
@@ -74,19 +146,26 @@ const getShopRings = async (req, res) => {
 // Get filter options
 const getFilterOptions = async (req, res) => {
   try {
-    const [materials] = await pool.execute(
-      'SELECT DISTINCT material FROM rings WHERE material IS NOT NULL AND material != ""'
-    );
+    const [materials] = await pool.execute(`
+      SELECT DISTINCT rm.material
+      FROM ring_models rm
+      WHERE rm.material IS NOT NULL
+        AND rm.material != ''
+    `);
     
-    const [priceRange] = await pool.execute(
-      'SELECT MIN(price) as min_price, MAX(price) as max_price FROM rings'
-    );
+    const [priceRange] = await pool.execute(`
+      SELECT MIN(rm.base_price) as min_price, MAX(rm.base_price) as max_price
+      FROM ring_models rm
+    `);
     
     res.json({ 
       success: true, 
       data: {
         materials: materials.map(m => m.material).filter(Boolean),
-        priceRange: priceRange[0] || { min_price: 0, max_price: 10000 }
+        priceRange: {
+          min_price: Number(priceRange[0]?.min_price || 0),
+          max_price: Number(priceRange[0]?.max_price || 0),
+        }
       }
     });
   } catch (error) {
@@ -105,15 +184,68 @@ const getRingByIdentifier = async (req, res) => {
     const { identifier } = req.params;
     
     const [rows] = await pool.execute(
-      'SELECT * FROM rings WHERE ring_identifier = ?',
+      `
+        SELECT
+          r.*,
+          rm.model_name,
+          rm.collection_name
+        FROM rings r
+        LEFT JOIN ring_models rm ON rm.id = r.model_id
+        WHERE r.ring_identifier = ?
+      `,
       [identifier]
     );
     
     if (rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Ring not found' 
-      });
+      const [modelRows] = await pool.execute(
+        `
+          SELECT
+            rm.id AS id,
+            CONCAT('MODEL-', rm.id) AS ring_identifier,
+            rm.model_name AS ring_name,
+            rm.id AS model_id,
+            NULL AS batch_id,
+            COALESCE(stock.sample_size, '') AS size,
+            rm.material,
+            CASE WHEN COALESCE(stock.available_units, 0) > 0 THEN 'AVAILABLE' ELSE 'UNAVAILABLE' END AS status,
+            'WAREHOUSE' AS location_type,
+            NULL AS location_label,
+            NULL AS battery_level,
+            NULL AS last_seen_at,
+            NULL AS last_seen_lat,
+            NULL AS last_seen_lng,
+            rm.base_price AS price,
+            NULLIF(rm.image_url, '') AS image_url,
+            rm.created_at,
+            rm.updated_at,
+            rm.model_name,
+            rm.collection_name,
+            COALESCE(stock.available_units, 0) AS available_units,
+            stock.representative_ring_id
+          FROM ring_models rm
+          LEFT JOIN (
+            SELECT
+              model_id,
+              COUNT(*) AS available_units,
+              MIN(id) AS representative_ring_id,
+              MIN(COALESCE(NULLIF(size, ''), '')) AS sample_size
+            FROM rings
+            WHERE status = 'AVAILABLE'
+            GROUP BY model_id
+          ) stock ON stock.model_id = rm.id
+          WHERE CONCAT('MODEL-', rm.id) = ?
+        `,
+        [identifier]
+      );
+
+      if (modelRows.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Ring not found' 
+        });
+      }
+
+      return res.json({ success: true, data: mapModelRowToShopItem(modelRows[0]) });
     }
     
     res.json({ success: true, data: rows[0] });
@@ -133,15 +265,69 @@ const getRingById = async (req, res) => {
     const { id } = req.params;
     
     const [rows] = await pool.execute(
-      'SELECT * FROM rings WHERE id = ? OR ring_identifier = ?',
+      `
+        SELECT
+          r.*,
+          rm.model_name,
+          rm.collection_name
+        FROM rings r
+        LEFT JOIN ring_models rm ON rm.id = r.model_id
+        WHERE r.id = ? OR r.ring_identifier = ?
+      `,
       [id, id]
     );
     
     if (rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Ring not found' 
-      });
+      const [modelRows] = await pool.execute(
+        `
+          SELECT
+            rm.id AS id,
+            CONCAT('MODEL-', rm.id) AS ring_identifier,
+            rm.model_name AS ring_name,
+            rm.id AS model_id,
+            NULL AS batch_id,
+            COALESCE(stock.sample_size, '') AS size,
+            rm.material,
+            CASE WHEN COALESCE(stock.available_units, 0) > 0 THEN 'AVAILABLE' ELSE 'UNAVAILABLE' END AS status,
+            'WAREHOUSE' AS location_type,
+            NULL AS location_label,
+            NULL AS battery_level,
+            NULL AS last_seen_at,
+            NULL AS last_seen_lat,
+            NULL AS last_seen_lng,
+            rm.base_price AS price,
+            NULLIF(rm.image_url, '') AS image_url,
+            rm.created_at,
+            rm.updated_at,
+            rm.model_name,
+            rm.collection_name,
+            COALESCE(stock.available_units, 0) AS available_units,
+            stock.representative_ring_id
+          FROM ring_models rm
+          LEFT JOIN (
+            SELECT
+              model_id,
+              COUNT(*) AS available_units,
+              MIN(id) AS representative_ring_id,
+              MIN(COALESCE(NULLIF(size, ''), '')) AS sample_size
+            FROM rings
+            WHERE status = 'AVAILABLE'
+            GROUP BY model_id
+          ) stock ON stock.model_id = rm.id
+          WHERE rm.id = ?
+             OR CONCAT('MODEL-', rm.id) = ?
+        `,
+        [id, id]
+      );
+
+      if (modelRows.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Ring not found' 
+        });
+      }
+
+      return res.json({ success: true, data: mapModelRowToShopItem(modelRows[0]) });
     }
     
     res.json({ success: true, data: rows[0] });

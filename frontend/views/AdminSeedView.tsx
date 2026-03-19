@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import { api } from '../lib/api';
 
@@ -6,6 +6,7 @@ interface SeedResult {
   message: string;
   createdModels: number;
   createdRings: number;
+  syncedInventoryItems?: number;
 }
 
 interface CatalogFormState {
@@ -24,6 +25,27 @@ interface CatalogFormState {
   locationLabel: string;
 }
 
+interface InventoryPreviewItem {
+  id: number;
+  image: string | null;
+  model: string;
+  color: string | null;
+  variant: string;
+  sku: string;
+  serial: string;
+  status: string;
+  stock: number;
+}
+
+interface InventoryPreviewResponse {
+  items: InventoryPreviewItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+}
+
 const INITIAL_FORM: CatalogFormState = {
   modelName: '',
   collectionName: '',
@@ -34,7 +56,7 @@ const INITIAL_FORM: CatalogFormState = {
   currencyCode: 'USD',
   ringNamePrefix: '',
   ringIdentifierPrefix: '',
-  stockCount: '',
+  stockCount: '1',
   startingNumber: '1',
   defaultSize: '',
   locationLabel: '',
@@ -44,25 +66,31 @@ const inputClassName =
   'h-11 px-4 rounded-xl border border-slate-200 bg-slate-50/90 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-300/80 focus:border-transparent transition-all dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500';
 
 const AdminSeedView: React.FC = () => {
-  const [isSeeding, setIsSeeding] = useState(false);
   const [isInserting, setIsInserting] = useState(false);
   const [result, setResult] = useState<SeedResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [form, setForm] = useState<CatalogFormState>(INITIAL_FORM);
+  const [inventoryPreview, setInventoryPreview] = useState<InventoryPreviewItem[]>([]);
+  const [previewTotal, setPreviewTotal] = useState(0);
+  const [previewLoading, setPreviewLoading] = useState(true);
 
-  const seedCatalog = async () => {
-    setIsSeeding(true);
-    setResult(null);
-    setErrorMessage(null);
+  const loadInventoryPreview = async () => {
+    setPreviewLoading(true);
     try {
-      const response = await api.post<SeedResult>('/admin/migrations/seed-catalog', {});
-      setResult(response);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to seed catalog');
+      const response = await api.get<InventoryPreviewResponse>('/inventory?limit=6');
+      setInventoryPreview(Array.isArray(response.items) ? response.items : []);
+      setPreviewTotal(Number(response.pagination?.total || 0));
+    } catch {
+      setInventoryPreview([]);
+      setPreviewTotal(0);
     } finally {
-      setIsSeeding(false);
+      setPreviewLoading(false);
     }
   };
+
+  useEffect(() => {
+    void loadInventoryPreview();
+  }, []);
 
   const updateForm = (key: keyof CatalogFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -108,6 +136,7 @@ const AdminSeedView: React.FC = () => {
       });
       setResult(response);
       setForm(INITIAL_FORM);
+      await loadInventoryPreview();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to insert catalog data');
     } finally {
@@ -117,29 +146,17 @@ const AdminSeedView: React.FC = () => {
 
   return (
     <>
-      <Header title="Catalog Seed" subtitle="Seed and insert catalog data for inventory." />
+      <Header title="Catalog Seed" subtitle="Insert catalog data that appears in inventory and couple shop." />
       <main className="admin-seed-page flex-1 overflow-y-auto p-8">
         <div className="max-w-5xl mx-auto space-y-6">
-          <section className="rounded-3xl border border-pink-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-8">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Seed Default Catalog Data</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Inserts starter products and stock into `ring_models` and `rings`.
-            </p>
-            <button
-              type="button"
-              onClick={seedCatalog}
-              disabled={isSeeding}
-              className="mt-5 h-12 px-8 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white font-bold text-sm shadow-lg shadow-pink-500/25 disabled:opacity-50 transition-all"
-            >
-              {isSeeding ? 'Seeding Catalog...' : 'Seed Couple Shop Data'}
-            </button>
-          </section>
-
           <form
             onSubmit={insertFromForm}
             className="space-y-4 rounded-3xl border border-pink-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-8"
           >
             <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">Insert Custom Catalog Data</h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Only products inserted here will be stored in the database and shown in Couple Shop.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input className={inputClassName} placeholder="Model Name" value={form.modelName} onChange={(e) => updateForm('modelName', e.target.value)} />
               <input className={inputClassName} placeholder="Collection Name" value={form.collectionName} onChange={(e) => updateForm('collectionName', e.target.value)} />
@@ -174,6 +191,7 @@ const AdminSeedView: React.FC = () => {
               <p>{result.message}</p>
               <p className="mt-1">Created Models: {result.createdModels}</p>
               <p>Created Rings: {result.createdRings}</p>
+              {typeof result.syncedInventoryItems === 'number' ? <p>Synced Inventory Items: {result.syncedInventoryItems}</p> : null}
             </div>
           )}
 
@@ -182,6 +200,72 @@ const AdminSeedView: React.FC = () => {
               {errorMessage}
             </div>
           )}
+
+          <section className="rounded-3xl border border-pink-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-8">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">Database Inventory Preview</h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Admin catalog now reads live inventory rows from MySQL.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void loadInventoryPreview();
+                }}
+                className="h-11 px-5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                {previewLoading ? 'Loading...' : 'Refresh Preview'}
+              </button>
+            </div>
+
+            {previewLoading ? (
+              <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">Loading inventory from database...</p>
+            ) : inventoryPreview.length === 0 ? (
+              <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
+                No catalog or inventory data exists in the database yet.
+              </p>
+            ) : (
+              <>
+                <p className="mt-5 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  Showing {inventoryPreview.length} of {previewTotal} inventory item(s).
+                </p>
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {inventoryPreview.map((item) => (
+                    <article
+                      key={item.id}
+                      className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950/50"
+                    >
+                      {item.image ? (
+                        <img src={item.image} alt={item.model} className="h-44 w-full object-cover" />
+                      ) : (
+                        <div className="flex h-44 items-center justify-center bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                          No image
+                        </div>
+                      )}
+                      <div className="space-y-2 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h5 className="text-sm font-bold text-slate-900 dark:text-slate-100">{item.model}</h5>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{item.variant}</p>
+                          </div>
+                          <span className="rounded-full bg-pink-100 px-3 py-1 text-[11px] font-bold text-pink-700 dark:bg-pink-950/50 dark:text-pink-300">
+                            {item.stock} in stock
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">SKU: {item.sku}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Serial: {item.serial}</p>
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Status: {item.status}{item.color ? ` • ${item.color}` : ''}
+                        </p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
         </div>
       </main>
     </>

@@ -47,7 +47,8 @@ async function loadUserViewById(userId) {
         COALESCE(u.name, '') AS name,
         u.email,
         u.updated_at,
-        COALESCE(u.role, 'user') AS role_code
+        COALESCE(u.role, 'user') AS role_code,
+        COALESCE(u.account_status, 'ACTIVE') AS account_status
       FROM users u
       WHERE u.id = ?
       LIMIT 1
@@ -63,7 +64,7 @@ async function loadUserViewById(userId) {
     name: row.name,
     email: row.email,
     role: mapRole(row.role_code),
-    status: 'Active',
+    status: mapUserStatus(row.account_status),
     lastActive: new Date(row.updated_at).toLocaleString(),
   };
 }
@@ -129,6 +130,65 @@ async function loadRelationshipViewById(pairId) {
   };
 }
 
+async function loadWeeklyConnectivity() {
+  const rows = await query(
+    `
+      SELECT DATE(activity_at) AS activity_date, COUNT(*) AS total
+      FROM (
+        SELECT updated_at AS activity_at
+        FROM users
+        WHERE updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+
+        UNION ALL
+
+        SELECT updated_at AS activity_at
+        FROM rings
+        WHERE updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+
+        UNION ALL
+
+        SELECT updated_at AS activity_at
+        FROM relationship_pairs
+        WHERE updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+
+        UNION ALL
+
+        SELECT created_at AS activity_at
+        FROM pair_invitations
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+      ) activity_log
+      GROUP BY DATE(activity_at)
+      ORDER BY activity_date ASC
+    `
+  ).catch(() => []);
+
+  const totalsByDate = new Map(
+    rows.map((row) => {
+      const key =
+        row.activity_date instanceof Date
+          ? row.activity_date.toISOString().slice(0, 10)
+          : String(row.activity_date).slice(0, 10);
+      return [key, Number(row.total || 0)];
+    })
+  );
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+
+    const key = date.toISOString().slice(0, 10);
+    const label = date
+      .toLocaleDateString('en-US', { weekday: 'short' })
+      .toUpperCase();
+
+    return {
+      name: label,
+      value: totalsByDate.get(key) || 0,
+    };
+  });
+}
+
 router.get('/', async (_req, res) => {
   try {
     const [userCountRows, ringSoldRows, activePairsRows] = await Promise.all([
@@ -144,7 +204,8 @@ router.get('/', async (_req, res) => {
           COALESCE(u.name, '') AS name,
           u.email,
           u.updated_at,
-          COALESCE(u.role, 'user') AS role_code
+          COALESCE(u.role, 'user') AS role_code,
+          COALESCE(u.account_status, 'ACTIVE') AS account_status
         FROM users u
         ORDER BY u.updated_at DESC
         LIMIT 10
@@ -204,7 +265,7 @@ router.get('/', async (_req, res) => {
       name: row.name,
       email: row.email,
       role: mapRole(row.role_code),
-      status: 'Active',
+      status: mapUserStatus(row.account_status),
       lastActive: new Date(row.updated_at).toLocaleString(),
     }));
 
@@ -256,15 +317,7 @@ router.get('/', async (_req, res) => {
       },
     ];
 
-    const weeklyConnectivity = [
-      { name: 'MON', value: 380 },
-      { name: 'TUE', value: 550 },
-      { name: 'WED', value: 420 },
-      { name: 'THU', value: 580 },
-      { name: 'FRI', value: 380 },
-      { name: 'SAT', value: 610 },
-      { name: 'SUN', value: 680 },
-    ];
+    const weeklyConnectivity = await loadWeeklyConnectivity();
 
     res.json({
       stats: {
@@ -298,10 +351,17 @@ router.patch('/users/:id/status', async (req, res) => {
     const userId = extractNumericId(req.params.id);
     if (!userId) return res.status(400).json({ message: 'Invalid user id' });
 
-    const rows = await query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
+    const rows = await query('SELECT id, COALESCE(account_status, ?) AS account_status FROM users WHERE id = ? LIMIT 1', [
+      'ACTIVE',
+      userId,
+    ]);
     if (!rows[0]) return res.status(404).json({ message: 'User not found' });
 
-    return res.status(400).json({ message: 'User status is not supported by the current users table schema.' });
+    const nextStatus = String(rows[0].account_status).toUpperCase() === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    await query('UPDATE users SET account_status = ? WHERE id = ?', [nextStatus, userId]);
+
+    const user = await loadUserViewById(userId);
+    return res.json({ user });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to update user status', error: error.message });
   }

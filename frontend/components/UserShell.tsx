@@ -1,10 +1,10 @@
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { API_BASE_URL } from '../lib/api';
 import { isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 const COUPLE_PROFILE_STORAGE_KEY = 'bondkeeper_profile_persist_v1';
+const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
 type NavItem = {
   label: string;
@@ -35,6 +35,7 @@ export default function UserShell({ children }: PropsWithChildren) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [displayName, setDisplayName] = useState('Alex & Jamie');
+  const [hasPurchasedRing, setHasPurchasedRing] = useState(false);
 
   useEffect(() => {
     const savedDarkMode = isStoredDarkModeEnabled();
@@ -43,6 +44,20 @@ export default function UserShell({ children }: PropsWithChildren) {
     const storedCoupleName = readStoredCoupleName();
     const authName = sessionStorage.getItem('auth_name')?.trim();
     setDisplayName(storedCoupleName || authName || 'Alex & Jamie');
+    setHasPurchasedRing(Boolean(localStorage.getItem(PURCHASED_RING_STORAGE_KEY)));
+  }, []);
+
+  useEffect(() => {
+    const syncPurchasedRingState = () => {
+      setHasPurchasedRing(Boolean(localStorage.getItem(PURCHASED_RING_STORAGE_KEY)));
+    };
+
+    window.addEventListener('storage', syncPurchasedRingState);
+    window.addEventListener('focus', syncPurchasedRingState);
+    return () => {
+      window.removeEventListener('storage', syncPurchasedRingState);
+      window.removeEventListener('focus', syncPurchasedRingState);
+    };
   }, []);
 
   useEffect(() => {
@@ -86,7 +101,10 @@ export default function UserShell({ children }: PropsWithChildren) {
     setDarkModePreference(nextMode);
   };
 
-  const navItems = useMemo(() => NAV_ITEMS, []);
+  const navItems = useMemo(
+    () => NAV_ITEMS.filter((item) => item.to !== '/myring' || hasPurchasedRing),
+    [hasPurchasedRing],
+  );
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-charcoal dark:text-white">

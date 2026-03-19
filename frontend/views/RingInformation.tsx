@@ -1,22 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../lib/api';
 
 interface RingData {
+  id?: number;
   name: string;
   price: number;
+  material?: string;
   metal: string;
   cert: string;
   img: string;
+  image_url?: string;
+  ring_identifier?: string;
+  identifier?: string;
+  status?: string;
+  model_name?: string;
+  collection_name?: string;
+  created_at?: string;
   isNew?: boolean;
   sku?: string;
   size?: string;
   ringId?: string;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
-
 const MyRingView: React.FC = () => {
   const navigate = useNavigate();
+  const { ringId } = useParams<{ ringId: string }>();
   const [ringData, setRingData] = useState<RingData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedSize, setSelectedSize] = useState<string>('');
@@ -65,26 +74,103 @@ const MyRingView: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+  const normalizeRingData = (ring: any): RingData => {
+    const id = typeof ring?.id === 'number' ? ring.id : Number(ring?.id) || undefined;
+    const name = ring?.name || ring?.ring_name || 'Signature Ring';
+    const metal = ring?.metal || ring?.material || '18k White Gold';
+    const status = ring?.status || ring?.cert || 'AVAILABLE';
+    const img = ring?.img || ring?.image_url || ring?.model_image || 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900';
+
+    return {
+      id,
+      name,
+      price: Number(ring?.price) || 0,
+      material: ring?.material || metal,
+      metal,
+      cert: ring?.cert || status,
+      img,
+      image_url: ring?.image_url || img,
+      ring_identifier: ring?.ring_identifier,
+      identifier: ring?.identifier || ring?.ring_identifier || ring?.sku || (id ? `BK-${String(id).padStart(3, '0')}` : undefined),
+      status,
+      model_name: ring?.model_name,
+      collection_name: ring?.collection_name || ring?.collection,
+      created_at: ring?.created_at,
+      isNew: Boolean(ring?.isNew),
+      sku: ring?.sku,
+      size: ring?.size,
+      ringId: ring?.ringId,
+    };
+  };
+
+  const readStoredRing = (): RingData | null => {
     try {
-      // Retrieve ring data from sessionStorage (set by shop page "See More" button)
       const storedRing = sessionStorage.getItem('currentRing');
-      
-      if (!storedRing) {
-        setRingData(null);
-        setLoading(false);
+      if (!storedRing) return null;
+      return normalizeRingData(JSON.parse(storedRing));
+    } catch (error) {
+      console.error('Error parsing ring data', error);
+      return null;
+    }
+  };
+
+  const matchesRequestedRing = (ring: RingData | null) => {
+    if (!ring || !ringId) return false;
+
+    return [ring.id, ring.ringId, ring.identifier, ring.ring_identifier]
+      .filter(Boolean)
+      .some((value) => String(value) === ringId);
+  };
+
+  const applyRingData = (ring: any) => {
+    const normalized = normalizeRingData(ring);
+    setRingData(normalized);
+    setSelectedMetal(normalized.metal || '18k White Gold');
+    setSelectedSize((current) => current || normalized.size || '');
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    const loadRingData = async () => {
+      setLoading(true);
+      const storedRing = readStoredRing();
+
+      if (storedRing && (!ringId || matchesRequestedRing(storedRing))) {
+        applyRingData(storedRing);
+      }
+
+      if (!ringId) {
+        if (!storedRing) {
+          setRingData(null);
+          setLoading(false);
+        }
         return;
       }
 
-      const parsedRing = JSON.parse(storedRing);
-      setRingData(parsedRing);
-      setSelectedMetal(parsedRing.metal || '18k White Gold');
-      setLoading(false);
-    } catch (error) {
-      console.error('Error parsing ring data', error);
-      setLoading(false);
-    }
-  }, []);
+      try {
+        const response = await fetch(`${API_BASE_URL}/rings/${ringId}`);
+
+        if (!response.ok) {
+          throw new Error(`Failed to load ring ${ringId}`);
+        }
+
+        const data = await response.json();
+        const nextRing = data?.data || data;
+        applyRingData(nextRing);
+        sessionStorage.setItem('currentRing', JSON.stringify(normalizeRingData(nextRing)));
+      } catch (error) {
+        if (storedRing && matchesRequestedRing(storedRing)) {
+          return;
+        }
+
+        console.error('Error loading ring detail:', error);
+        setRingData(null);
+        setLoading(false);
+      }
+    };
+
+    void loadRingData();
+  }, [ringId]);
 
   // Toggle dark mode
   const toggleDarkMode = () => {

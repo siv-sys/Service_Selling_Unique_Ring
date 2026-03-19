@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../lib/api';
 
 // Types
 interface Ring {
   id: number;
   ring_identifier: string;
   ring_name: string;
+  representative_ring_id?: number | null;
+  available_units?: number;
   model_id: string | null;
   batch_id: string | null;
   size: string;
@@ -18,10 +21,10 @@ interface Ring {
   last_seen_lat: number | null;
   last_seen_lng: number | null;
   price: number;
-  image_url: string;
+  image_url: string | null;
   created_at: string;
   updated_at: string;
-  img: string;
+  img: string | null;
   name: string;
   metal: string;
   cert: string;
@@ -39,67 +42,6 @@ interface Filters {
   sort: string;
 }
 
-// 50 Beautiful Ring Images (fallback)
-const RING_IMAGES = [
-  "https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900",
-  "https://loforay.com/cdn/shop/products/O1CN01yJYHgs1uzyLnogHKq__3222026109-0-cib.jpg?v=1677245225",
-  "https://esdomera.com/cdn/shop/files/classic-pink-morganite-leaf-floral-engagement-his-and-hers-wedding-ring-pink-yellow-gold-promise-couple-rings-esdomera-2_1800x1800.png?v=1743672938",
-  "https://m.media-amazon.com/images/I/61btVGnRO6L._AC_UF894,1000_QL80_.jpg",
-  "https://jewelrybyjohan.com/cdn/shop/products/E3362WG10-2150BCArtCropped_1-5.jpg?v=1675110462&width=695",
-  "https://img.kwcdn.com/product/open/2023-09-05/1693914328872-5ec4896063854249a6f2609cca8c9a22-goods.jpeg",
-  "https://i.pinimg.com/736x/0e/21/48/0e2148ac9639fa9f608f95c7584f4f98.jpg",
-  "https://www.tajjewels.com/cdn/shop/products/19_FRONT_RoseGold_1080x.jpg?v=1650544247",
-  "https://img.kwcdn.com/product/fancy/d42a9fc0-5d2e-4728-a4fc-7edb6afb62b7.jpg",
-  "https://i.pinimg.com/originals/91/e0/eb/91e0ebb8563c8cd36337297331ab6a94.jpg",
-  "https://cdn.augrav.com/online/jewels/2023/12/13110756/113.jpg",
-  "https://m.media-amazon.com/images/I/51MTmuSy5eL._AC_UY1100_.jpg",
-  "https://img.joomcdn.net/ce020665a289dab3b7fa1aa8e1482ec91f953958_original.jpeg",
-  "https://i.etsystatic.com/16396575/r/il/51d9af/6115811213/il_570xN.6115811213_jfpd.jpg",
-  "https://rukminim2.flixcart.com/image/480/640/xif0q/ring/1/b/j/adjustable-2-mkcr112-ring-myki-original-imagr5pjxbajyewj.jpeg?q=90",
-  "https://i.pinimg.com/736x/1a/f3/6c/1af36c7a1c3e754334108a43a163b0ab.jpg",
-  "https://i5.walmartimages.com/asr/cecf5302-3a84-45c2-95c7-ec5f4c212f4d.b8654ded71d4429be2d4d4febef4d2d6.jpeg?q=80",
-  "https://sc04.alicdn.com/kf/H287107c64b9b4182b8477fd7ba79b7d21.jpg",
-  "https://esdomera.com/cdn/shop/files/4F9A3506.jpg?v=1758004629&width=900",
-  "https://cpimg.tistatic.com/08073806/b/4/Diamond-Couple-Rings.jpg",
-  "https://m.media-amazon.com/images/I/61Jj1R1UChL._AC_UY1000_.jpg",
-  "https://i.pinimg.com/474x/fd/61/84/fd61841efb1466054aab3424f076cb98.jpg",
-  "https://laraso.com/cdn/shop/files/4811BL-3946_1000x1000.jpg?v=1757118068",
-  "https://www.loville.co/cdn/shop/products/CPR5013FANTASY-1_600x600.jpg?v=1586341339",
-  "https://m.media-amazon.com/images/I/81QzSKSsObS._AC_UY1000_.jpg",
-  "https://t3.ftcdn.net/jpg/18/72/14/94/360_F_1872149462_JAK23sHoI6L4U5RrfFm25JQNUbFFC7QB.jpg",
-  "https://img.kwcdn.com/product/open/2023-09-05/1693903526024-a72036188e734902ac941154dd5c6b3e-goods.jpeg",
-  "https://i5.walmartimages.com/seo/Solid-10k-Yellow-Gold-His-Hers-Round-Diamond-Square-Matching-Couple-Three-Rings-Bridal-Engagement-Ring-Wedding-Bands-Set-1-12-Ct-L-9-M-10-5_e2bd050b-f2bd-451b-94ae-512679a5a087.9f8aa8cf42a34b3f048d1ea934507652.jpeg",
-  "https://rukminim2.flixcart.com/image/480/640/k5vcya80/ring/j/e/a/adjustable-swn11nos1-ring-set-silvoswan-original-imafzgn9h6hpz9f4.jpeg?q=90",
-  "https://springfieldjewellers.com.au/cdn/shop/articles/0Q7A9115-Edit-ready.jpg?v=1673850669",
-  "https://media.tiffany.com/is/image/tco/2025_LE_QL_ChooseWeddingBand",
-  "https://images-cdn.ubuy.qa/6544da4b4b2080775f561172-two-rings-his-hers-wedding-ring-sets.jpg",
-  "https://ak1.ostkcdn.com/images/products/is/images/direct/7f162be8b39f733297ef76df51ffdd2c9515664d/Womens-3.25-CT-Princess-Cut-Wedding-Band-Engagement-Ring-Set-Silver.jpg",
-  "https://i.pinimg.com/736x/eb/6a/72/eb6a722528b92ffdc943edbfa51b6ae1.jpg",
-  "https://www.gemsmagic.com/cdn/shop/files/moss-agate-stag-inspired-couple-ring-set-nature-inspired-elven-rings-5905061_ee4ffdfc-383d-44b3-bb99-2f336a627cb3.webp?v=1767164444&width=2000",
-  "https://cpimg.tistatic.com/7551683/b/4/real-diamond-couple-ring.jpg",
-  "https://cdn-media.glamira.com/media/product/newgeneration/view/1/sku/pretty-raw-pair-v/womenstone/diamond-zirconia_AAAAA/alloycolour/yellow.jpg",
-  "https://images.meesho.com/images/products/646386768/75km6_512.webp?width=512",
-  "https://www.thelordofgemrings.com/cdn/shop/files/ruby-sapphire-diamond-railway-couple-birthstone-band-18k-gold-334656.jpg?v=1717646221",
-  "https://cpimg.tistatic.com/8354229/b/1/modern-diamond-couple-band-ring.jpg",
-  "https://www.ethanlord.com/cdn/shop/articles/Untitled_design_3.png?v=1763389639",
-  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLfrMDiRQKW3vt2DEVVwnBmu838MgF9fmDYw&s",
-  "https://images-aka.zales.com/plp/20250203_visnav/1%20Engagement%20PLP/FY26_0205_Z_NOPART_EngagementBridalSets_NoPromo_PLPTriggerBank_WEB_STATIC_GM_DSK_300x300.jpg",
-  "https://i.pinimg.com/474x/22/72/e8/2272e85623fa218a6a541240041a9b42.jpg",
-  "https://siyari.com/cdn/shop/files/SHOPIFYRESIZE-2025-10-03T130834.930.png?v=1760421993&width=1200",
-  "https://m.media-amazon.com/images/I/61hC7x0SgdL._AC_UY1100_.jpg",
-  "https://i.etsystatic.com/32012347/r/il/766d1d/5100701107/il_fullxfull.5100701107_lged.jpg",
-  "https://png.pngtree.com/png-clipart/20240612/original/pngtree-illustration-of-luxury-couple-rings-png-image_15310403.png",
-  "https://www.candere.com/media/jewellery/images/C025805G__6.jpeg",
-  "https://cdn.augrav.com/online/jewels/2023/03/21163959/2-72.jpg",
-  "https://www.blackdiamondsnewyork.com/cdn/shop/files/52-hz-whale-couple-adjustable-ring-261750_41ccfc6c-c456-4319-b53f-4dd5fa3d4519.png?v=1754917060",
-  "https://media2.bulgari.com/f_auto,q_auto,c_pad,h_520,w_520/production/dw73065518/images/images/1428139.png",
-  "https://www.77diamonds.com/image/149231/thumb/white-gold-9k/-/toi-et-moi-emerald?v=20250724112614143?width=490/height=350",
-  "https://www.jewelove.in/cdn/shop/files/jewelove-platinum-couple-rings-with-single-diamond-ring-for-men-half-eternity-ring-for-women-jl-pt-908-41525771305201_3400x.jpg?v=1726347744",
-  "https://www.jewelslane.com/cdn/shop/collections/390e29522d597c608f0d91088edf2ded.jpg?v=1755361799"
-];
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
-
 const CoupleShopView: React.FC = () => {
   const navigate = useNavigate();
   
@@ -109,7 +51,7 @@ const CoupleShopView: React.FC = () => {
   const [visibleCount, setVisibleCount] = useState<number>(18);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [materials, setMaterials] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 10000 });
+  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
   const [cartCount, setCartCount] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
@@ -207,7 +149,7 @@ const CoupleShopView: React.FC = () => {
       if (filters.minPrice) queryParams.append('minPrice', filters.minPrice);
       if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice);
       
-      const url = `${API_BASE_URL}/rings${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      const url = `${API_BASE_URL}/rings/shop${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
       console.log('Fetching rings from:', url);
       
       const response = await fetch(url);
@@ -218,14 +160,16 @@ const CoupleShopView: React.FC = () => {
         console.log(`Received ${apiRings.length} rings from API`);
         
         // Map API rings to our format
-        const mappedRings = apiRings.map((ring: any, index: number) => ({
+        const mappedRings = apiRings.map((ring: any) => ({
           id: ring.id,
-          ring_identifier: ring.ring_identifier || `BK-${String(index + 1).padStart(3, '0')}`,
-          ring_name: ring.ring_name,
+          ring_identifier: ring.ring_identifier || '',
+          representative_ring_id: ring.representative_ring_id ?? null,
+          available_units: Number(ring.available_units || 0),
+          ring_name: ring.model_name || ring.ring_name || '',
           model_id: ring.model_id,
           batch_id: ring.batch_id,
-          size: ring.size || '7',
-          material: ring.material || 'Unknown',
+          size: ring.size || '',
+          material: ring.material || '',
           status: ring.status || 'AVAILABLE',
           location_type: ring.location_type || 'WAREHOUSE',
           location_label: ring.location_label,
@@ -234,73 +178,32 @@ const CoupleShopView: React.FC = () => {
           last_seen_lat: ring.last_seen_lat,
           last_seen_lng: ring.last_seen_lng,
           price: parseFloat(ring.price) || 0,
-          image_url: ring.image_url || RING_IMAGES[index % RING_IMAGES.length],
+          image_url: ring.image_url || null,
           created_at: ring.created_at,
           updated_at: ring.updated_at,
           
           // Computed fields
-          img: ring.image_url || RING_IMAGES[index % RING_IMAGES.length],
-          name: ring.ring_name,
-          metal: ring.material,
+          img: ring.image_url || null,
+          name: ring.model_name || ring.ring_name || '',
+          metal: ring.material || '',
           cert: ring.status || 'AVAILABLE',
           type: mapMaterialToType(ring.material),
           isNew: isNewRing(ring.created_at),
-          model_name: ring.model_name || 'Signature Collection',
-          collection: ring.collection_name || 'Classic',
-          identifier: ring.ring_identifier
+          model_name: ring.model_name || '',
+          collection: ring.collection_name || '',
+          identifier: ring.ring_identifier || ''
         }));
 
         setAllRings(mappedRings);
-        
-        // If we have fewer than 50 rings, generate additional ones
-        if (mappedRings.length < 50) {
-          const additionalNeeded = 50 - mappedRings.length;
-          console.log(`Generating ${additionalNeeded} additional rings to reach 50`);
-          
-          const additionalRings = [];
-          for (let i = 0; i < additionalNeeded; i++) {
-            const newId = 1000 + i;
-            const metal = ['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver'][Math.floor(Math.random() * 4)];
-            additionalRings.push({
-              id: newId,
-              ring_identifier: `GEN-${String(i + 1).padStart(3, '0')}`,
-              ring_name: `Designer Ring ${i + 1}`,
-              model_id: null,
-              batch_id: null,
-              size: ['5','6','7','8','9','10'][Math.floor(Math.random() * 6)],
-              material: metal,
-              status: 'AVAILABLE',
-              location_type: 'WAREHOUSE',
-              location_label: 'Virtual Inventory',
-              battery_level: null,
-              last_seen_at: null,
-              last_seen_lat: null,
-              last_seen_lng: null,
-              price: Math.floor(Math.random() * 5000) + 1000,
-              image_url: RING_IMAGES[(mappedRings.length + i) % RING_IMAGES.length],
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              img: RING_IMAGES[(mappedRings.length + i) % RING_IMAGES.length],
-              name: `Designer Ring ${i + 1}`,
-              metal: metal,
-              cert: 'AVAILABLE',
-              type: mapMaterialToType(metal),
-              isNew: Math.random() > 0.5,
-              model_name: 'Designer Collection',
-              collection: ['Modern', 'Classic', 'Vintage'][Math.floor(Math.random() * 3)],
-              identifier: `GEN-${String(i + 1).padStart(3, '0')}`
-            });
-          }
-          
-          setAllRings(prev => [...prev, ...additionalRings]);
-        }
       } else {
-        console.warn('API returned error, using fallback rings');
-        setAllRings(generateFallbackRings());
+        console.warn('API returned error, showing no rings');
+        setAllRings([]);
+        showNotification('Failed to load rings from the database.', 'error');
       }
     } catch (error) {
       console.error('Error loading rings:', error);
-      setAllRings(generateFallbackRings());
+      setAllRings([]);
+      showNotification('Failed to load rings from the database.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -318,59 +221,22 @@ const CoupleShopView: React.FC = () => {
       if (data.data.materials && data.data.materials.length > 0) {
         setMaterials(data.data.materials);
       } else {
-        setMaterials(['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver']);
+        setMaterials([]);
       }
 
       // Update price range
       if (data.data.priceRange) {
         setPriceRange({
           min: data.data.priceRange.min_price || 0,
-          max: data.data.priceRange.max_price || 10000
+          max: data.data.priceRange.max_price || 0
         });
       }
     } catch (error) {
       console.error('Error loading filter options:', error);
-      setMaterials(['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver']);
+      setMaterials([]);
+      setPriceRange({ min: 0, max: 0 });
     }
   }, []);
-
-  // Generate fallback rings if API fails
-  const generateFallbackRings = (): Ring[] => {
-    const rings: Ring[] = [];
-    for (let i = 0; i < 50; i++) {
-      const metal = ['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver'][Math.floor(Math.random() * 4)];
-      rings.push({
-        id: i + 1,
-        ring_identifier: `BK-${String(i + 1).padStart(3, '0')}`,
-        ring_name: `Eternal Ring ${i + 1}`,
-        model_id: null,
-        batch_id: null,
-        size: ['5','6','7','8','9','10'][Math.floor(Math.random() * 6)],
-        material: metal,
-        status: 'AVAILABLE',
-        location_type: 'WAREHOUSE',
-        location_label: 'Main Warehouse',
-        battery_level: null,
-        last_seen_at: null,
-        last_seen_lat: null,
-        last_seen_lng: null,
-        price: Math.floor(Math.random() * 5000) + 1000,
-        image_url: RING_IMAGES[i % RING_IMAGES.length],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        img: RING_IMAGES[i % RING_IMAGES.length],
-        name: `Eternal Ring ${i + 1}`,
-        metal: metal,
-        cert: 'AVAILABLE',
-        type: mapMaterialToType(metal),
-        isNew: i % 7 === 0,
-        model_name: 'Signature Collection',
-        collection: 'Classic',
-        identifier: `BK-${String(i + 1).padStart(3, '0')}`
-      });
-    }
-    return rings;
-  };
 
   // Apply sorting
   const applySort = useCallback(() => {
@@ -451,6 +317,11 @@ const CoupleShopView: React.FC = () => {
 const addToCart = async (ring: Ring) => {
   try {
     console.log('Adding to cart:', ring);
+
+    if (!ring.representative_ring_id) {
+      showBottomNotification('This ring model is not in stock yet', 'error');
+      return;
+    }
     
     // Get existing session ID or null
     let sessionId = localStorage.getItem('sessionId');
@@ -462,7 +333,7 @@ const addToCart = async (ring: Ring) => {
         ...(sessionId && { 'x-session-id': sessionId })
       },
       body: JSON.stringify({
-        ringId: ring.id,
+        ringId: ring.representative_ring_id,
         quantity: 1,
         size: ring.size || '7',
         material: ring.material
@@ -551,7 +422,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
   // Navigate to ring detail
   const viewRingDetail = (ring: Ring) => {
     sessionStorage.setItem('currentRing', JSON.stringify(ring));
-    navigate('/ring-view');
+    navigate(`/shop/rings/${ring.id}`);
   };
 
   // Initial load
@@ -567,9 +438,6 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
     applySort();
   }, [allRings, filters.sort, applySort]);
 
-  // Calculate stats
-  const totalRings = allRings.length;
-  const availableRings = allRings.filter(r => r.status === 'AVAILABLE').length;
   const limit = Math.min(visibleCount, filteredRings.length);
   const percent = filteredRings.length ? (limit / filteredRings.length) * 100 : 0;
 
@@ -713,18 +581,6 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
           </div>
         )}
 
-        {/* Stats Bar */}
-        <div className="flex justify-between items-center mb-6 text-sm text-slate-500">
-          <div className="flex items-center gap-4">
-            <span className="material-symbols-outlined text-primary">database</span>
-            <span><span className="font-bold text-slate-900 dark:text-white">{totalRings}</span> rings in collection</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">inventory</span>
-            <span><span className="font-bold text-slate-900 dark:text-white">{availableRings}</span> available now</span>
-          </div>
-        </div>
-
         {/* RING GRID */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -734,7 +590,9 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
         ) : limit === 0 ? (
           <div className="text-center py-20">
             <span className="material-symbols-outlined text-5xl text-slate-400 mb-4">search_off</span>
-            <p className="text-slate-500 dark:text-slate-400">No rings found matching your criteria.</p>
+            <p className="text-slate-500 dark:text-slate-400">
+              {activeFilters.length > 0 ? 'No rings found matching your criteria.' : 'No rings available in the database yet.'}
+            </p>
             <button 
               onClick={handleClearFilters}
               className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
@@ -759,15 +617,18 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               return (
                 <div key={ring.id} className="ring-card group flex flex-col">
                   <div className="relative aspect-[4/5] bg-white dark:bg-slate-800 rounded-xl overflow-hidden mb-6 shadow-lg">
-                    <img 
-                      alt={ring.ring_name} 
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                      src={ring.image_url || ring.img} 
-                      loading="lazy" 
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=800&fit=crop';
-                      }} 
-                    />
+                    {ring.image_url || ring.img ? (
+                      <img 
+                        alt={ring.ring_name} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                        src={ring.image_url || ring.img || undefined} 
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-slate-400 dark:bg-slate-900 dark:text-slate-500">
+                        No image in database
+                      </div>
+                    )}
                     
                     {/* Status Badge */}
                     <div className="absolute top-4 left-4">
@@ -809,7 +670,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                     </div>
                     
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                      {ring.material} • Size {ring.size}
+                      {[ring.material, ring.size ? `Size ${ring.size}` : ''].filter(Boolean).join(' • ')}
                     </p>
                     
                     <p className="text-xl font-bold text-primary mt-2">${ring.price.toLocaleString()}</p>
@@ -824,10 +685,15 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                     
                     <div className="flex items-center gap-2 mt-4">
                       <button 
-                        className="flex-1 bg-primary text-white py-3 rounded-lg text-sm font-bold tracking-widest uppercase hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                        className={`flex-1 py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
+                          ring.representative_ring_id
+                            ? 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
+                            : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none dark:bg-slate-800 dark:text-slate-400'
+                        }`}
                         onClick={() => addToCart(ring)}
+                        disabled={!ring.representative_ring_id}
                       >
-                        Add to Cart
+                        {ring.representative_ring_id ? 'Add to Cart' : 'Out of Stock'}
                       </button>
                       <button 
                         className="flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all text-primary"

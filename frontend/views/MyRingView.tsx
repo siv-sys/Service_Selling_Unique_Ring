@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../lib/api';
+
+const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
 interface RingData {
   ring_name?: string;
@@ -29,9 +32,6 @@ const RingInformation: React.FC = () => {
   const [coupleName, setCoupleName] = useState<string>('Alex & Jamie');
   const [cartCount, setCartCount] = useState<number>(0);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
-
-  // API Configuration
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
   // Load dark mode preference
   useEffect(() => {
@@ -93,8 +93,7 @@ const RingInformation: React.FC = () => {
     showLoading();
     
     try {
-      // Try to get from sessionStorage first (from shop)
-      const storedRing = sessionStorage.getItem('currentRing');
+      const storedRing = localStorage.getItem(PURCHASED_RING_STORAGE_KEY);
       
       if (storedRing) {
         const ring = JSON.parse(storedRing);
@@ -102,25 +101,10 @@ const RingInformation: React.FC = () => {
         hideLoading();
         return;
       }
-      
-      // If no ring in sessionStorage, fetch from API
-      // In a real app, you would get the user's owned ring ID from their profile
-      const ringId = 1; // Default to first ring for demo
-      
-      const response = await fetch(`${API_BASE_URL}/rings/${ringId}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        displayRingData(data.data);
-      } else {
-        throw new Error('Ring not found');
-      }
-      
+
+      setRingData(null);
+      setError('You do not own a ring yet. Buy a ring first, then your ring information will appear here.');
+      setLoading(false);
     } catch (error) {
       console.error('Error loading ring:', error);
       showError(error instanceof Error ? error.message : 'Failed to load ring data');
@@ -340,12 +324,12 @@ const RingInformation: React.FC = () => {
   }
 
   // Derived data
-  const ringName = ringData.ring_name || ringData.name || 'Eternal Promise';
-  const ringIdentifier = ringData.ring_identifier || ringData.identifier || 'BK-EP-2024-001';
-  const ringImage = ringData.model_image || ringData.image_url || ringData.img || 'https://www.loville.co/cdn/shop/products/CPR5013FANTASY-1_600x600.jpg?v=1586341339';
-  const material = ringData.material || 'Platinum';
-  const price = ringData.price || 15000;
-  const size = ringData.size || '6.5';
+  const ringName = ringData.ring_name || ringData.name || 'Owned Ring';
+  const ringIdentifier = ringData.ring_identifier || ringData.identifier || 'N/A';
+  const ringImage = ringData.model_image || ringData.image_url || ringData.img || '';
+  const material = ringData.material || 'N/A';
+  const price = ringData.price || 0;
+  const size = ringData.size || 'N/A';
   const createdDate = ringData.created_at ? new Date(ringData.created_at) : new Date();
   const completionDate = getCompletionDate(ringData.created_at);
   const certNumber = getCertNumber();
@@ -354,9 +338,9 @@ const RingInformation: React.FC = () => {
 
   const categories = [
     material,
-    ringData.model_name || 'Signature',
-    ringData.collection_name || 'Classic',
-    ringData.status || 'Available',
+    ringData.model_name || 'Owned',
+    ringData.collection_name || 'Purchased',
+    ringData.status || 'Purchased',
     'Ethical',
     'Handcrafted'
   ];

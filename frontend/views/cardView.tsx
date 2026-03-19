@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../lib/api';
 
 // Types
 interface CartItem {
@@ -21,8 +22,6 @@ interface UpsellItem {
   price: number;
   image: string;
 }
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
 const Cart: React.FC = () => {
   const navigate = useNavigate();

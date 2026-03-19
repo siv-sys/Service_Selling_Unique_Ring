@@ -21,15 +21,7 @@ import {
   Cell
 } from 'recharts';
 
-const data = [
-  { name: 'MON', value: 380 },
-  { name: 'TUE', value: 550 },
-  { name: 'WED', value: 420 },
-  { name: 'THU', value: 580 },
-  { name: 'FRI', value: 380 },
-  { name: 'SAT', value: 610 },
-  { name: 'SUN', value: 680 },
-];
+const data: { name: string; value: number }[] = [];
 
 type RecentAlert = {
   id: string;
@@ -105,9 +97,9 @@ const AdminDashboardView = () => {
   const [dashboardError, setDashboardError] = useState('');
   const [dbConnected, setDbConnected] = useState(false);
   const [dashboardStats, setDashboardStats] = useState({
-    totalUsers: -1,
-    totalRingsSold: -1,
-    activeRelationships: -1,
+    totalUsers: 0,
+    totalRingsSold: 0,
+    activeRelationships: 0,
     usersChange: '+12%',
     ringsSoldChange: '+5%',
     relationshipsChange: '+2%',
@@ -116,78 +108,14 @@ const AdminDashboardView = () => {
   });
   const [weeklyConnectivity, setWeeklyConnectivity] = useState<WeeklyConnectivityPoint[]>(data);
   const [activeManagePanel, setActiveManagePanel] = useState<'users' | 'rings' | 'relationships' | null>(null);
-  const [systemUsers, setSystemUsers] = useState<SystemUser[]>([
-    { id: 'usr-1001', name: 'Alex Rivera', email: 'alex@smartring.com', role: 'Admin', status: 'Active', lastActive: '2 minutes ago' },
-    { id: 'usr-1002', name: 'Jordan Lee', email: 'jordan@smartring.com', role: 'Manager', status: 'Active', lastActive: '8 minutes ago' },
-    { id: 'usr-1003', name: 'Sam Carter', email: 'sam@smartring.com', role: 'User', status: 'Suspended', lastActive: '1 hour ago' },
-    { id: 'usr-1004', name: 'Casey Morgan', email: 'casey@smartring.com', role: 'User', status: 'Active', lastActive: '4 minutes ago' }
-  ]);
-  const [ringSales, setRingSales] = useState<RingSale[]>([
-    { id: 'sale-001', orderNo: '#R-1201', customer: 'Nika Dara', model: 'SmartRing Lover Edition', status: 'Sold', soldAt: 'Today 10:45 AM' },
-    { id: 'sale-002', orderNo: '#R-1202', customer: 'Sokha Kim', model: 'Gen 3 - Rose Gold', status: 'Pending Payment', soldAt: 'Today 09:21 AM' },
-    { id: 'sale-003', orderNo: '#R-1203', customer: 'Alex Jordan', model: 'Classic Silver', status: 'Sold', soldAt: 'Today 08:12 AM' },
-    { id: 'sale-004', orderNo: '#R-1198', customer: 'Taylor Morgan', model: 'Midnight Black', status: 'Refunded', soldAt: 'Yesterday 07:30 PM' }
-  ]);
-  const [relationshipFollows, setRelationshipFollows] = useState<RelationshipFollow[]>([
-    { id: 'rel-001', pair: 'Alex & Jordan', stage: 'Active', lastInteraction: '5 minutes ago', reminderAt: 'Today 8:00 PM' },
-    { id: 'rel-002', pair: 'Sam & Casey', stage: 'Anniversary', lastInteraction: '30 minutes ago', reminderAt: 'Today 6:30 PM' },
-    { id: 'rel-003', pair: 'Taylor & Morgan', stage: 'Paused', lastInteraction: '1 day ago', reminderAt: 'Tomorrow 9:00 AM' },
-    { id: 'rel-004', pair: 'Nika & Dara', stage: 'New', lastInteraction: 'just now', reminderAt: 'Today 10:00 PM' }
-  ]);
-
-  const getTotalUsers = () =>
-    dashboardStats.totalUsers >= 0 ? dashboardStats.totalUsers : systemUsers.length;
-
-  const getTotalRingsSold = () =>
-    dashboardStats.totalRingsSold >= 0
-      ? dashboardStats.totalRingsSold
-      : ringSales.filter((sale) => sale.status === 'Sold').length;
-
-  const getActiveRelationships = () =>
-    dashboardStats.activeRelationships >= 0
-      ? dashboardStats.activeRelationships
-      : relationshipFollows.filter((item) => item.stage === 'Active' || item.stage === 'Anniversary').length;
-
-  const totalUsersValue = String(getTotalUsers());
-  const totalRingsSoldValue = String(getTotalRingsSold());
-  const activeRelationshipsValue = String(getActiveRelationships());
-
-  const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([
-    { users: ['Alex', 'Jordan'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 10:45 AM', status: 'Pending' },
-    { users: ['Sam', 'Casey'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 09:12 AM', status: 'Approved' },
-    { users: ['Taylor', 'Morgan'], model: 'SmartRing Lover Edition', date: 'Oct 24, 2023 08:30 AM', status: 'Pending' }
-  ]);
-
-  const [relationshipUserAlerts, setRelationshipUserAlerts] = useState<RelationshipUserAlert[]>([
-    {
-      id: 'rel-new-001',
-      title: 'New User Registered',
-      description: 'Nika & Dara created a new relationship account and completed website registration.',
-      time: '2 minutes ago',
-      type: 'new'
-    },
-    {
-      id: 'rel-return-001',
-      title: 'Returning User Activity',
-      description: 'Alex (existing user) returned and linked relationship profile with Jordan.',
-      time: '18 minutes ago',
-      type: 'returning'
-    },
-    {
-      id: 'rel-active-001',
-      title: 'Active User Session',
-      description: 'Sam is active now and updated ring sync settings.',
-      time: 'just now',
-      type: 'active'
-    },
-    {
-      id: 'rel-anniv-001',
-      title: 'Anniversary Reminder',
-      description: 'Taylor & Morgan have relationship anniversary today.',
-      time: 'Today 8:00 PM',
-      type: 'anniversary'
-    }
-  ]);
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
+  const [ringSales, setRingSales] = useState<RingSale[]>([]);
+  const [relationshipFollows, setRelationshipFollows] = useState<RelationshipFollow[]>([]);
+  const totalUsersValue = String(dashboardStats.totalUsers);
+  const totalRingsSoldValue = String(dashboardStats.totalRingsSold);
+  const activeRelationshipsValue = String(dashboardStats.activeRelationships);
+  const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([]);
+  const [relationshipUserAlerts, setRelationshipUserAlerts] = useState<RelationshipUserAlert[]>([]);
 
   const getErrorMessage = (error: unknown, fallback: string) => {
     if (error instanceof Error && error.message) {
@@ -234,7 +162,7 @@ const AdminDashboardView = () => {
         setDbConnected(true);
       } catch (_error) {
         if (!isMounted) return;
-        setDashboardError('Failed to load dashboard data from backend. Showing local data.');
+        setDashboardError('Failed to load dashboard data from backend.');
         setDbConnected(false);
       }
     };
@@ -344,9 +272,9 @@ const AdminDashboardView = () => {
     const rows = [
       ['Dashboard Stats', '', ''],
       ['Metric', 'Value', 'Change'],
-      ['Total Users', '12,450', '+12%'],
-      ['Total Rings Sold', '8,201', '+5%'],
-      ['Active Relationships', '4,105', '+2%'],
+      ['Total Users', totalUsersValue, dashboardStats.usersChange],
+      ['Total Rings Sold', totalRingsSoldValue, dashboardStats.ringsSoldChange],
+      ['Active Relationships', activeRelationshipsValue, dashboardStats.relationshipsChange],
       [],
       ['Latest Pairing Requests', '', '', ''],
       ['Users', 'Device Model', 'Request Date', 'Status'],
@@ -391,7 +319,7 @@ const AdminDashboardView = () => {
         <h2>Dashboard Export</h2>
         <p>Generated: ${new Date().toLocaleString()}</p>
         <h3>Stats</h3>
-        <table><thead><tr><th>Metric</th><th>Value</th><th>Change</th></tr></thead><tbody><tr><td>Total Users</td><td>12,450</td><td>+12%</td></tr><tr><td>Total Rings Sold</td><td>8,201</td><td>+5%</td></tr><tr><td>Active Relationships</td><td>4,105</td><td>+2%</td></tr></tbody></table>
+        <table><thead><tr><th>Metric</th><th>Value</th><th>Change</th></tr></thead><tbody><tr><td>Total Users</td><td>${totalUsersValue}</td><td>${dashboardStats.usersChange}</td></tr><tr><td>Total Rings Sold</td><td>${totalRingsSoldValue}</td><td>${dashboardStats.ringsSoldChange}</td></tr><tr><td>Active Relationships</td><td>${activeRelationshipsValue}</td><td>${dashboardStats.relationshipsChange}</td></tr></tbody></table>
         <h3>Latest Pairing Requests</h3>
         <table><thead><tr><th>Users</th><th>Model</th><th>Date</th><th>Status</th></tr></thead><tbody>${pairingHtml}</tbody></table>
         <h3>Recent Alerts</h3>

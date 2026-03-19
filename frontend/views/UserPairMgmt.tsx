@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Header from '../components/Header';
-import { 
-  Users, 
-  Link2Off, 
-  RefreshCw, 
-  ShieldAlert, 
-  Search, 
-  Filter, 
-  FileText, 
+import { api } from '../lib/api';
+import {
+  Users,
+  Link2Off,
+  RefreshCw,
+  ShieldAlert,
+  Search,
+  Filter,
+  FileText,
   Table as TableIcon,
   Eye,
   BarChart2,
@@ -17,76 +18,149 @@ import {
   Cpu
 } from 'lucide-react';
 
+type PairSummary = {
+  totalPairs: number;
+  connectedPairs: number;
+  revokedPairs: number;
+  pendingPairs: number;
+  totalActiveUsers: number;
+  disconnectedPairs: number;
+  outdatedFirmware: number;
+  suspendedAccounts: number;
+};
+
+type PairItem = {
+  id: number;
+  names: string;
+  pairCode: string;
+  pairStatus: 'CONNECTED' | 'PENDING' | 'SYNCING' | 'SUSPENDED' | 'UNPAIRED';
+  accessLevel: 'FULL_ACCESS' | 'LIMITED' | 'REVOKED';
+  memberCount: number;
+  deviceLabel: string;
+  pairId: string;
+  tier: 'Executive' | 'Standard' | 'Guest';
+  ring: string;
+  ringModel: string;
+  os: string;
+  platform: 'iOS' | 'Android' | 'Unknown';
+  status: 'Active' | 'Pending' | 'Disabled';
+  firmware: 'Updated' | 'Outdated';
+  accountState: 'Active' | 'Suspended';
+  lastActive: string;
+  lastActiveAt: string | null;
+  enabled: boolean;
+  disabled: boolean;
+};
+
+type PairResponse = {
+  summary: PairSummary;
+  items: PairItem[];
+};
+
+const EMPTY_SUMMARY: PairSummary = {
+  totalPairs: 0,
+  connectedPairs: 0,
+  revokedPairs: 0,
+  pendingPairs: 0,
+  totalActiveUsers: 0,
+  disconnectedPairs: 0,
+  outdatedFirmware: 0,
+  suspendedAccounts: 0,
+};
+
+const PAGE_SIZE = 10;
+
 const UserPairMgmt = () => {
-  const [toggles, setToggles] = useState({
-    pair1: true,
-    pair2: true,
-    pair3: false
-  });
-  const [summaryFilter, setSummaryFilter] = useState<'all' | 'active' | 'disconnected' | 'outdated' | 'suspended'>('all');
+  const [summary, setSummary] = useState<PairSummary>(EMPTY_SUMMARY);
+  const [userPairs, setUserPairs] = useState<PairItem[]>([]);
+  const [summaryFilter, setSummaryFilter] = useState<'all' | 'connected' | 'revoked' | 'suspended'>('all');
   const [selectedExport, setSelectedExport] = useState<'excel' | 'pdf'>('excel');
   const [selectedPage, setSelectedPage] = useState(1);
   const [lastExportedFile, setLastExportedFile] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRingModel, setSelectedRingModel] = useState('All Models');
+  const [selectedAccessLevel, setSelectedAccessLevel] = useState('Any Access');
+  const [selectedLastActiveRange, setSelectedLastActiveRange] = useState('Any Time');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busyPairId, setBusyPairId] = useState<number | null>(null);
 
-  const userPairs = [
-    {
-      id: 'pair1',
-      names: 'Sarah & Alex',
-      pairId: 'PR-9210',
-      tier: 'Executive',
-      ring: 'SR-90112',
-      os: 'iOS 17.4',
-      osIcon: Smartphone,
-      status: 'Active',
-      firmware: 'Updated',
-      accountState: 'Active',
-      lastActive: '2m ago',
-      disabled: false
-    },
-    {
-      id: 'pair2',
-      names: 'Elara & Jordan',
-      pairId: 'PR-5521',
-      tier: 'Standard',
-      ring: 'SR-90553',
-      os: 'Android 14',
-      osIcon: Cpu,
-      status: 'Pending',
-      firmware: 'Outdated',
-      accountState: 'Active',
-      lastActive: 'Never',
-      disabled: false
-    },
-    {
-      id: 'pair3',
-      names: 'Marcus & Sam',
-      pairId: 'Access Revoked',
-      tier: 'Guest',
-      ring: 'SR-88421',
-      os: 'Hardware Locked',
-      osIcon: Smartphone,
-      status: 'Disabled',
-      firmware: 'Outdated',
-      accountState: 'Suspended',
-      lastActive: '14 days ago',
-      disabled: true
-    }
-  ];
-
-  const visibleUserPairs =
-    summaryFilter === 'active'
-      ? userPairs.filter((pair) => pair.status === 'Active')
-      : summaryFilter === 'disconnected'
-      ? userPairs.filter((pair) => pair.status !== 'Active')
-      : summaryFilter === 'outdated'
-      ? userPairs.filter((pair) => pair.firmware === 'Outdated')
-      : summaryFilter === 'suspended'
-      ? userPairs.filter((pair) => pair.accountState === 'Suspended')
-      : userPairs;
-
-  const togglePair = (id: string) => {
-    setToggles(prev => ({ ...prev, [id]: !prev[id as keyof typeof prev] }));
+  const getErrorMessage = (err: unknown, fallback: string) => {
+    if (err instanceof Error && err.message) return err.message;
+    return fallback;
   };
+
+  const loadPairs = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get<PairResponse>('/admin/pairs');
+      setSummary(response.summary || EMPTY_SUMMARY);
+      setUserPairs(Array.isArray(response.items) ? response.items : []);
+      setError('');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load pair management data from backend.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPairs();
+  }, []);
+
+  const availableModels = useMemo(
+    () => ['All Models', ...Array.from(new Set(userPairs.map((pair) => pair.ringModel).filter(Boolean)))],
+    [userPairs]
+  );
+
+  const activeWithinRange = (pair: PairItem) => {
+    if (selectedLastActiveRange === 'Any Time' || !pair.lastActiveAt) return true;
+
+    const lastActiveMs = new Date(pair.lastActiveAt).getTime();
+    if (!Number.isFinite(lastActiveMs)) return false;
+
+    const diffMs = Date.now() - lastActiveMs;
+    if (selectedLastActiveRange === 'Last 24 Hours') return diffMs <= 24 * 60 * 60 * 1000;
+    if (selectedLastActiveRange === 'Last 7 Days') return diffMs <= 7 * 24 * 60 * 60 * 1000;
+    if (selectedLastActiveRange === 'Last 30 Days') return diffMs <= 30 * 24 * 60 * 60 * 1000;
+    return true;
+  };
+
+  const visibleUserPairs = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    const filtered = userPairs.filter((pair) => {
+      const summaryOk =
+        summaryFilter === 'connected'
+          ? pair.pairStatus === 'CONNECTED' || pair.pairStatus === 'SYNCING'
+          : summaryFilter === 'revoked'
+            ? pair.accessLevel === 'REVOKED'
+            : summaryFilter === 'suspended'
+              ? pair.accountState === 'Suspended'
+              : true;
+
+      const searchOk =
+        !search ||
+        [pair.names, pair.pairCode, pair.ring, pair.ringModel, pair.deviceLabel]
+          .join(' ')
+          .toLowerCase()
+          .includes(search);
+
+      const modelOk = selectedRingModel === 'All Models' || pair.ringModel === selectedRingModel;
+      const accessOk = selectedAccessLevel === 'Any Access' || pair.accessLevel === selectedAccessLevel;
+
+      return summaryOk && searchOk && modelOk && accessOk && activeWithinRange(pair);
+    });
+
+    return filtered;
+  }, [userPairs, summaryFilter, searchTerm, selectedRingModel, selectedAccessLevel, selectedLastActiveRange]);
+
+  useEffect(() => {
+    setSelectedPage(1);
+  }, [summaryFilter, searchTerm, selectedRingModel, selectedAccessLevel, selectedLastActiveRange]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleUserPairs.length / PAGE_SIZE));
+  const pagedPairs = visibleUserPairs.slice((selectedPage - 1) * PAGE_SIZE, selectedPage * PAGE_SIZE);
 
   const getTimestamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
@@ -100,9 +174,9 @@ const UserPairMgmt = () => {
   };
 
   const handleExportExcel = () => {
-    const headers = ['Pair ID', 'Names', 'Tier', 'Ring', 'OS', 'Status', 'Firmware', 'Account State', 'Last Active'];
+    const headers = ['Pair Code', 'Members', 'Pair Status', 'Access Level', 'Member Count', 'Ring', 'Ring Model', 'Device', 'Account Status', 'Last Active'];
     const rows = visibleUserPairs.map((pair) =>
-      [pair.pairId, pair.names, pair.tier, pair.ring, pair.os, pair.status, pair.firmware, pair.accountState, pair.lastActive].join(',')
+      [pair.pairCode, pair.names, pair.pairStatus, pair.accessLevel, pair.memberCount, pair.ring, pair.ringModel, pair.deviceLabel, pair.accountState, pair.lastActive].join(',')
     );
     const csvContent = [headers.join(','), ...rows].join('\n');
     const fileName = `userpair-export-${getTimestamp()}.csv`;
@@ -121,13 +195,14 @@ const UserPairMgmt = () => {
       .map(
         (pair) => `
         <tr>
-          <td>${pair.pairId}</td>
+          <td>${pair.pairCode}</td>
           <td>${pair.names}</td>
-          <td>${pair.tier}</td>
+          <td>${pair.pairStatus}</td>
+          <td>${pair.accessLevel}</td>
+          <td>${pair.memberCount}</td>
           <td>${pair.ring}</td>
-          <td>${pair.os}</td>
-          <td>${pair.status}</td>
-          <td>${pair.firmware}</td>
+          <td>${pair.ringModel}</td>
+          <td>${pair.deviceLabel}</td>
           <td>${pair.accountState}</td>
           <td>${pair.lastActive}</td>
         </tr>`
@@ -153,7 +228,7 @@ const UserPairMgmt = () => {
           <table>
             <thead>
               <tr>
-                <th>Pair ID</th><th>Names</th><th>Tier</th><th>Ring</th><th>OS</th><th>Status</th><th>Firmware</th><th>Account State</th><th>Last Active</th>
+                <th>Pair Code</th><th>Members</th><th>Pair Status</th><th>Access Level</th><th>Member Count</th><th>Ring</th><th>Ring Model</th><th>Device</th><th>Account Status</th><th>Last Active</th>
               </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
@@ -165,6 +240,37 @@ const UserPairMgmt = () => {
     popup.focus();
     setTimeout(() => popup.print(), 250);
     setLastExportedFile(`userpair-export-${getTimestamp()}.pdf`);
+  };
+
+  const handleTogglePair = async (pair: PairItem) => {
+    setBusyPairId(pair.id);
+    try {
+      const response = await api.patch<{ item: PairItem }>(`/admin/pairs/${pair.id}/enabled`, {
+        enabled: !pair.enabled,
+      });
+      setUserPairs((current) => current.map((item) => (item.id === pair.id ? response.item : item)));
+      await loadPairs();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to update pair access.'));
+    } finally {
+      setBusyPairId(null);
+    }
+  };
+
+  const handleDeletePair = async (pair: PairItem) => {
+    const confirmed = window.confirm(`Delete ${pair.names} (${pair.pairCode}) from the admin list?`);
+    if (!confirmed) return;
+
+    setBusyPairId(pair.id);
+    try {
+      await api.delete(`/admin/pairs/${pair.id}`);
+      setUserPairs((current) => current.filter((item) => item.id !== pair.id));
+      await loadPairs();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to delete pair.'));
+    } finally {
+      setBusyPairId(null);
+    }
   };
 
   const entrance = (delayMs: number): React.CSSProperties => ({
@@ -260,62 +366,62 @@ const UserPairMgmt = () => {
           color: #94a3b8 !important;
         }
       `}</style>
-      <Header 
-        title="User & Pair Management Console" 
-        subtitle="Comprehensive control over accounts and active ring couplings" 
+      <Header
+        title="User & Pair Management Console"
+        subtitle="Database-backed view of relationship pairs, linked rings, and account access"
         showProvisionButton
       />
-      
+
       <main className="userpair-page flex-1 overflow-y-auto bg-slate-50/50 p-8 dark:bg-slate-950">
-        {/* Summary Grid */}
+        {error && <p className="mb-4 text-xs font-semibold text-rose-600">{error}</p>}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div style={entrance(40)}>
-            <SummaryCard 
-            title="Total Active Users" 
-            value="1,204" 
-            status="Active Now" 
-            icon={Users} 
-            color="green"
-            active={summaryFilter === 'active'}
-            onClick={() => setSummaryFilter((prev) => (prev === 'active' ? 'all' : 'active'))}
-          />
+            <SummaryCard
+              title="Total Pairs"
+              value={String(summary.totalPairs)}
+              status="Database Live"
+              icon={Users}
+              color="green"
+              active={summaryFilter === 'all'}
+              onClick={() => setSummaryFilter('all')}
+            />
           </div>
           <div style={entrance(90)}>
-            <SummaryCard 
-            title="Disconnected Pairs" 
-            value="42" 
-            status="Requires Sync" 
-            icon={Link2Off} 
-            color="amber"
-            active={summaryFilter === 'disconnected'}
-            onClick={() => setSummaryFilter((prev) => (prev === 'disconnected' ? 'all' : 'disconnected'))}
-          />
+            <SummaryCard
+              title="Connected Pairs"
+              value={String(summary.connectedPairs)}
+              status="Pair Status"
+              icon={Link2Off}
+              color="amber"
+              active={summaryFilter === 'connected'}
+              onClick={() => setSummaryFilter((prev) => (prev === 'connected' ? 'all' : 'connected'))}
+            />
           </div>
           <div style={entrance(140)}>
-            <SummaryCard 
-            title="Outdated Firmware" 
-            value="18" 
-            status="Action Required" 
-            icon={RefreshCw} 
-            color="primary"
-            active={summaryFilter === 'outdated'}
-            onClick={() => setSummaryFilter((prev) => (prev === 'outdated' ? 'all' : 'outdated'))}
-          />
+            <SummaryCard
+              title="Revoked Access"
+              value={String(summary.revokedPairs)}
+              status="Access Level"
+              icon={RefreshCw}
+              color="primary"
+              active={summaryFilter === 'revoked'}
+              onClick={() => setSummaryFilter((prev) => (prev === 'revoked' ? 'all' : 'revoked'))}
+            />
           </div>
           <div style={entrance(190)}>
-            <SummaryCard 
-            title="Suspended Accounts" 
-            value="7" 
-            status="Security Risk" 
-            icon={ShieldAlert} 
-            color="red"
-            active={summaryFilter === 'suspended'}
-            onClick={() => setSummaryFilter((prev) => (prev === 'suspended' ? 'all' : 'suspended'))}
-          />
+            <SummaryCard
+              title="Suspended Members"
+              value={String(summary.suspendedAccounts)}
+              status="Account Status"
+              icon={ShieldAlert}
+              color="red"
+              active={summaryFilter === 'suspended'}
+              onClick={() => setSummaryFilter((prev) => (prev === 'suspended' ? 'all' : 'suspended'))}
+            />
           </div>
         </div>
 
-        {/* Filters Section */}
         <div
           style={entrance(250)}
           className="bg-white rounded-xl p-6 mb-8 shadow-sm border border-primary/5 hover:shadow-md transition-shadow duration-300"
@@ -324,15 +430,21 @@ const UserPairMgmt = () => {
             <div className="flex items-center gap-4 flex-1">
               <div className="relative max-w-md w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 w-4 h-4" />
-                <input 
-                  type="text" 
-                  placeholder="Search by name, ID, or phone..." 
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search by member, pair code, ring, or device..."
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/30"
                 />
               </div>
-              <button className="btn-contrast btn-contrast-neutral flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm hover:-translate-y-0.5 transition-all duration-200">
+              <button
+                type="button"
+                onClick={loadPairs}
+                className="btn-contrast btn-contrast-neutral flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm hover:-translate-y-0.5 transition-all duration-200"
+              >
                 <Filter className="w-4 h-4" />
-                Advanced Filters
+                Refresh Data
               </button>
             </div>
             <div className="flex items-center gap-2">
@@ -368,20 +480,29 @@ const UserPairMgmt = () => {
           {lastExportedFile && (
             <p className="text-xs font-semibold text-slate-700 mb-4">Last export: {lastExportedFile}</p>
           )}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-6 border-t border-slate-100">
-            <FilterSelect label="Ring Model" options={['All Models', 'Gen 3 Pro', 'Gen 3 Lite']} />
-            <FilterSelect label="OS Platform" options={['Any OS', 'iOS', 'Android']} />
-            <FilterSelect label="Last Active Range" options={['Last 24 Hours', 'Last 7 Days', 'Last 30 Days']} />
+            <FilterSelect label="Ring Model" value={selectedRingModel} options={availableModels} onChange={setSelectedRingModel} />
+            <FilterSelect label="Access Level" value={selectedAccessLevel} options={['Any Access', 'FULL_ACCESS', 'LIMITED', 'REVOKED']} onChange={setSelectedAccessLevel} />
+            <FilterSelect label="Last Active Range" value={selectedLastActiveRange} options={['Any Time', 'Last 24 Hours', 'Last 7 Days', 'Last 30 Days']} onChange={setSelectedLastActiveRange} />
             <div className="flex items-end">
-              <button className="btn-contrast btn-contrast-primary w-full py-2.5 rounded-lg text-sm hover:-translate-y-0.5 transition-all duration-200">
-                Apply Filters
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedRingModel('All Models');
+                  setSelectedAccessLevel('Any Access');
+                  setSelectedLastActiveRange('Any Time');
+                  setSummaryFilter('all');
+                }}
+                className="btn-contrast btn-contrast-primary w-full py-2.5 rounded-lg text-sm hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Reset Filters
               </button>
             </div>
           </div>
         </div>
 
-        {/* User Table */}
         <div
           style={entrance(320)}
           className="bg-white rounded-xl shadow-sm border border-primary/5 overflow-hidden hover:shadow-md transition-shadow duration-300"
@@ -389,19 +510,17 @@ const UserPairMgmt = () => {
           {summaryFilter !== 'all' && (
             <div className="px-6 py-3 border-b border-primary/10 bg-green-50 flex items-center justify-between">
               <p className="text-sm font-semibold text-green-800">
-                {summaryFilter === 'active'
-                  ? 'Showing active users only'
-                  : summaryFilter === 'disconnected'
-                  ? 'Showing disconnected pairs only'
-                  : summaryFilter === 'outdated'
-                  ? 'Showing outdated firmware users only'
-                  : 'Showing suspended account users only'}
+                {summaryFilter === 'connected'
+                  ? 'Showing connected pair rows only'
+                  : summaryFilter === 'revoked'
+                    ? 'Showing revoked-access pair rows only'
+                    : 'Showing suspended-member pair rows only'}
               </p>
               <button
                 onClick={() => setSummaryFilter('all')}
                 className="btn-contrast btn-contrast-neutral px-3 py-1.5 rounded-lg text-xs"
               >
-                Show All Users
+                Show All Pairs
               </button>
             </div>
           )}
@@ -410,42 +529,51 @@ const UserPairMgmt = () => {
               <thead>
                 <tr className="bg-slate-50 border-b border-primary/5">
                   <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Enable</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Lover Pairs</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Tier</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Ring & OS</th>
-                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Status</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Pair Members</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Pair Status</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Access / Ring</th>
+                  <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Account State</th>
                   <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700">Last Active</th>
                   <th className="p-5 text-xs font-bold uppercase tracking-wider text-slate-700 text-right">Admin Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-primary/5">
-                {visibleUserPairs.map((pair) => (
-                  <UserRow
-                    key={pair.id}
-                    id={pair.id}
-                    names={pair.names}
-                    pairId={pair.pairId}
-                    tier={pair.tier}
-                    ring={pair.ring}
-                    os={pair.os}
-                    osIcon={pair.osIcon}
-                    status={pair.status}
-                    lastActive={pair.lastActive}
-                    enabled={toggles[pair.id as keyof typeof toggles]}
-                    onToggle={() => togglePair(pair.id)}
-                    disabled={pair.disabled}
-                  />
-                ))}
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-sm text-slate-500">Loading pair management data...</td>
+                  </tr>
+                ) : pagedPairs.length ? (
+                  pagedPairs.map((pair) => (
+                    <UserRow
+                      key={pair.id}
+                      pair={pair}
+                      busy={busyPairId === pair.id}
+                      onToggle={() => handleTogglePair(pair)}
+                      onDelete={() => handleDeletePair(pair)}
+                    />
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-sm text-slate-500">No pair records matched the current filters.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-          
+
           <div className="p-6 border-t border-primary/5 flex items-center justify-between">
-            <p className="text-sm text-slate-700 italic">System Admin Access: Displaying localized server records for 1,204 accounts</p>
+            <p className="text-sm text-slate-700 italic">System Admin Access: displaying {visibleUserPairs.length} relationship pair row(s) from MySQL</p>
             <div className="flex items-center gap-2">
-              <button className="btn-contrast btn-contrast-neutral px-4 py-2 text-sm rounded-lg transition-all duration-200 hover:-translate-y-0.5">Previous</button>
+              <button
+                type="button"
+                disabled={selectedPage <= 1}
+                onClick={() => setSelectedPage((page) => Math.max(1, page - 1))}
+                className="btn-contrast btn-contrast-neutral px-4 py-2 text-sm rounded-lg transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                Previous
+              </button>
               <div className="flex items-center gap-1">
-                {[1, 2, 3].map((page) => (
+                {Array.from({ length: totalPages }, (_, index) => index + 1).slice(0, 5).map((page) => (
                   <button
                     key={page}
                     onClick={() => setSelectedPage(page)}
@@ -459,7 +587,14 @@ const UserPairMgmt = () => {
                   </button>
                 ))}
               </div>
-              <button className="btn-contrast btn-contrast-neutral px-4 py-2 text-sm rounded-lg transition-all duration-200 hover:-translate-y-0.5">Next Page</button>
+              <button
+                type="button"
+                disabled={selectedPage >= totalPages}
+                onClick={() => setSelectedPage((page) => Math.min(totalPages, page + 1))}
+                className="btn-contrast btn-contrast-neutral px-4 py-2 text-sm rounded-lg transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50"
+              >
+                Next Page
+              </button>
             </div>
           </div>
         </div>
@@ -509,87 +644,99 @@ const SummaryCard = ({ title, value, status, icon: Icon, color, onClick, active 
   );
 };
 
-const FilterSelect = ({ label, options }: any) => (
+const FilterSelect = ({ label, options, value, onChange }: any) => (
   <div className="space-y-1.5">
     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">{label}</label>
-    <select className="w-full bg-slate-50 border-none rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/30">
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="w-full bg-slate-50 border-none rounded-lg py-2 text-sm focus:ring-2 focus:ring-primary/30"
+    >
       {options.map((opt: string) => <option key={opt}>{opt}</option>)}
     </select>
   </div>
 );
 
-const UserRow = ({ id, names, pairId, tier, ring, os, osIcon: OSIcon, status, lastActive, enabled, onToggle, disabled }: any) => {
+const UserRow = ({ pair, busy, onToggle, onDelete }: any) => {
   const [selectedAction, setSelectedAction] = useState<'view' | 'chart' | 'link' | 'delete' | null>(null);
+  const OSIcon = pair.platform === 'Android' ? Cpu : Smartphone;
 
   return (
-    <tr className={`hover:bg-primary/5 transition-all duration-200 group ${disabled ? 'bg-slate-50/30' : 'hover:translate-x-0.5'}`}>
+    <tr className={`hover:bg-primary/5 transition-all duration-200 group ${pair.disabled ? 'bg-slate-50/30' : 'hover:translate-x-0.5'}`}>
       <td className="p-5">
         <div className="inline-flex items-center gap-2">
           <button
             onClick={onToggle}
+            disabled={busy}
             role="switch"
-            aria-checked={enabled}
-            aria-label={`${id} ${enabled ? 'on' : 'off'}`}
-            className={`toggle-contrast relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out ${enabled ? 'toggle-on' : 'toggle-off'}`}
+            aria-checked={pair.enabled}
+            aria-label={`${pair.names} ${pair.enabled ? 'on' : 'off'}`}
+            className={`toggle-contrast relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out ${pair.enabled ? 'toggle-on' : 'toggle-off'} ${busy ? 'opacity-60' : ''}`}
           >
-            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${pair.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
           <span
             className={`min-w-[2.75rem] text-center text-[10px] font-bold uppercase px-2 py-1 rounded border ${
-              enabled
+              pair.enabled
                 ? 'bg-green-100 text-green-800 border-green-300'
                 : 'bg-slate-200 text-slate-800 border-slate-400'
             }`}
           >
-            {enabled ? 'ON' : 'OFF'}
+            {pair.enabled ? 'ON' : 'OFF'}
           </span>
         </div>
       </td>
       <td className="p-5">
-        <div className={`flex items-center gap-4 ${disabled ? 'grayscale opacity-70' : ''}`}>
+        <div className={`flex items-center gap-4 ${pair.disabled ? 'grayscale opacity-70' : ''}`}>
           <div className="relative w-12 h-8">
-            <img className="absolute left-0 top-0 w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover z-10" src={`https://picsum.photos/seed/${names.split(' ')[0]}/100`} alt="" />
-            <img className="absolute left-4 top-0 w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover z-0" src={`https://picsum.photos/seed/${names.split(' ')[2]}/100`} alt="" />
+            <img className="absolute left-0 top-0 w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover z-10" src={`https://picsum.photos/seed/${pair.names.split('&')[0]?.trim() || pair.id}/100`} alt="" />
+            <img className="absolute left-4 top-0 w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover z-0" src={`https://picsum.photos/seed/${pair.names.split('&')[1]?.trim() || `pair-${pair.id}`}/100`} alt="" />
           </div>
           <div>
-            <p className={`text-sm font-bold ${disabled ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{names}</p>
-            <p className={`text-[11px] ${disabled ? 'text-slate-500 italic' : 'text-slate-700'}`}>{pairId}</p>
+            <p className={`text-sm font-bold ${pair.disabled ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{pair.names}</p>
+            <p className={`text-[11px] ${pair.disabled ? 'text-slate-500 italic' : 'text-slate-700'}`}>{pair.pairCode}</p>
+            <p className="text-[10px] text-slate-500 mt-1">{pair.memberCount} member(s)</p>
           </div>
         </div>
       </td>
       <td className="p-5">
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase border ${
-          tier === 'Executive' ? 'text-primary bg-primary/10 border-primary/20' : 
-          tier === 'Standard' ? 'text-slate-700 bg-slate-100 border-slate-300' :
-          'text-slate-700 bg-slate-100 border-slate-300'
+          pair.pairStatus === 'CONNECTED' || pair.pairStatus === 'SYNCING'
+            ? 'text-green-700 bg-green-100 border-green-300'
+            : pair.pairStatus === 'PENDING'
+              ? 'text-primary bg-primary/10 border-primary/20'
+              : 'text-slate-700 bg-slate-100 border-slate-300'
         }`}>
-          {tier}
+          {pair.pairStatus}
         </span>
       </td>
       <td className="p-5">
         <div>
-          <p className={`text-sm font-semibold ${disabled ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{ring}</p>
+          <p className={`text-sm font-semibold ${pair.disabled ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{pair.accessLevel}</p>
           <div className="flex items-center gap-1 mt-0.5">
-            <OSIcon className={`w-3 h-3 ${disabled ? 'text-slate-500' : 'text-blue-700'}`} />
-            <span className="text-xs text-slate-700">{os}</span>
+            <OSIcon className={`w-3 h-3 ${pair.platform === 'Android' ? 'text-blue-700' : 'text-slate-700'}`} />
+            <span className="text-xs text-slate-700">{pair.deviceLabel}</span>
           </div>
+          <p className="text-[10px] text-slate-500 mt-1">{pair.ring}</p>
+          <p className="text-[10px] text-slate-500">{pair.ringModel}</p>
         </div>
       </td>
       <td className="p-5">
         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide ${
-          status === 'Active' ? 'bg-green-100 text-green-700' :
-          status === 'Pending' ? 'bg-primary/10 text-primary' :
+          pair.accountState === 'Active' ? 'bg-green-100 text-green-700' :
+          pair.accountState === 'Suspended' ? 'bg-rose-100 text-rose-700' :
           'bg-slate-900 text-white'
         }`}>
           <span className={`w-1.5 h-1.5 rounded-full ${
-            status === 'Active' ? 'bg-green-500' :
-            status === 'Pending' ? 'bg-primary animate-pulse' :
+            pair.accountState === 'Active' ? 'bg-green-500' :
+            pair.accountState === 'Suspended' ? 'bg-rose-500' :
             'bg-slate-400'
           }`} />
-          {status}
+          {pair.accountState}
         </span>
+        <p className="mt-2 text-[11px] text-slate-500">{pair.enabled ? 'Access enabled' : 'Access disabled'}</p>
       </td>
-      <td className="p-5 text-sm text-slate-600">{lastActive}</td>
+      <td className="p-5 text-sm text-slate-600">{pair.lastActive}</td>
       <td className="p-5 text-right">
         <div className="flex items-center justify-end gap-1">
           <button
@@ -623,12 +770,16 @@ const UserRow = ({ id, names, pairId, tier, ring, os, osIcon: OSIcon, status, la
             <Link className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setSelectedAction('delete')}
+            onClick={() => {
+              setSelectedAction('delete');
+              onDelete();
+            }}
+            disabled={busy}
             className={`btn-contrast p-1.5 rounded transition-all duration-200 hover:-translate-y-0.5 ${
               selectedAction === 'delete'
                 ? 'btn-contrast-danger shadow-md'
                 : 'btn-contrast-neutral text-slate-600'
-            }`}
+            } ${busy ? 'opacity-60' : ''}`}
           >
             <Trash2 className="w-4 h-4" />
           </button>

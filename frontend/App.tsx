@@ -19,12 +19,14 @@ import MyRingView from './views/MyRingView';
 import ProfileView from './views/ProfileView';
 import { RegisterScreen } from './views/RegisterView';
 import RelationshipView from './views/RelationshipView';
+import RingInformationView from './views/RingInformation';
 import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
 
 const USER_HOME_PATH = '/dashboard';
 const ADMIN_HOME_PATH = '/admindashboard';
+const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
 function normalizeRole(role: string | null | undefined): AuthUser['role'] {
   return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
@@ -57,6 +59,11 @@ function normalizeUser(user: AuthUser): AuthUser {
 
 function getStoredAccessToken(): string | null {
   return sessionStorage.getItem('auth_access_token') || localStorage.getItem('auth_access_token');
+}
+
+function hasPurchasedRing() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(localStorage.getItem(PURCHASED_RING_STORAGE_KEY));
 }
 
 function persistAuth(user: AuthUser, accessToken: string, remember: boolean, rememberToken?: string | null) {
@@ -329,9 +336,14 @@ function AppRoutes() {
       <Route path={USER_HOME_PATH} element={userLayout(<DashboardView />)} />
       <Route path="/member" element={<Navigate to={USER_HOME_PATH} replace />} />
       <Route path="/shop" element={userLayout(<CoupleShopView />)} />
+      <Route path="/shop/rings/:ringId" element={userLayout(<RingInformationView />)} />
       <Route path="/couple-shop" element={<Navigate to="/shop" replace />} />
-      <Route path="/myring" element={userLayout(<MyRingView />)} />
-      <Route path="/ring-view" element={userLayout(<MyRingView />)} />
+      <Route
+        path="/myring"
+        element={hasPurchasedRing() ? userLayout(<MyRingView />) : <Navigate to="/shop" replace />}
+      />
+      <Route path="/ring-view" element={userLayout(<RingInformationView />)} />
+      <Route path="/ring-view/:ringId" element={userLayout(<RingInformationView />)} />
       <Route path="/profile" element={userLayout(<ProfileView />)} />
       <Route path="/couple-profile" element={userLayout(<CoupleProfileView />)} />
       <Route path="/relationship" element={userLayout(<RelationshipView />)} />

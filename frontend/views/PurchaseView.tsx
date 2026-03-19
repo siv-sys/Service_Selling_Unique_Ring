@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
+
 interface CoupleProfile {
   id: string;
   partner1: string;
@@ -64,15 +66,7 @@ const PurchaseView: React.FC = () => {
   const [termsAccepted, setTermsAccepted] = useState<boolean>(true);
 
   // Ring data from sessionStorage (set by shop "See More" button or cart)
-  const [ringData, setRingData] = useState<SelectedRing>({
-    name: 'Twin Souls Silver B',
-    sku: 'TSS-002-X9',
-    type: 'Sterling Silver',
-    size: '7 (adjustable)',
-    price: 899,
-    stock: 3,
-    image: 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900'
-  });
+  const [ringData, setRingData] = useState<SelectedRing | null>(null);
 
   // Load ring data from sessionStorage
   useEffect(() => {
@@ -82,13 +76,13 @@ const PurchaseView: React.FC = () => {
       try {
         const parsedRing = JSON.parse(purchaseRing);
         setRingData({
-          name: parsedRing.name || parsedRing.ring_name || 'Twin Souls Silver B',
-          sku: parsedRing.sku || parsedRing.ring_identifier || 'TSS-002-X9',
-          type: parsedRing.material || 'Sterling Silver',
-          size: parsedRing.size || '7 (adjustable)',
-          price: parsedRing.price || 899,
-          stock: parsedRing.stock || 3,
-          image: parsedRing.image || parsedRing.image_url || parsedRing.img || 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900',
+          name: parsedRing.name || parsedRing.ring_name || '',
+          sku: parsedRing.sku || parsedRing.ring_identifier || '',
+          type: parsedRing.material || '',
+          size: parsedRing.size || '',
+          price: parsedRing.price || 0,
+          stock: parsedRing.stock || 0,
+          image: parsedRing.image || parsedRing.image_url || parsedRing.img || '',
           id: parsedRing.id
         });
       } catch (e) {
@@ -101,13 +95,13 @@ const PurchaseView: React.FC = () => {
         try {
           const parsedRing = JSON.parse(currentRing);
           setRingData({
-            name: parsedRing.name || parsedRing.ring_name || 'Twin Souls Silver B',
-            sku: parsedRing.sku || parsedRing.ring_identifier || 'TSS-002-X9',
-            type: parsedRing.material || 'Sterling Silver',
-            size: parsedRing.size || '7 (adjustable)',
-            price: parsedRing.price || 899,
-            stock: parsedRing.stock || 3,
-            image: parsedRing.image || parsedRing.image_url || parsedRing.img || 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900',
+            name: parsedRing.name || parsedRing.ring_name || '',
+            sku: parsedRing.sku || parsedRing.ring_identifier || '',
+            type: parsedRing.material || '',
+            size: parsedRing.size || '',
+            price: parsedRing.price || 0,
+            stock: parsedRing.stock || 0,
+            image: parsedRing.image || parsedRing.image_url || parsedRing.img || '',
             id: parsedRing.id
           });
         } catch (e) {
@@ -250,6 +244,11 @@ const PurchaseView: React.FC = () => {
   const handleFinalPurchase = (e: React.MouseEvent) => {
     e.preventDefault();
 
+    if (!ringData) {
+      showNotification('Please choose a ring from Couple Shop before purchasing.', 'error');
+      return;
+    }
+
     // Final validations
     if (!validateStep1() || !validateStep2() || !validateStep3()) {
       return;
@@ -298,6 +297,21 @@ const PurchaseView: React.FC = () => {
     sessionStorage.setItem('bondKeeper_couple', JSON.stringify(coupleProfile));
     sessionStorage.setItem('showThankYou', 'true');
     sessionStorage.setItem('newStock', newStock.toString());
+    localStorage.setItem(
+      PURCHASED_RING_STORAGE_KEY,
+      JSON.stringify({
+        id: ringData.id,
+        ring_name: ringData.name,
+        ring_identifier: ringData.sku,
+        material: ringData.type,
+        size: ringData.size,
+        price: ringData.price,
+        image_url: ringData.image,
+        img: ringData.image,
+        status: 'PURCHASED',
+        created_at: new Date().toISOString(),
+      })
+    );
     localStorage.removeItem('cart'); // clear cart
 
     // Show beautiful modal
@@ -326,6 +340,38 @@ const PurchaseView: React.FC = () => {
       closeModal();
     }
   };
+
+  if (!ringData) {
+    return (
+      <div className="min-h-screen bg-cream dark:bg-charcoal">
+        <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+          <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+            <div className="flex items-center gap-12">
+              <Link to="/dashboard" className="flex items-center gap-2 group">
+                <span className="material-symbols-outlined text-primary text-3xl">diamond</span>
+                <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        <div className="mx-auto max-w-3xl px-6 py-20 text-center">
+          <span className="material-symbols-outlined mb-4 text-5xl text-slate-400">diamond</span>
+          <h1 className="heading-serif text-4xl font-bold text-primary">No Ring Selected</h1>
+          <p className="mt-4 text-slate-500">
+            Choose a ring from Couple Shop first. After purchase, it will appear in My Ring.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/shop')}
+            className="mt-8 rounded-full bg-primary px-8 py-3 font-bold text-white transition-colors hover:bg-primary/90"
+          >
+            Go To Couple Shop
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate order totals
   const subtotal = ringData.price;

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { API_BASE_URL } from '../lib/api';
+
+const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
 // Types
 interface RecentlyViewedRing {
@@ -14,6 +17,8 @@ const Dashboard: React.FC = () => {
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   const cartCount = 0;
   const isDarkMode = false;
+  const hasPurchasedRing =
+    typeof window !== 'undefined' && Boolean(localStorage.getItem(PURCHASED_RING_STORAGE_KEY));
 
   // Sample recently viewed rings data
   const recentlyViewedRings: RecentlyViewedRing[] = [
@@ -165,17 +170,18 @@ const Dashboard: React.FC = () => {
             </span>
           </Link>
           
-          {/* my ring card */}
-          <Link to="/myring" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
-            <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
-              <span className="material-symbols-outlined text-3xl">diamond</span>
-            </div>
-            <h3 className="heading-serif text-2xl font-semibold mb-2">My Ring</h3>
-            <p className="text-sm text-charcoal/60 dark:text-cream/60 mb-4">View certification, resizing, story</p>
-            <span className="text-primary flex items-center gap-1 text-sm font-medium">
-              inspect <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
-            </span>
-          </Link>
+          {hasPurchasedRing ? (
+            <Link to="/myring" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
+              <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
+                <span className="material-symbols-outlined text-3xl">diamond</span>
+              </div>
+              <h3 className="heading-serif text-2xl font-semibold mb-2">My Ring</h3>
+              <p className="text-sm text-charcoal/60 dark:text-cream/60 mb-4">View certification, resizing, story</p>
+              <span className="text-primary flex items-center gap-1 text-sm font-medium">
+                inspect <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
+              </span>
+            </Link>
+          ) : null}
           
           {/* couple profile card */}
           <Link to="/couple-profile" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">

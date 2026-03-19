@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FC, SVGProps } from 'react';
+import type { FC, FormEvent, SVGProps } from 'react';
 import { AuthLayout } from '../components/AuthLayout';
 import { InputField } from '../components/InputField'; 
 import { GoogleLoginButton } from '../components/GoogleLoginButton';
@@ -28,6 +28,8 @@ const LockIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function LoginScreen({
   onRegister,
   onGoogleLogin,
@@ -40,6 +42,30 @@ export function LoginScreen({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setLocalError('Email is required.');
+      return;
+    }
+
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setLocalError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password.trim()) {
+      setLocalError('Password is required.');
+      return;
+    }
+
+    setLocalError(null);
+    void onLogin({ email: normalizedEmail, password, remember });
+  };
 
   return (
     <AuthLayout
@@ -60,17 +86,18 @@ export function LoginScreen({
 
       <form
         className="space-y-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onLogin({ email, password, remember });
-        }}
+        onSubmit={handleSubmit}
       >
         <InputField
           label="Email Address"
+          type="email"
           placeholder="name@company.com"
           icon={MailIcon}
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            if (localError) setLocalError(null);
+          }}
         />
 
         <InputField
@@ -79,7 +106,10 @@ export function LoginScreen({
           placeholder="Enter your password "
           icon={LockIcon}
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => {
+            setPassword(event.target.value);
+            if (localError) setLocalError(null);
+          }}
           rightElement={
             <button
               type="button"
@@ -103,6 +133,12 @@ export function LoginScreen({
             Remember for 30 days
           </label>
         </div>
+
+        {localError && (
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
+            {localError}
+          </p>
+        )}
 
         {errorMessage && (
           <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">

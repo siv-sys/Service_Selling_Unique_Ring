@@ -8,10 +8,13 @@
    `npm install`
 3. Create env file:
    `copy .env.example .env`
-4. Update `.env` with your MySQL username/password.
-5. Run SQL scripts in MySQL:
-   `mysql -u root -p < sql/schema.sql`
-   `mysql -u root -p < sql/inventory.sql`
+4. Update `.env` with your MySQL username/password and JWT secret.
+5. Bootstrap the database:
+   `mysql -u root -p < sql/app-bootstrap.sql`
+
+Optional legacy scripts:
+- `mysql -u root -p < sql/schema.sql`
+- `mysql -u root -p < sql/inventory.sql`
 
 ## 2) Start server
 
@@ -21,7 +24,24 @@ Development:
 Production:
 `npm start`
 
-Server default URL: `http://localhost:4000`
+If `nodemon` is restricted in your shell:
+`node src/server.js`
+
+Server default URL: `http://localhost:4001`
+
+## Database Connection Setup
+
+Database config is loaded from `.env` through `src/config/env.js` and `src/config/db.js`.
+
+Required env vars:
+- `DB_HOST`
+- `DB_PORT`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+- `JWT_SECRET`
+
+The backend also auto-runs `initializeCoreTables()` on startup, so the required tables for auth, shop, profile, dashboard, notifications, settings, and inventory are created with `IF NOT EXISTS`.
 
 ## 3) Inventory API Endpoints
 

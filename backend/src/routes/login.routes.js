@@ -7,6 +7,7 @@ const { normalizeRole, parseRole, toSafeUser } = require('../utils/auth');
 
 const router = express.Router();
 const BCRYPT_ROUNDS = 12;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isBcryptHash(value) {
   return /^\$2[aby]\$\d{2}\$/.test(String(value || ''));
@@ -32,6 +33,10 @@ router.post('/', async (req, res, next) => {
 
     if (!normalizedEmail || !password) {
       return res.status(400).json({ message: 'Email and password are required.' });
+    }
+
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please enter a valid email address.' });
     }
 
     const users = await query(LOGIN_USER_SELECT, [normalizedEmail]);
@@ -99,6 +104,10 @@ router.post('/google', async (req, res, next) => {
 
   if (!normalizedEmail) {
     return res.status(400).json({ message: 'Email is required.' });
+  }
+
+  if (!EMAIL_PATTERN.test(normalizedEmail)) {
+    return res.status(400).json({ message: 'Please enter a valid email address.' });
   }
 
   const connection = await pool.getConnection();

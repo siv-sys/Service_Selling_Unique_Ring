@@ -10,7 +10,7 @@ function toNumber(value, fallback) {
 
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: toNumber(process.env.PORT, 4000),
+  port: toNumber(process.env.PORT, 4001),
   frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
   auth: {
     jwtSecret: process.env.JWT_SECRET || 'dev-jwt-secret-change-me',

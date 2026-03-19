@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Header from '../components/Header';
+import { api } from '../lib/api';
 import {
   Download,
   Layers,
@@ -13,99 +14,174 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-const initialInventoryData = [
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCOV78VY4Fdm2XWC_ux_phNkkWau0YDvVV8qRMt4lub-GHKKAKGNgyXf1Q2_kTbXi2K1lF0z2_0WZscl8d4RRsUbpP1WALcV0fcE3DkfAWjMjTH0McaIGLBudP_5IjCI8oXke5GEhMk2JVE05MT3kyAzVf07doF6J3Y5hsV4PpEcVcb8Vlthw1lc5bM7t77Nu-GVldwo-clQjGOWt69Sm0LTebvMEQBqoaC1MKeLyw32ZFmfRqpaz34hipy_IGOOM1KynvSKlSTp8iY',
-    model: 'Gen 3 - Rose Gold',
-    color: 'Rose Gold',
-    variant: 'Size 7 - Premium Alloy',
-    sku: 'SKU-G3-RG-07',
-    serial: 'SN: 8820-XL-421',
-    status: 'Low Stock',
-    stock: 12,
-    stockPercent: 15,
-    statusColor: 'amber'
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuClU7KD3g2DAHs_y45M3ohuAYqp0BDE8ULQU56wCEAUXPigep9dSbsUMhQlpa_FKq5HRVy1oTPHLyZDmYYITQUawgwqc2IHCschz80w-ABhPYAOVaCQ_sYeZQ6I5Me0BXm_HI4536gPkpqJlSyrPTRZ-miV2tOYd4iD15e5djzVe-tcjUtd-uDpO3s9kXhlJjAvbF4GkWfsDoULNINM3GWboa4mnMee16Kh6XJ6HrpAwg8Qp9S08nKFpxtINwe-r5OTJevno4scRm9M',
-    model: 'Classic Silver',
-    color: 'Silver',
-    variant: 'Size 9 - Polished Steel',
-    sku: 'SKU-CLS-SV-09',
-    serial: 'SN: 4492-CS-221',
-    status: 'In Stock',
-    stock: 84,
-    stockPercent: 65,
-    statusColor: 'emerald'
-  },
-  {
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAtJbz4xoC06FWJPjntWC62FdOscgQpTGjCmWqmb2HiwN2tDHgOiTO6UOoiaMTeY2bOF2Koeg2W0Cg0d51UE4XuUyLXP19-1iFsobFBHJbcwmlBzH7RSeChY6dAKsAKEF0XBZhsq3s2T2rnKZFpVt5m0PHVV6kqt9Udbs_1ttQCYdytLuAep3VOx6-8Td2-UOTTlWadTPFm3xFttFHGW0Z9wpSwk7oDpnWLKt-x_Px40-BhpuqU4dtIKt-Uhh9s7y4bJwJ_Djgm6AQ_',
-    model: 'Midnight Black',
-    color: 'Black',
-    variant: 'Size 12 - Carbon Fiber',
-    sku: 'SKU-MID-BK-12',
-    serial: 'SN: 7710-MB-003',
-    status: 'Depleted',
-    stock: 0,
-    stockPercent: 0,
-    statusColor: 'rose'
+type InventoryItem = {
+  id: number;
+  image: string | null;
+  model: string;
+  color: string | null;
+  variant: string;
+  sku: string;
+  serial: string;
+  status: string;
+  stock: number;
+  stockPercent: number;
+  statusColor: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type InventoryResponse = {
+  items: InventoryItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+};
+
+type InventoryFiltersResponse = {
+  models: string[];
+  colors: string[];
+  statuses: string[];
+};
+
+type InventoryDraft = InventoryItem;
+const ITEMS_PER_PAGE = 15;
+
+const DEFAULT_FILTERS: InventoryFiltersResponse = {
+  models: ['All Models'],
+  colors: ['All Colors'],
+  statuses: ['Any Status']
+};
+
+const deriveInventoryState = (stockValue: number) => {
+  const stock = Math.max(0, Number(stockValue) || 0);
+
+  if (stock === 0) {
+    return { stock, status: 'Depleted', statusColor: 'rose', stockPercent: 0 };
   }
-];
+  if (stock <= 20) {
+    return { stock, status: 'Low Stock', statusColor: 'amber', stockPercent: Math.min(100, stock) };
+  }
+  return { stock, status: 'In Stock', statusColor: 'emerald', stockPercent: Math.min(100, stock) };
+};
 
 const RingInventory = () => {
-  const [inventoryData, setInventoryData] = useState(initialInventoryData);
+  const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
+  const [filterOptions, setFilterOptions] = useState<InventoryFiltersResponse>(DEFAULT_FILTERS);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [lastExport, setLastExport] = useState('');
-  const [activeStatFilter, setActiveStatFilter] = useState<'all' | 'sku' | 'critical' | 'active' | 'compliance'>('all');
+  const [activeStatFilter, setActiveStatFilter] = useState<'all' | 'rows' | 'units' | 'low' | 'depleted'>('all');
   const [selectedModel, setSelectedModel] = useState('All Models');
   const [selectedColor, setSelectedColor] = useState('All Colors');
   const [selectedStatus, setSelectedStatus] = useState('Any Status');
   const [editingSku, setEditingSku] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<any>(null);
+  const [editDraft, setEditDraft] = useState<InventoryDraft | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [totalRows, setTotalRows] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const availableModels = useMemo(() => ['All Models', ...Array.from(new Set(inventoryData.map((item) => item.model)))], [inventoryData]);
-  const availableColors = useMemo(() => ['All Colors', ...Array.from(new Set(inventoryData.map((item) => item.color)))], [inventoryData]);
-  const availableStatuses = useMemo(() => ['Any Status', ...Array.from(new Set(inventoryData.map((item) => item.status)))], [inventoryData]);
+  const getErrorMessage = (err: unknown, fallback: string) => {
+    if (err instanceof Error && err.message) return err.message;
+    return fallback;
+  };
 
-  const filteredInventoryData = inventoryData.filter((item) => {
-    const modelOk = selectedModel === 'All Models' || item.model === selectedModel;
-    const colorOk = selectedColor === 'All Colors' || item.color === selectedColor;
-    const statusOk = selectedStatus === 'Any Status' || item.status === selectedStatus;
-    return modelOk && colorOk && statusOk;
-  });
+  const loadFilterOptions = async () => {
+    try {
+      const response = await api.get<InventoryFiltersResponse>('/inventory/filters');
+      setFilterOptions({
+        models: Array.isArray(response.models) && response.models.length ? response.models : DEFAULT_FILTERS.models,
+        colors: Array.isArray(response.colors) && response.colors.length ? response.colors : DEFAULT_FILTERS.colors,
+        statuses: Array.isArray(response.statuses) && response.statuses.length ? response.statuses : DEFAULT_FILTERS.statuses,
+      });
+    } catch {
+      setFilterOptions(DEFAULT_FILTERS);
+    }
+  };
 
-  const skuData = filteredInventoryData.filter((item) => item.sku.trim().length > 0);
-  const criticalLowStockData = filteredInventoryData.filter(
+  const loadInventory = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('limit', '200');
+      if (selectedModel !== 'All Models') params.set('model', selectedModel);
+      if (selectedColor !== 'All Colors') params.set('color', selectedColor);
+      if (selectedStatus !== 'Any Status') params.set('status', selectedStatus);
+
+      const response = await api.get<InventoryResponse>(`/inventory?${params.toString()}`);
+      setInventoryData(Array.isArray(response.items) ? response.items : []);
+      setTotalRows(Number(response.pagination?.total || 0));
+      setLastSyncedAt(new Date().toISOString());
+      setError('');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load inventory from backend.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFilterOptions();
+  }, []);
+
+  useEffect(() => {
+    loadInventory();
+  }, [selectedModel, selectedColor, selectedStatus]);
+
+  const availableModels = useMemo(() => {
+    if (filterOptions.models.length) return filterOptions.models;
+    return ['All Models', ...Array.from(new Set(inventoryData.map((item) => item.model)))];
+  }, [filterOptions.models, inventoryData]);
+
+  const availableColors = useMemo(() => {
+    if (filterOptions.colors.length) return filterOptions.colors;
+    return ['All Colors', ...Array.from(new Set(inventoryData.map((item) => item.color).filter(Boolean) as string[]))];
+  }, [filterOptions.colors, inventoryData]);
+
+  const availableStatuses = useMemo(() => {
+    if (filterOptions.statuses.length) return filterOptions.statuses;
+    return ['Any Status', ...Array.from(new Set(inventoryData.map((item) => item.status)))];
+  }, [filterOptions.statuses, inventoryData]);
+
+  const lowStockData = inventoryData.filter(
     (item) =>
       item.statusColor === 'amber' ||
+      item.status.toLowerCase().includes('low')
+  );
+  const depletedData = inventoryData.filter(
+    (item) =>
       item.statusColor === 'rose' ||
-      item.status.toLowerCase().includes('low') ||
+      item.status.toLowerCase().includes('depleted') ||
       item.stock === 0
   );
-  const activeUnitsData = filteredInventoryData.filter(
-    (item) =>
-      item.statusColor === 'emerald' ||
-      item.status.toLowerCase().includes('in stock') ||
-      item.status.toLowerCase().includes('active')
-  );
-  const hardwareComplianceData = filteredInventoryData.filter(
-    (item) => item.statusColor === 'emerald' && item.stock > 0
-  );
-  const totalSkuCount = new Set(skuData.map((item) => item.sku.trim())).size;
-  const hardwareCompliancePercent = filteredInventoryData.length
-    ? `${((hardwareComplianceData.length / filteredInventoryData.length) * 100).toFixed(1)}%`
-    : '0.0%';
+  const totalUnitsInStock = inventoryData.reduce((sum, item) => sum + Math.max(0, Number(item.stock || 0)), 0);
 
   const tableData =
-    activeStatFilter === 'sku'
-      ? skuData
-      : activeStatFilter === 'critical'
-        ? criticalLowStockData
-        : activeStatFilter === 'active'
-          ? activeUnitsData
-          : activeStatFilter === 'compliance'
-            ? hardwareComplianceData
-          : filteredInventoryData;
+    activeStatFilter === 'rows'
+      ? inventoryData
+      : activeStatFilter === 'units'
+        ? inventoryData.filter((item) => item.stock > 0)
+        : activeStatFilter === 'low'
+          ? lowStockData
+          : activeStatFilter === 'depleted'
+            ? depletedData
+            : inventoryData;
+  const totalPages = Math.max(1, Math.ceil(tableData.length / ITEMS_PER_PAGE));
+  const currentPageSafe = Math.min(currentPage, totalPages);
+  const paginatedTableData = tableData.slice(
+    (currentPageSafe - 1) * ITEMS_PER_PAGE,
+    currentPageSafe * ITEMS_PER_PAGE
+  );
+  const pageStart = tableData.length ? (currentPageSafe - 1) * ITEMS_PER_PAGE + 1 : 0;
+  const pageEnd = tableData.length ? Math.min(currentPageSafe * ITEMS_PER_PAGE, tableData.length) : 0;
+  const visiblePageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1).slice(
+    Math.max(0, currentPageSafe - 2),
+    Math.max(5, currentPageSafe + 1)
+  );
 
   const getTimestamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
@@ -120,7 +196,7 @@ const RingInventory = () => {
 
   const handleExportExcel = () => {
     const headers = ['Model', 'Variant', 'SKU', 'Serial', 'Status', 'Stock'];
-    const rows = inventoryData.map((item) => [item.model, item.variant, item.sku, item.serial, item.status, String(item.stock)].join(','));
+    const rows = tableData.map((item) => [item.model, item.variant, item.sku, item.serial, item.status, String(item.stock)].join(','));
     const fileName = `inventory-export-${getTimestamp()}.csv`;
     downloadBlob(new Blob([headers.join(',') + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' }), fileName);
     setLastExport(fileName);
@@ -131,7 +207,7 @@ const RingInventory = () => {
     const popup = window.open('', '_blank', 'width=1000,height=700');
     if (!popup) return;
 
-    const rowsHtml = inventoryData
+    const rowsHtml = tableData
       .map((item) => `<tr><td>${item.model}</td><td>${item.variant}</td><td>${item.sku}</td><td>${item.serial}</td><td>${item.status}</td><td>${item.stock}</td></tr>`)
       .join('');
 
@@ -157,31 +233,22 @@ const RingInventory = () => {
     setShowExportMenu(false);
   };
 
-  const handleEditClick = (item: any) => {
+  const handleEditClick = (item: InventoryItem) => {
     setEditingSku(item.sku);
     setEditDraft({ ...item });
   };
 
-  const handleEditDraftChange = (field: string, value: string) => {
-    setEditDraft((prev: any) => {
+  const handleEditDraftChange = (field: keyof InventoryDraft, value: string) => {
+    setEditDraft((prev) => {
       if (!prev) return prev;
 
       const next = { ...prev, [field]: value };
       if (field === 'stock') {
-        const numericStock = Math.max(0, Number(value) || 0);
-        next.stock = numericStock;
-        next.stockPercent = Math.min(100, Math.round((numericStock / 100) * 100));
-
-        if (numericStock === 0) {
-          next.status = 'Depleted';
-          next.statusColor = 'rose';
-        } else if (numericStock <= 20) {
-          next.status = 'Low Stock';
-          next.statusColor = 'amber';
-        } else {
-          next.status = 'In Stock';
-          next.statusColor = 'emerald';
-        }
+        const derived = deriveInventoryState(Number(value));
+        next.stock = derived.stock;
+        next.stockPercent = derived.stockPercent;
+        next.status = derived.status;
+        next.statusColor = derived.statusColor;
       }
       return next;
     });
@@ -192,12 +259,70 @@ const RingInventory = () => {
     setEditDraft(null);
   };
 
-  const handleSaveEdit = () => {
-    if (!editingSku || !editDraft) return;
-    setInventoryData((prev) => prev.map((item) => (item.sku === editingSku ? editDraft : item)));
-    setEditingSku(null);
-    setEditDraft(null);
+  const handleSaveEdit = async () => {
+    if (!editDraft) return;
+
+    setSavingId(editDraft.id);
+    try {
+      const updated = await api.put<InventoryItem>(`/inventory/${editDraft.id}`, {
+        image: editDraft.image,
+        model: editDraft.model,
+        color: editDraft.color,
+        variant: editDraft.variant,
+        sku: editDraft.sku,
+        serial: editDraft.serial,
+        status: editDraft.status,
+        stock: editDraft.stock,
+        stockPercent: editDraft.stockPercent,
+        statusColor: editDraft.statusColor,
+      });
+
+      setInventoryData((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setEditingSku(null);
+      setEditDraft(null);
+      setError('');
+      setLastSyncedAt(new Date().toISOString());
+      await loadFilterOptions();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to save inventory item.'));
+    } finally {
+      setSavingId(null);
+    }
   };
+
+  const handleDeleteItem = async (item: InventoryItem) => {
+    const confirmed = window.confirm(`Delete ${item.model} (${item.sku}) from inventory?`);
+    if (!confirmed) return;
+
+    setDeletingId(item.id);
+    try {
+      await api.delete(`/inventory/${item.id}`);
+      setInventoryData((current) => current.filter((currentItem) => currentItem.id !== item.id));
+      if (editingSku === item.sku) {
+        setEditingSku(null);
+        setEditDraft(null);
+      }
+      setError('');
+      setLastSyncedAt(new Date().toISOString());
+      await loadFilterOptions();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to delete inventory item.'));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const syncLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleTimeString() : 'Waiting for sync';
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedModel, selectedColor, selectedStatus, activeStatFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <>
@@ -230,16 +355,16 @@ const RingInventory = () => {
         }
       `}</style>
       <Header
-        title="Ring Inventory Management"
-        subtitle="Comprehensive lifecycle management for smart hardware assets."
+        title="Ring Inventory"
+        subtitle="Database-backed view of rows stored in inventory_items."
       />
 
       <main className="inventory-page flex-1 overflow-y-auto p-8 max-w-[1600px] w-full mx-auto">
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Ring Inventory Management</h1>
-              <p className="text-slate-500 font-medium text-sm">Comprehensive lifecycle management for smart hardware assets.</p>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Ring Inventory</h1>
+              <p className="text-slate-500 font-medium text-sm">Live inventory data from the `inventory_items` table.</p>
             </div>
             <div className="flex gap-2 relative">
               <button
@@ -254,50 +379,55 @@ const RingInventory = () => {
                   <button onClick={handleExportPdf} className="w-full text-left px-4 py-2 text-sm text-slate-800 hover:bg-slate-50">Export PDF</button>
                 </div>
               )}
-              <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:opacity-90 transition-colors">
-                <Layers className="w-4 h-4" /> Bulk Actions
+              <button
+                type="button"
+                onClick={loadInventory}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:opacity-90 transition-colors"
+              >
+                <Layers className="w-4 h-4" /> Refresh
               </button>
             </div>
           </div>
+          {error && <p className="text-xs font-semibold text-rose-600 mb-2">{error}</p>}
           {lastExport && <p className="text-xs font-semibold text-slate-700 mb-2">Last export: {lastExport}</p>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <InventoryStatCard
-              title="Total SKU Count"
-              value={String(totalSkuCount)}
-              change="+12.4%"
+              title="Inventory Rows"
+              value={String(totalRows)}
+              change="+Live"
               icon={Package}
               color="primary"
-              onClick={() => setActiveStatFilter((prev) => (prev === 'sku' ? 'all' : 'sku'))}
-              active={activeStatFilter === 'sku'}
-              subtext={activeStatFilter === 'sku' ? 'Showing valid SKU rows' : 'Click to manage table by SKU'}
+              onClick={() => setActiveStatFilter((prev) => (prev === 'rows' ? 'all' : 'rows'))}
+              active={activeStatFilter === 'rows'}
+              subtext={activeStatFilter === 'rows' ? 'Showing all inventory rows' : 'Click to show all rows'}
             />
             <InventoryStatCard
-              title="Critical/Low Stock"
-              value={String(criticalLowStockData.length)}
-              subtext={activeStatFilter === 'critical' ? 'Showing critical rows only' : 'Click to filter critical rows'}
+              title="Units In Stock"
+              value={String(totalUnitsInStock)}
+              subtext={activeStatFilter === 'units' ? 'Showing rows with stock on hand' : 'Click to show stocked rows'}
               icon={AlertTriangle}
               color="primary"
-              onClick={() => setActiveStatFilter((prev) => (prev === 'critical' ? 'all' : 'critical'))}
-              active={activeStatFilter === 'critical'}
+              onClick={() => setActiveStatFilter((prev) => (prev === 'units' ? 'all' : 'units'))}
+              active={activeStatFilter === 'units'}
             />
             <InventoryStatCard
-              title="Active Units"
-              value={String(activeUnitsData.length)}
-              subtext={activeStatFilter === 'active' ? 'Showing active unit rows' : 'Click to filter active units'}
+              title="Low Stock Rows"
+              value={String(lowStockData.length)}
+              subtext={activeStatFilter === 'low' ? 'Showing low stock rows only' : 'Click to filter low stock rows'}
               icon={Link}
               color="primary"
-              onClick={() => setActiveStatFilter((prev) => (prev === 'active' ? 'all' : 'active'))}
-              active={activeStatFilter === 'active'}
+              onClick={() => setActiveStatFilter((prev) => (prev === 'low' ? 'all' : 'low'))}
+              active={activeStatFilter === 'low'}
             />
             <InventoryStatCard
-              title="Hardware Compliance"
-              value={hardwareCompliancePercent}
-              subtext={activeStatFilter === 'compliance' ? 'Showing compliance rows' : 'Click to filter compliance rows'}
+              title="Depleted Rows"
+              value={String(depletedData.length)}
+              subtext={activeStatFilter === 'depleted' ? 'Showing depleted rows only' : 'Click to filter depleted rows'}
               icon={CheckCircle2}
               color="primary"
-              onClick={() => setActiveStatFilter((prev) => (prev === 'compliance' ? 'all' : 'compliance'))}
-              active={activeStatFilter === 'compliance'}
+              onClick={() => setActiveStatFilter((prev) => (prev === 'depleted' ? 'all' : 'depleted'))}
+              active={activeStatFilter === 'depleted'}
             />
           </div>
         </div>
@@ -355,7 +485,7 @@ const RingInventory = () => {
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-300">
                   <th className="p-4 w-10"><input type="checkbox" className="rounded text-primary focus:ring-primary border-slate-300" /></th>
-                  <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Model & Variant</th>
+                  <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Model / Variant / Color</th>
                   <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">SKU / Serial</th>
                   <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
                   <th className="p-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Stock Level</th>
@@ -363,32 +493,67 @@ const RingInventory = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-300">
-                {tableData.map((item) => (
-                  <InventoryRow
-                    key={item.sku}
-                    {...item}
-                    isEditing={editingSku === item.sku}
-                    editDraft={editingSku === item.sku ? editDraft : null}
-                    onEditClick={() => handleEditClick(item)}
-                    onEditDraftChange={handleEditDraftChange}
-                    onSaveEdit={handleSaveEdit}
-                    onCancelEdit={handleCancelEdit}
-                  />
-                ))}
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-sm text-slate-500">Loading inventory from backend...</td>
+                  </tr>
+                ) : paginatedTableData.length ? (
+                  paginatedTableData.map((item) => (
+                    <InventoryRow
+                      key={item.id}
+                      {...item}
+                      isEditing={editingSku === item.sku}
+                      isSaving={savingId === item.id}
+                      isDeleting={deletingId === item.id}
+                      editDraft={editingSku === item.sku ? editDraft : null}
+                      onEditClick={() => handleEditClick(item)}
+                      onEditDraftChange={handleEditDraftChange}
+                      onSaveEdit={handleSaveEdit}
+                      onCancelEdit={handleCancelEdit}
+                      onDelete={() => handleDeleteItem(item)}
+                    />
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-sm text-slate-500">No inventory items matched the current filters.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
           <div className="p-4 border-t border-slate-300 flex items-center justify-between bg-slate-50/50">
             <span className="text-xs text-slate-500 font-medium">
-              Showing <span className="font-bold text-slate-700">{tableData.length ? `1-${tableData.length}` : '0-0'}</span> of {tableData.length} items
+              Showing <span className="font-bold text-slate-700">{`${pageStart}-${pageEnd}`}</span> of {tableData.length} filtered row(s)
             </span>
             <div className="flex gap-1">
-              <button className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-400 hover:text-primary transition-colors">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPageSafe === 1}
+                className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-400 hover:text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 <Download className="w-4 h-4 rotate-90" />
               </button>
-              <button className="w-8 h-8 flex items-center justify-center rounded border border-primary bg-primary text-white font-bold text-xs">1</button>
-              <button className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-600 hover:border-primary hover:text-primary transition-colors font-bold text-xs">2</button>
-              <button className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-400 hover:text-primary transition-colors">
+              {visiblePageNumbers.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() => setCurrentPage(pageNumber)}
+                  className={`w-8 h-8 flex items-center justify-center rounded border font-bold text-xs transition-colors ${
+                    currentPageSafe === pageNumber
+                      ? 'border-primary bg-primary text-white'
+                      : 'border-slate-300 bg-white text-slate-600 hover:text-primary'
+                  }`}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPageSafe === totalPages}
+                className="w-8 h-8 flex items-center justify-center rounded border border-slate-300 bg-white text-slate-400 hover:text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 <Download className="w-4 h-4 -rotate-90" />
               </button>
             </div>
@@ -402,8 +567,8 @@ const RingInventory = () => {
             <LegendItem color="rose" label="Depleted" />
           </div>
           <p className="text-[11px] font-medium flex items-center gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Last synchronized: 12 seconds ago (Real-time tracking enabled)
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Last synchronized: {syncLabel}
           </p>
         </div>
       </main>
@@ -433,6 +598,7 @@ const InventoryStatCard = ({ title, value, change, subtext, icon: Icon, border, 
 const InventoryRow = ({
   image,
   model,
+  color,
   variant,
   sku,
   serial,
@@ -441,11 +607,14 @@ const InventoryRow = ({
   stockPercent,
   statusColor,
   isEditing,
+  isSaving,
+  isDeleting,
   editDraft,
   onEditClick,
   onEditDraftChange,
   onSaveEdit,
-  onCancelEdit
+  onCancelEdit,
+  onDelete
 }: any) => {
   const statusClasses: any = {
     emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -457,7 +626,7 @@ const InventoryRow = ({
     amber: 'bg-amber-500',
     rose: 'bg-rose-500'
   };
-  const current = isEditing && editDraft ? editDraft : { image, model, variant, sku, serial, status, stock, stockPercent, statusColor };
+  const current = isEditing && editDraft ? editDraft : { image, model, color, variant, sku, serial, status, stock, stockPercent, statusColor };
 
   return (
     <tr className="hover:bg-primary/5 transition-colors group">
@@ -465,7 +634,11 @@ const InventoryRow = ({
       <td className="p-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-300 overflow-hidden flex-shrink-0 shadow-sm">
-            <img src={image} alt={model} className="w-full h-full object-cover" />
+            {current.image ? (
+              <img src={current.image} alt={current.model} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-bold">IMG</div>
+            )}
           </div>
           <div>
             {isEditing ? (
@@ -480,6 +653,12 @@ const InventoryRow = ({
                   type="text"
                   value={current.variant}
                   onChange={(event) => onEditDraftChange('variant', event.target.value)}
+                  className="border border-slate-300 rounded px-2 py-1 text-[11px] text-slate-700 w-full mb-1"
+                />
+                <input
+                  type="text"
+                  value={current.color || ''}
+                  onChange={(event) => onEditDraftChange('color', event.target.value)}
                   className="border border-slate-300 rounded px-2 py-1 text-[11px] text-slate-700 w-full"
                 />
               </>
@@ -487,6 +666,7 @@ const InventoryRow = ({
               <>
                 <div className="font-bold text-slate-900">{model}</div>
                 <div className="text-[11px] text-slate-500 font-medium">{variant}</div>
+                <div className="text-[10px] text-slate-400 font-medium">{color || 'No color'}</div>
               </>
             )}
           </div>
@@ -516,7 +696,7 @@ const InventoryRow = ({
         )}
       </td>
       <td className="p-4">
-        <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center justify-center w-[110px] text-center border shadow-sm ${statusClasses[current.statusColor]}`}>
+        <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center justify-center w-[110px] text-center border shadow-sm ${statusClasses[current.statusColor] || statusClasses.emerald}`}>
           {current.status}
         </span>
       </td>
@@ -534,7 +714,7 @@ const InventoryRow = ({
             <span className="font-bold text-slate-900 text-sm">{stock}</span>
           )}
           <div className="flex-1 w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className={`h-full ${barClasses[current.statusColor]}`} style={{ width: `${current.stockPercent}%` }}></div>
+            <div className={`h-full ${barClasses[current.statusColor] || barClasses.emerald}`} style={{ width: `${current.stockPercent}%` }}></div>
           </div>
         </div>
       </td>
@@ -544,15 +724,17 @@ const InventoryRow = ({
             <>
               <button
                 type="button"
+                disabled={isSaving}
                 onClick={onSaveEdit}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-extrabold bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-extrabold bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-60"
               >
-                Save
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
               <button
                 type="button"
+                disabled={isSaving}
                 onClick={onCancelEdit}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-extrabold bg-slate-500 text-white border border-slate-600 hover:bg-slate-600 shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-extrabold bg-slate-500 text-white border border-slate-600 hover:bg-slate-600 shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -568,7 +750,9 @@ const InventoryRow = ({
           )}
           <button
             type="button"
-            className="w-9 h-9 p-0 flex items-center justify-center border border-slate-500 text-slate-800 hover:text-white hover:border-rose-700 hover:bg-rose-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 focus-visible:ring-offset-2"
+            disabled={isDeleting}
+            onClick={onDelete}
+            className="w-9 h-9 p-0 flex items-center justify-center border border-slate-500 text-slate-800 hover:text-white hover:border-rose-700 hover:bg-rose-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 focus-visible:ring-offset-2 disabled:opacity-60"
           >
             <Trash2 className="w-4 h-4" />
           </button>

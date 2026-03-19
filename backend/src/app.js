@@ -1,5 +1,6 @@
 ﻿const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const env = require('./config/env');
 const { requireAdmin, requireAuth } = require('./middleware/auth.middleware');
 
@@ -15,6 +16,7 @@ const ringRoutes = require('./routes/ringRoutes');
 const settingsRoutes = require('./routes/settings.routes');
 const usersRoutes = require('./routes/users.routes');
 const adminRoutes = require('./routes/admin.routes');
+const adminPairsRoutes = require('./routes/admin-pairs.routes');
 
 const app = express();
 
@@ -32,6 +34,7 @@ app.use(
 );
 
 app.use(express.json({ limit: '2mb' }));
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
 /*
 |--------------------------------------------------------------------------
@@ -55,6 +58,7 @@ app.get('/api', (_req, res) => {
       '/api/cart',
       '/api/dashboard',
       '/api/inventory',
+      '/api/admin/pairs',
       '/api/notifications/me',
       '/api/profile/me/current',
       '/api/settings/system',
@@ -88,6 +92,7 @@ app.use('/api/profile', requireAuth, profileRoutes);
 app.use('/api/settings', requireAuth, settingsRoutes);
 app.use('/api/users', requireAuth, usersRoutes);
 app.use('/api/admin/migrations', requireAuth, requireAdmin, adminRoutes);
+app.use('/api/admin/pairs', requireAuth, requireAdmin, adminPairsRoutes);
 
 /*
 |--------------------------------------------------------------------------

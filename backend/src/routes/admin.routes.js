@@ -3,59 +3,6 @@ const { execute, query } = require('../config/db');
 
 const router = express.Router();
 
-function buildDefaultCatalog() {
-  return [
-    {
-      modelName: 'Eternal Bond Gold',
-      collectionName: 'Classic Series',
-      material: '18K Gold',
-      description: 'Premium gold couple ring set with engraved inner band.',
-      imageUrl:
-        'https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600&h=800&fit=crop',
-      basePrice: 1200,
-      currencyCode: 'USD',
-      ringNamePrefix: 'Eternal Bond Gold',
-      ringIdentifierPrefix: 'EBG',
-      stockCount: 2,
-      startingNumber: 1,
-      defaultSize: '7',
-      locationLabel: 'Main Warehouse',
-    },
-    {
-      modelName: 'Twin Souls Silver',
-      collectionName: 'Modern Series',
-      material: 'Sterling Silver',
-      description: 'Minimalist silver pair with hammered finish.',
-      imageUrl:
-        'https://images.unsplash.com/photo-1598560917505-59a3ad559071?q=80&w=600&h=800&fit=crop',
-      basePrice: 850,
-      currencyCode: 'USD',
-      ringNamePrefix: 'Twin Souls Silver',
-      ringIdentifierPrefix: 'TSS',
-      stockCount: 2,
-      startingNumber: 1,
-      defaultSize: '7',
-      locationLabel: 'Main Warehouse',
-    },
-    {
-      modelName: 'Vintage Rose Promise',
-      collectionName: 'Heritage Series',
-      material: 'Rose Gold',
-      description: 'Vintage-inspired rose gold design with filigree detail.',
-      imageUrl:
-        'https://images.unsplash.com/photo-1544441893-675973e31985?q=80&w=600&h=800&fit=crop',
-      basePrice: 1450,
-      currencyCode: 'USD',
-      ringNamePrefix: 'Vintage Rose Promise',
-      ringIdentifierPrefix: 'VRP',
-      stockCount: 1,
-      startingNumber: 1,
-      defaultSize: '7',
-      locationLabel: 'Main Warehouse',
-    },
-  ];
-}
-
 async function ensureCatalogColumns() {
   await execute(`
     ALTER TABLE ring_models
@@ -66,6 +13,29 @@ async function ensureCatalogColumns() {
     ALTER TABLE rings
     ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL AFTER price
   `).catch(() => {});
+}
+
+async function ensureInventoryTable() {
+  await execute(`
+    CREATE TABLE IF NOT EXISTS inventory_items (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      image_url VARCHAR(500) NULL,
+      model_name VARCHAR(120) NOT NULL,
+      color VARCHAR(80) NULL,
+      variant VARCHAR(160) NOT NULL,
+      sku VARCHAR(80) NOT NULL UNIQUE,
+      serial_number VARCHAR(120) NOT NULL UNIQUE,
+      status VARCHAR(40) NOT NULL DEFAULT 'In Stock',
+      stock_qty INT UNSIGNED NOT NULL DEFAULT 0,
+      stock_percent TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      status_color VARCHAR(20) NOT NULL DEFAULT 'emerald',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_inventory_model (model_name),
+      KEY idx_inventory_color (color),
+      KEY idx_inventory_status (status)
+    ) ENGINE=InnoDB
+  `);
 }
 
 async function ensureRingTables() {
@@ -109,6 +79,39 @@ async function ensureRingTables() {
   `);
 
   await ensureCatalogColumns();
+  await ensureInventoryTable();
+}
+
+function deriveInventoryColor(material) {
+  const normalized = String(material || '').toLowerCase();
+
+  if (normalized.includes('rose')) return 'Rose Gold';
+  if (normalized.includes('silver')) return 'Silver';
+  if (normalized.includes('platinum')) return 'Platinum';
+  if (normalized.includes('gold')) return 'Gold';
+  return String(material || '').trim() || null;
+}
+
+function deriveInventoryState(stockQty) {
+  const safeStockQty = Math.max(0, Number(stockQty || 0));
+
+  if (safeStockQty === 0) {
+    return { stockQty: 0, stockPercent: 0, status: 'Depleted', statusColor: 'rose' };
+  }
+  if (safeStockQty <= 5) {
+    return { stockQty: safeStockQty, stockPercent: Math.min(100, safeStockQty * 20), status: 'Low Stock', statusColor: 'amber' };
+  }
+  return { stockQty: safeStockQty, stockPercent: 100, status: 'In Stock', statusColor: 'emerald' };
+}
+
+function toInventoryKeyPart(value, fallback) {
+  const normalized = String(value || fallback || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24);
+
+  return normalized || String(fallback || 'ITEM').toUpperCase();
 }
 
 async function findOrCreateModel(item) {
@@ -207,43 +210,196 @@ async function createRingsForModel(modelId, item) {
   return createdRings;
 }
 
+async function syncInventoryForModel(modelId) {
+  const rings = await query(
+    `
+      SELECT
+        r.id,
+        r.ring_identifier,
+        r.ring_name,
+        r.size,
+        r.material,
+        r.status,
+        r.price,
+        r.image_url,
+        rm.model_name
+      FROM rings r
+      LEFT JOIN ring_models rm ON rm.id = r.model_id
+      WHERE r.model_id = ?
+      ORDER BY r.id ASC
+    `,
+    [modelId],
+  );
+
+  if (!rings.length) {
+    return 0;
+  }
+
+  const ringIdentifiers = rings.map((ring) => ring.ring_identifier).filter(Boolean);
+  if (ringIdentifiers.length) {
+    const placeholders = ringIdentifiers.map(() => '?').join(', ');
+    await execute(
+      `
+        DELETE FROM inventory_items
+        WHERE serial_number IN (${placeholders})
+           OR sku IN (${ringIdentifiers.map(() => '?').join(', ')})
+      `,
+      [...ringIdentifiers, ...ringIdentifiers.map((identifier) => `SKU-${identifier}`)],
+    ).catch(() => {});
+  }
+
+  const groupedVariants = new Map();
+
+  for (const ring of rings) {
+    const modelName = ring.model_name || ring.ring_name;
+    const size = ring.size || 'N/A';
+    const material = ring.material || 'Unknown';
+    const imageUrl = ring.image_url || null;
+    const groupKey = `${modelName}::${size}::${material}`;
+    const existingGroup = groupedVariants.get(groupKey) || {
+      modelName,
+      size,
+      material,
+      imageUrl,
+      totalQty: 0,
+      availableQty: 0,
+    };
+
+    existingGroup.totalQty += 1;
+    if (String(ring.status || 'AVAILABLE').toUpperCase() === 'AVAILABLE') {
+      existingGroup.availableQty += 1;
+    }
+    if (!existingGroup.imageUrl && imageUrl) {
+      existingGroup.imageUrl = imageUrl;
+    }
+
+    groupedVariants.set(groupKey, existingGroup);
+  }
+
+  let syncedInventoryItems = 0;
+
+  for (const group of groupedVariants.values()) {
+    const variant = `Size ${group.size} - ${group.material}`;
+    const inventoryState = deriveInventoryState(group.availableQty);
+    const sku = `SKU-${toInventoryKeyPart(group.modelName, 'MODEL')}-${toInventoryKeyPart(group.size, 'SIZE')}`;
+    const serialNumber = `INV-${modelId}-${toInventoryKeyPart(group.material, 'MAT')}-${toInventoryKeyPart(group.size, 'SIZE')}`;
+
+    const existingInventory = await query(
+      `
+        SELECT id
+        FROM inventory_items
+        WHERE sku = ?
+           OR serial_number = ?
+        LIMIT 1
+      `,
+      [sku, serialNumber],
+    );
+
+    if (existingInventory.length) {
+      await execute(
+        `
+          UPDATE inventory_items
+          SET image_url = ?,
+              model_name = ?,
+              color = ?,
+              variant = ?,
+              sku = ?,
+              serial_number = ?,
+              status = ?,
+              stock_qty = ?,
+              stock_percent = ?,
+              status_color = ?
+          WHERE id = ?
+        `,
+        [
+          group.imageUrl,
+          group.modelName,
+          deriveInventoryColor(group.material),
+          variant,
+          sku,
+          serialNumber,
+          inventoryState.status,
+          inventoryState.stockQty,
+          inventoryState.stockPercent,
+          inventoryState.statusColor,
+          existingInventory[0].id,
+        ],
+      );
+    } else {
+      await execute(
+        `
+          INSERT INTO inventory_items (
+            image_url,
+            model_name,
+            color,
+            variant,
+            sku,
+            serial_number,
+            status,
+            stock_qty,
+            stock_percent,
+            status_color
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          group.imageUrl,
+          group.modelName,
+          deriveInventoryColor(group.material),
+          variant,
+          sku,
+          serialNumber,
+          inventoryState.status,
+          inventoryState.stockQty,
+          inventoryState.stockPercent,
+          inventoryState.statusColor,
+        ],
+      );
+    }
+
+    syncedInventoryItems += 1;
+  }
+
+  return syncedInventoryItems;
+}
+
 router.post('/seed-catalog', async (req, res, next) => {
   try {
     await ensureRingTables();
 
     const requestBody = req.body || {};
     const requestedModelName = String(requestBody.modelName || '').trim();
-    const catalogItems = requestedModelName
-      ? [
-          {
-            modelName: requestedModelName,
-            collectionName: String(requestBody.collectionName || '').trim() || null,
-            material: String(requestBody.material || '').trim(),
-            description: String(requestBody.description || '').trim() || null,
-            imageUrl: String(requestBody.imageUrl || '').trim() || null,
-            basePrice: Number(requestBody.basePrice),
-            currencyCode: String(requestBody.currencyCode || 'USD').trim().toUpperCase(),
-            ringNamePrefix: String(requestBody.ringNamePrefix || requestedModelName).trim(),
-            ringIdentifierPrefix: String(requestBody.ringIdentifierPrefix || requestedModelName.slice(0, 3) || 'RNG')
-              .trim()
-              .toUpperCase(),
-            stockCount: Number(requestBody.stockCount || 1),
-            startingNumber: Number(requestBody.startingNumber || 1),
-            defaultSize: String(requestBody.defaultSize || '7').trim(),
-            locationLabel: String(requestBody.locationLabel || 'Main Warehouse').trim(),
-          },
-        ]
-      : buildDefaultCatalog();
+    if (!requestedModelName) {
+      return res.status(400).json({ message: 'Insert product data from Admin Seed. Default catalog seeding is disabled.' });
+    }
 
-    if (
-      requestedModelName &&
-      (!catalogItems[0].material || !Number.isFinite(catalogItems[0].basePrice) || catalogItems[0].basePrice <= 0)
-    ) {
+    const catalogItems = [
+      {
+        modelName: requestedModelName,
+        collectionName: String(requestBody.collectionName || '').trim() || null,
+        material: String(requestBody.material || '').trim(),
+        description: String(requestBody.description || '').trim() || null,
+        imageUrl: String(requestBody.imageUrl || '').trim() || null,
+        basePrice: Number(requestBody.basePrice),
+        currencyCode: String(requestBody.currencyCode || 'USD').trim().toUpperCase(),
+        ringNamePrefix: String(requestBody.ringNamePrefix || requestedModelName).trim(),
+        ringIdentifierPrefix: String(requestBody.ringIdentifierPrefix || requestedModelName.slice(0, 3) || 'RNG')
+          .trim()
+          .toUpperCase(),
+        stockCount: Number(requestBody.stockCount || 1),
+        startingNumber: Number(requestBody.startingNumber || 1),
+        defaultSize: String(requestBody.defaultSize || '7').trim(),
+        locationLabel: String(requestBody.locationLabel || 'Main Warehouse').trim(),
+      },
+    ];
+
+    if (!catalogItems[0].material || !Number.isFinite(catalogItems[0].basePrice) || catalogItems[0].basePrice <= 0) {
       return res.status(400).json({ message: 'modelName, material, and a valid basePrice are required.' });
     }
 
     let createdModels = 0;
     let createdRings = 0;
+    let syncedInventoryItems = 0;
 
     for (const item of catalogItems) {
       const existingModels = await query('SELECT id FROM ring_models WHERE model_name = ? LIMIT 1', [item.modelName]);
@@ -252,12 +408,14 @@ router.post('/seed-catalog', async (req, res, next) => {
         createdModels += 1;
       }
       createdRings += await createRingsForModel(modelId, item);
+      syncedInventoryItems += await syncInventoryForModel(modelId);
     }
 
     return res.json({
-      message: requestedModelName ? 'Catalog item inserted successfully.' : 'Catalog seeded successfully.',
+      message: 'Catalog item inserted successfully.',
       createdModels,
       createdRings,
+      syncedInventoryItems,
     });
   } catch (error) {
     return next(error);

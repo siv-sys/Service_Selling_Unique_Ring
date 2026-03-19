@@ -144,11 +144,20 @@ const resolveThemeMode = (value: unknown) =>
       ? value
       : DEFAULT_SETTINGS.themeMode;
 
+type AdminSystemSettings = {
+  shopName: string;
+  supportEmail: string;
+  currency: string;
+  updatedAt: string | null;
+};
+
 const SettingsView = ({
   onNavigateRelationship = () => {},
   onNavigateCoupleProfile = () => {},
   onNavigateProfile = () => {}
 }) => {
+  const isAdminView =
+    typeof window !== 'undefined' && sessionStorage.getItem('auth_roles') === 'admin';
   const [activeMenu, setActiveMenu] = React.useState('General');
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false);
   const [privacyLevel, setPrivacyLevel] = React.useState('Contacts');
@@ -197,6 +206,14 @@ const SettingsView = ({
       return DEFAULT_AVATAR;
     }
   });
+  const [adminSystemSettings, setAdminSystemSettings] = React.useState<AdminSystemSettings>({
+    shopName: '',
+    supportEmail: '',
+    currency: 'USD',
+    updatedAt: null,
+  });
+  const [adminSettingsLoading, setAdminSettingsLoading] = React.useState(false);
+  const [adminSettingsError, setAdminSettingsError] = React.useState('');
 
   React.useEffect(() => {
     const syncAvatar = () => {
@@ -216,6 +233,11 @@ const SettingsView = ({
   }, []);
 
   React.useEffect(() => {
+    if (isAdminView) {
+      setNotifications([]);
+      return undefined;
+    }
+
     let active = true;
 
     const loadNotifications = async () => {
@@ -235,7 +257,7 @@ const SettingsView = ({
     return () => {
       active = false;
     };
-  }, []);
+  }, [isAdminView]);
 
   React.useEffect(() => {
     if (!isNotificationOpen) {
@@ -265,6 +287,11 @@ const SettingsView = ({
   }, [isNotificationOpen]);
 
   React.useEffect(() => {
+    if (isAdminView) {
+      setSettingsLoading(false);
+      return undefined;
+    }
+
     let active = true;
 
     const loadSettings = async () => {
@@ -315,11 +342,107 @@ const SettingsView = ({
     return () => {
       active = false;
     };
-  }, []);
+  }, [isAdminView]);
+
+  React.useEffect(() => {
+    if (!isAdminView) {
+      return undefined;
+    }
+
+    let active = true;
+
+    const loadAdminSettings = async () => {
+      setAdminSettingsLoading(true);
+      setAdminSettingsError('');
+
+      try {
+        const data: any = await api.get('/settings/system');
+        const settings = data?.settings ?? data;
+        if (!active) return;
+
+        setAdminSystemSettings({
+          shopName: typeof settings?.shop_name === 'string' ? settings.shop_name : '',
+          supportEmail: typeof settings?.support_email === 'string' ? settings.support_email : '',
+          currency: typeof settings?.currency === 'string' ? settings.currency : 'USD',
+          updatedAt:
+            typeof settings?.updated_at === 'string' || settings?.updated_at === null
+              ? settings.updated_at
+              : null,
+        });
+      } catch (error) {
+        if (!active) return;
+        setAdminSettingsError(error instanceof Error ? error.message : 'Failed to load system settings.');
+      } finally {
+        if (active) {
+          setAdminSettingsLoading(false);
+          setSettingsLoading(false);
+        }
+      }
+    };
+
+    void loadAdminSettings();
+
+    return () => {
+      active = false;
+    };
+  }, [isAdminView]);
 
   const showSaveMessage = (message: string) => {
     setSaveMessage(message);
     window.setTimeout(() => setSaveMessage(''), 2000);
+  };
+
+  const loadAdminSystemSettings = async () => {
+    setAdminSettingsLoading(true);
+    setAdminSettingsError('');
+
+    try {
+      const data: any = await api.get('/settings/system');
+      const settings = data?.settings ?? data;
+      setAdminSystemSettings({
+        shopName: typeof settings?.shop_name === 'string' ? settings.shop_name : '',
+        supportEmail: typeof settings?.support_email === 'string' ? settings.support_email : '',
+        currency: typeof settings?.currency === 'string' ? settings.currency : 'USD',
+        updatedAt:
+          typeof settings?.updated_at === 'string' || settings?.updated_at === null
+            ? settings.updated_at
+            : null,
+      });
+      showSaveMessage('Loaded');
+    } catch (error) {
+      setAdminSettingsError(error instanceof Error ? error.message : 'Failed to load system settings.');
+      showSaveMessage('Load failed');
+    } finally {
+      setAdminSettingsLoading(false);
+    }
+  };
+
+  const handleSaveAdminSettings = async () => {
+    try {
+      const data: any = await api.put('/settings/system', {
+        shop_name: adminSystemSettings.shopName.trim(),
+        support_email: adminSystemSettings.supportEmail.trim(),
+        currency: adminSystemSettings.currency.trim().toUpperCase(),
+      });
+      const settings = data?.settings ?? data;
+      setAdminSystemSettings({
+        shopName: typeof settings?.shop_name === 'string' ? settings.shop_name : adminSystemSettings.shopName,
+        supportEmail:
+          typeof settings?.support_email === 'string'
+            ? settings.support_email
+            : adminSystemSettings.supportEmail,
+        currency: typeof settings?.currency === 'string' ? settings.currency : adminSystemSettings.currency,
+        updatedAt:
+          typeof settings?.updated_at === 'string' || settings?.updated_at === null
+            ? settings.updated_at
+            : adminSystemSettings.updatedAt,
+      });
+      setAdminSettingsError('');
+      showSaveMessage('Saved');
+    } catch (error) {
+      setAdminSettingsError(error instanceof Error ? error.message : 'Failed to save system settings.');
+      showSaveMessage('Save failed');
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -676,6 +799,247 @@ const SettingsView = ({
   const filteredLanguages = languageOptions.filter((item) =>
     item.toLowerCase().includes(languageSearch.trim().toLowerCase())
   );
+
+  if (isAdminView) {
+    return (
+      <div className={`settings-page ${isDarkTheme ? 'dark' : ''}`}>
+        <style>{`
+          :root {
+            --bg: #f4f7fb;
+            --panel: #ffffff;
+            --line: #dfe6f0;
+            --muted: #6e7f98;
+            --text: #14213d;
+            --accent: #e93f66;
+            --accent-strong: #d93359;
+            --shadow-soft: 0 8px 28px rgba(15, 23, 42, 0.07);
+          }
+
+          .settings-page {
+            min-height: 100vh;
+            margin: 0;
+            background:
+              radial-gradient(circle at 100% -10%, rgba(233, 63, 102, 0.08), transparent 38%),
+              radial-gradient(circle at -8% 8%, rgba(80, 124, 232, 0.08), transparent 33%),
+              var(--bg);
+            color: var(--text);
+            font-family: 'Plus Jakarta Sans', Manrope, 'Segoe UI', sans-serif;
+          }
+
+          .settings-page.dark {
+            --bg: #111827;
+            --panel: #1f2937;
+            --line: #374151;
+            --muted: #94a3b8;
+            --text: #f3f4f6;
+            --shadow-soft: 0 16px 40px rgba(2, 6, 23, 0.45);
+          }
+
+          .admin-settings-shell {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 40px 24px 64px;
+          }
+
+          .admin-settings-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 28px;
+            box-shadow: var(--shadow-soft);
+            padding: 28px;
+          }
+
+          .admin-settings-kicker {
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+          }
+
+          .admin-settings-title {
+            margin: 10px 0 6px;
+            font-size: 2rem;
+            font-weight: 800;
+          }
+
+          .admin-settings-subtitle,
+          .admin-settings-note,
+          .admin-settings-meta {
+            color: var(--muted);
+          }
+
+          .admin-settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin-top: 24px;
+          }
+
+          .admin-settings-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .admin-settings-field label {
+            font-size: 0.9rem;
+            font-weight: 700;
+          }
+
+          .admin-settings-input {
+            height: 48px;
+            padding: 0 14px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(248, 250, 252, 0.9);
+            color: var(--text);
+            font: inherit;
+          }
+
+          .settings-page.dark .admin-settings-input {
+            background: #111827;
+          }
+
+          .admin-settings-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+          }
+
+          .admin-settings-btn {
+            height: 46px;
+            padding: 0 20px;
+            border: none;
+            border-radius: 14px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+          }
+
+          .admin-settings-btn.primary {
+            background: linear-gradient(180deg, #ef4d73, #d8345a);
+            color: white;
+          }
+
+          .admin-settings-btn.secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--line);
+          }
+
+          .admin-settings-status {
+            margin-top: 18px;
+            font-size: 0.95rem;
+            font-weight: 600;
+          }
+
+          .admin-settings-status.error {
+            color: #e11d48;
+          }
+        `}</style>
+
+        <div className="admin-settings-shell">
+          <section className="admin-settings-card">
+            <div className="admin-settings-kicker">Admin Settings</div>
+            <h1 className="admin-settings-title">System Settings From Database</h1>
+            <p className="admin-settings-subtitle">
+              This page now reads and saves admin configuration directly from the `system_settings` table.
+            </p>
+
+            <div className="admin-settings-grid">
+              <div className="admin-settings-field">
+                <label htmlFor="shop-name">Shop Name</label>
+                <input
+                  id="shop-name"
+                  className="admin-settings-input"
+                  value={adminSystemSettings.shopName}
+                  onChange={(event) =>
+                    setAdminSystemSettings((current) => ({
+                      ...current,
+                      shopName: event.target.value,
+                    }))
+                  }
+                  placeholder="BondKeeper"
+                />
+              </div>
+
+              <div className="admin-settings-field">
+                <label htmlFor="support-email">Support Email</label>
+                <input
+                  id="support-email"
+                  className="admin-settings-input"
+                  type="email"
+                  value={adminSystemSettings.supportEmail}
+                  onChange={(event) =>
+                    setAdminSystemSettings((current) => ({
+                      ...current,
+                      supportEmail: event.target.value,
+                    }))
+                  }
+                  placeholder="support@example.com"
+                />
+              </div>
+
+              <div className="admin-settings-field">
+                <label htmlFor="currency">Currency</label>
+                <input
+                  id="currency"
+                  className="admin-settings-input"
+                  value={adminSystemSettings.currency}
+                  onChange={(event) =>
+                    setAdminSystemSettings((current) => ({
+                      ...current,
+                      currency: event.target.value.toUpperCase(),
+                    }))
+                  }
+                  placeholder="USD"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+
+            <div className="admin-settings-actions">
+              <button
+                type="button"
+                className="admin-settings-btn secondary"
+                onClick={() => {
+                  void loadAdminSystemSettings();
+                }}
+                disabled={adminSettingsLoading}
+              >
+                {adminSettingsLoading ? 'Loading...' : 'Reload From DB'}
+              </button>
+              <button
+                type="button"
+                className="admin-settings-btn primary"
+                onClick={() => {
+                  void handleSaveAdminSettings();
+                }}
+                disabled={adminSettingsLoading}
+              >
+                Save System Settings
+              </button>
+            </div>
+
+            <p className="admin-settings-meta">
+              {adminSystemSettings.updatedAt
+                ? `Last updated: ${formatNotificationDate(adminSystemSettings.updatedAt)}`
+                : 'No saved system settings timestamp yet.'}
+            </p>
+            {saveMessage ? <p className="admin-settings-status">{saveMessage}</p> : null}
+            {adminSettingsError ? <p className="admin-settings-status error">{adminSettingsError}</p> : null}
+            {!adminSettingsLoading && !adminSettingsError ? (
+              <p className="admin-settings-note">
+                Admin dashboard, inventory, user management, catalog seed, and settings are all reading from the backend now.
+              </p>
+            ) : null}
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`settings-page ${isDarkTheme ? 'dark' : ''}`}>
