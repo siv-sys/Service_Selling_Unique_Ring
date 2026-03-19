@@ -1,18 +1,24 @@
 import React from 'react';
 import { api } from '../lib/api';
 
+const PROFILE_STORAGE_KEY = 'bondkeeper_profile_persist_v1';
+
 const ProfileView = ({
+  onNavigateDashboard = () => {},
+  onNavigateCoupleShop = () => {},
+  onNavigateMyRing = () => {},
   onNavigateRelationship = () => {},
   onNavigateSettings = () => {},
-  onNavigateCoupleProfile = () => {}
+  onNavigateCoupleProfile = () => {},
+  onNavigateProfile = () => {}
 }) => {
   const initialProfile = React.useMemo(() => ({
     title: 'Alex & Sam',
-    togetherSince: 'Together since October 12, 2021',
+    togetherSince: 'Celebrating love since October 12, 2021',
     handle: 'alex_and_sam',
     phone: '+1 555-0123',
     avatarUrl: '',
-    linkedPartnerLabel: 'Linked to your partner',
+    linkedPartnerLabel: 'Connected with your partner',
     daysTogether: 0
   }), []);
 
@@ -25,6 +31,25 @@ const ProfileView = ({
   const [error, setError] = React.useState('');
   const fileInputRef = React.useRef(null);
 
+  const readPersistedProfile = React.useCallback(() => {
+    try {
+      const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const persistProfile = React.useCallback((data) => {
+    try {
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // Ignore local storage write errors (private mode or quota limits).
+    }
+  }, []);
+
   const applyProfile = React.useCallback((data) => {
     const next = {
       ...initialProfile,
@@ -33,7 +58,8 @@ const ProfileView = ({
     setProfile(next);
     setDraftProfile(next);
     setAvatarUrl(next.avatarUrl || '');
-  }, [initialProfile]);
+    persistProfile(next);
+  }, [initialProfile, persistProfile]);
 
   React.useEffect(() => {
     let active = true;
@@ -42,12 +68,24 @@ const ProfileView = ({
       try {
         setLoading(true);
         setError('');
+
+        const persisted = readPersistedProfile();
+        if (persisted && active) {
+          applyProfile(persisted);
+        }
+
         const data = await api.get('/profile/me/current');
         if (!active) return;
         applyProfile(data);
       } catch (err) {
         if (!active) return;
-        setError(err instanceof Error ? err.message : 'Failed to load profile.');
+        const persisted = readPersistedProfile();
+        if (persisted) {
+          applyProfile(persisted);
+          setError('');
+        } else {
+          setError(err instanceof Error ? err.message : 'Unable to load your profile right now.');
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -58,7 +96,7 @@ const ProfileView = ({
     return () => {
       active = false;
     };
-  }, [applyProfile]);
+  }, [applyProfile, readPersistedProfile]);
 
   const handleOpenPicker = () => {
     if (fileInputRef.current) {
@@ -81,6 +119,7 @@ const ProfileView = ({
 
   const headerAvatar =
     avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80';
+  const headerDisplayName = (isEditing ? draftProfile.title : profile.title) || 'My Profile';
 
   const handleStartEdit = () => {
     setDraftProfile(profile);
@@ -89,17 +128,22 @@ const ProfileView = ({
 
   const handleSaveProfile = () => {
     const saveProfile = async () => {
+      const payload = {
+        ...draftProfile,
+        avatarUrl,
+      };
       try {
         setSaving(true);
         setError('');
-        const data = await api.patch('/profile/me/current', {
-          ...draftProfile,
-          avatarUrl,
-        });
+        persistProfile(payload);
+        const data = await api.patch('/profile/me/current', payload);
         applyProfile(data);
         setIsEditing(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to save profile.');
+        // Keep local changes permanently even when backend save fails.
+        applyProfile(payload);
+        setIsEditing(false);
+        setError('');
       } finally {
         setSaving(false);
       }
@@ -114,7 +158,7 @@ const ProfileView = ({
   };
 
   const handleQuickPhoneChange = () => {
-    const next = window.prompt('Enter new phone number', profile.phone);
+    const next = window.prompt('Update your phone number', profile.phone);
     if (next === null) return;
     const value = next.trim();
     if (!value) return;
@@ -173,174 +217,199 @@ const ProfileView = ({
         }
 
         .topbar {
-          height: 76px;
-          border-bottom: 1px solid rgba(221, 227, 236, 0.9);
-          background: rgba(248, 251, 255, 0.78);
-          backdrop-filter: blur(16px);
+          height: 72px;
+          border-bottom: 1px solid #ece7ed;
+          background: #ffffff;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 28px;
-          gap: 18px;
+          padding: 0 48px;
+          gap: 20px;
           position: sticky;
           top: 0;
           z-index: 20;
-          box-shadow: 0 10px 30px rgba(23, 41, 73, 0.06);
         }
 
         .brand {
           display: flex;
           align-items: center;
           gap: 8px;
-          min-width: 180px;
+          min-width: 0;
           white-space: nowrap;
         }
 
         .brand-logo {
-          color: #ef2f5a;
-          font-size: 26px;
+          color: #f542a7;
+          font-size: 21px;
           line-height: 1;
         }
 
         .brand-text {
-          color: #0f1934;
-          font-size: 24px;
-          font-weight: 900;
-          letter-spacing: -0.035em;
+          color: #f542a7;
+          font-size: 26px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          line-height: 1;
+          font-family: 'Times New Roman', Georgia, serif;
         }
 
         .main-nav {
-          margin-top: 20px;
           flex: 1;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 26px;
+          gap: 22px;
+          min-width: 0;
         }
 
-        .main-nav button {
+        .main-nav a {
           border: 0;
-          background: transparent;
-          color: #6f7f99;
-          font-size: 14px;
-          font-weight: 800;
+          font-size: 12px;
+          font-weight: 400;
           cursor: pointer;
-          padding: 10px 14px;
+          padding: 6px 0;
           white-space: nowrap;
-          border-radius: 999px;
-          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+          transition: color 0.18s ease;
+          text-decoration: none;
+          display: inline-block;
         }
 
-        .main-nav button:hover {
-          background: rgba(255, 255, 255, 0.78);
-          color: #1f2f4d;
-          transform: translateY(-1px);
+        .main-nav a:hover {
+          color: #f542a7;
+        }
+
+        .main-nav a.active {
+          color: #27272a;
+          font-weight: 700;
         }
 
         .top-actions {
           display: flex;
           align-items: center;
-          gap: 14px;
-          min-width: 206px;
+          gap: 16px;
+          min-width: 0;
           justify-content: flex-end;
+          white-space: nowrap;
         }
 
-        .unlink-pill {
-          border: 1.4px solid #ef2f5a;
-          color: #ef2f5a;
-          border-radius: 999px;
-          padding: 6px 12px;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 0.09em;
-          text-transform: uppercase;
+        .top-icon-btn {
+          border: 0;
+          background: transparent;
+          cursor: pointer;
+          color: #27272a;
+          padding: 0;
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          background: #fff3f6;
-          line-height: 1;
+          justify-content: center;
         }
 
-        .top-icon {
-          color: #61718d;
-          font-size: 20px;
+        .top-icon-btn .material-symbols-outlined {
+          font-size: 22px;
+          line-height: 1;
+          font-weight: 300;
+          font-variation-settings: 'wght' 300;
+        }
+
+        .divider {
+          width: 1px;
+          height: 32px;
+          background: #e7e4ea;
+        }
+
+        .profile-name {
+          font-size: 14px;
+          color: #27272a;
+          font-weight: 500;
           line-height: 1;
         }
 
         .mini-avatar {
-          width: 38px;
-          height: 38px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
-          border: 2px solid rgba(255, 255, 255, 0.95);
+          border: 1px solid #efedf1;
           object-fit: cover;
-          box-shadow: 0 8px 16px rgba(20, 35, 62, 0.14);
+          box-shadow: 0 2px 6px rgba(20, 35, 62, 0.12);
         }
 
         .wrap {
           max-width: 980px;
           margin: 0 auto;
-          padding: 64px 20px 60px;
+          padding: 72px 20px 64px;
         }
 
         .hero {
           text-align: center;
-          margin-bottom: 48px;
-          padding: 8px 20px 0;
+          margin-bottom: 56px;
+          padding: 30px 28px 24px;
+          border-radius: 34px;
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 246, 251, 0.8));
+          border: 1px solid rgba(255, 255, 255, 0.92);
+          box-shadow:
+            0 30px 60px rgba(20, 36, 64, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(4px);
         }
 
         .hero-avatar-wrap {
           position: relative;
-          width: 178px;
-          height: 178px;
+          width: 196px;
+          height: 196px;
           margin: 0 auto;
         }
 
         .hero-avatar {
-          width: 178px;
-          height: 178px;
+          width: 196px;
+          height: 196px;
           border-radius: 50%;
           background: linear-gradient(180deg, #c7d0db, #aeb8c7);
-          border: 5px solid rgba(255, 255, 255, 0.9);
-          box-shadow: 0 20px 36px rgba(18, 33, 59, 0.14);
+          border: 7px solid rgba(255, 255, 255, 0.96);
+          box-shadow:
+            0 24px 44px rgba(18, 33, 59, 0.2),
+            0 0 0 1px rgba(255, 255, 255, 0.6);
           object-fit: cover;
           display: block;
         }
 
         .avatar-camera {
           position: absolute;
-          right: -4px;
-          bottom: 10px;
-          width: 58px;
-          height: 58px;
+          right: -2px;
+          bottom: 12px;
+          width: 60px;
+          height: 60px;
           border-radius: 50%;
-          border: 0;
-          background: #ef2f5a;
+          border: 3px solid #fff;
+          background: linear-gradient(160deg, #ff4f87, #ef2f5a);
           color: #fff;
-          font-size: 22px;
+          font-size: 21px;
           display: grid;
           place-items: center;
-          box-shadow: 0 14px 26px rgba(239, 47, 90, 0.34);
+          box-shadow: 0 16px 30px rgba(239, 47, 90, 0.35);
           cursor: pointer;
         }
 
         .hero h1 {
-          margin: 20px 0 6px;
-          font-size: clamp(28px, 3.8vw, 40px);
+          margin: 24px 0 8px;
+          font-size: clamp(34px, 4.2vw, 56px);
           letter-spacing: -0.04em;
-          line-height: 1.02;
+          line-height: 0.98;
           color: #15233e;
           display: inline-flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
           justify-content: center;
+          font-weight: 800;
+          text-wrap: balance;
         }
 
         .hero p {
           margin: 0;
           color: #ef2f5a;
-          font-size: clamp(16px, 2vw, 24px);
+          font-size: clamp(20px, 2.2vw, 40px);
           font-weight: 700;
           line-height: 1.2;
+          letter-spacing: -0.01em;
         }
 
         .status-note {
@@ -356,9 +425,9 @@ const ProfileView = ({
 
 
         .edit-actions {
-          margin-top: 22px;
+          margin-top: 28px;
           display: inline-flex;
-          gap: 10px;
+          gap: 12px;
         }
 
         .edit-btn,
@@ -366,18 +435,18 @@ const ProfileView = ({
         .cancel-btn {
           border: 0;
           border-radius: 999px;
-          height: 42px;
-          padding: 0 22px;
-          font-size: 14px;
+          height: 56px;
+          padding: 0 34px;
+          font-size: 15px;
           font-weight: 800;
           cursor: pointer;
         }
 
         .edit-btn,
         .save-btn {
-          background: linear-gradient(180deg, #f23857, #ea2449);
+          background: linear-gradient(180deg, #ff4f87, #ef2f5a);
           color: #fff;
-          box-shadow: 0 12px 22px rgba(239, 47, 90, 0.2);
+          box-shadow: 0 16px 30px rgba(239, 47, 90, 0.28);
         }
 
         .cancel-btn {
@@ -722,11 +791,10 @@ const ProfileView = ({
             justify-content: flex-start;
             overflow-x: auto;
             padding-bottom: 4px;
-            margin-top: 0;
           }
 
-          .main-nav button {
-            padding: 4px 0 10px;
+          .main-nav a {
+            padding: 4px 0 8px;
           }
 
           .top-actions {
@@ -740,8 +808,9 @@ const ProfileView = ({
         }
 
         @media (max-width: 640px) {
-          .top-actions .top-icon,
-          .top-actions .unlink-pill {
+          .top-actions .top-icon-btn,
+          .top-actions .divider,
+          .top-actions .profile-name {
             display: none;
           }
 
@@ -809,23 +878,31 @@ const ProfileView = ({
 
       <header className="topbar">
         <div className="brand">
-          <span className="brand-logo">{'\u2764'}</span>
-          <span className="brand-text">Eternal Rings</span>
+          <span className="material-symbols-outlined brand-logo">diamond</span>
+          <span className="brand-text">BondKeeper</span>
         </div>
 
         <nav className="main-nav" aria-label="Main">
-          <button type="button">Couple Shop</button>
-          <button type="button">Ring Scan</button>
-          <button type="button">My Ring</button>
-          <button type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
-          <button type="button" onClick={onNavigateRelationship}>Relationship</button>
-          <button type="button" onClick={onNavigateSettings}>Settings</button>
+          <a href="#dashboard" onClick={onNavigateDashboard}>Dashboard</a>
+          <a href="#coupleshop" className="active" onClick={onNavigateCoupleShop}>Couple Shop</a>
+          <a href="#myring" onClick={onNavigateMyRing}>My Ring</a>
+          <a href="#coupleprofile" onClick={onNavigateCoupleProfile}>Couple Profile</a>
+          <a href="#relationship" onClick={onNavigateRelationship}>Relationship</a>
+          <a href="#settings" onClick={onNavigateSettings}>Settings</a>
         </nav>
 
         <div className="top-actions">
-          <span className="unlink-pill">{'\u2923'} UNLINKED</span>
-          <span className="top-icon">{'\u263E'}</span>
-          <span className="top-icon">{'\u{1F514}'}</span>
+          <button type="button" className="top-icon-btn" aria-label="Notifications">
+            <span className="material-symbols-outlined">notifications_none</span>
+          </button>
+          <button type="button" className="top-icon-btn" aria-label="Theme">
+            <span className="material-symbols-outlined">bedtime</span>
+          </button>
+          <button type="button" className="top-icon-btn" aria-label="Shopping cart">
+            <span className="material-symbols-outlined">shopping_cart</span>
+          </button>
+          <span className="divider" />
+          <span className="profile-name">{headerDisplayName}</span>
           <img className="mini-avatar" src={headerAvatar} alt="Profile" />
         </div>
       </header>
@@ -873,14 +950,14 @@ const ProfileView = ({
           <div className="edit-actions">
             {isEditing ? (
               <>
-                <button type="button" className="save-btn" onClick={handleSaveProfile} disabled={saving}>Save Profile</button>
-                <button type="button" className="cancel-btn" onClick={handleCancelEdit} disabled={saving}>Cancel</button>
+                <button type="button" className="save-btn" onClick={handleSaveProfile} disabled={saving}>Save Changes</button>
+                <button type="button" className="cancel-btn" onClick={handleCancelEdit} disabled={saving}>Discard</button>
               </>
             ) : (
-              <button type="button" className="edit-btn" onClick={handleStartEdit} disabled={loading}>Edit Profile</button>
+              <button type="button" className="edit-btn" onClick={handleStartEdit} disabled={loading}>Edit Details</button>
             )}
           </div>
-          {loading && <p className="status-note">Loading profile...</p>}
+          {loading && <p className="status-note">Loading your profile...</p>}
           {error && <p className="status-note error">{error}</p>}
         </section>
 
