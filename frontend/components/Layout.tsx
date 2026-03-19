@@ -3,18 +3,14 @@ import Sidebar from './Sidebar';
 
 interface LayoutProps {
   children: React.ReactNode;
+  onLogout?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
-  // Debug: Log that Layout is rendering
-  console.log('✅ Layout component loaded');
-  
+const Layout: React.FC<LayoutProps> = ({ children, onLogout }) => {
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {children}
-      </div>
+      <Sidebar onLogout={onLogout} />
+      <div className="flex-1 flex flex-col overflow-hidden">{children}</div>
     </div>
   );
 };

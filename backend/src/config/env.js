@@ -1,8 +1,7 @@
-<<<<<<< HEAD
 const path = require('path');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 function toNumber(value, fallback) {
   const parsed = Number(value);
@@ -15,7 +14,7 @@ const env = {
   frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
   auth: {
     jwtSecret: process.env.JWT_SECRET || 'dev-jwt-secret-change-me',
-    accessTokenTtl: process.env.ACCESS_TOKEN_TTL || '12h',
+    accessTokenTtl: process.env.ACCESS_TOKEN_TTL || process.env.JWT_EXPIRE || '12h',
   },
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
@@ -28,6 +27,3 @@ const env = {
 };
 
 module.exports = env;
-=======
-﻿
->>>>>>> integration_branch

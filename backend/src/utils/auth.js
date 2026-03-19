@@ -2,8 +2,13 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 
+function parseRole(role) {
+  const normalizedRole = String(role || '').trim().toLowerCase();
+  return normalizedRole === 'admin' || normalizedRole === 'user' ? normalizedRole : null;
+}
+
 function normalizeRole(role) {
-  return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+  return parseRole(role) || 'user';
 }
 
 function toSafeUser(user) {
@@ -66,6 +71,7 @@ module.exports = {
   getExpiresAtFromToken,
   getSessionContext,
   hashTokenId,
+  parseRole,
   normalizeRole,
   signAccessToken,
   toSafeUser,

@@ -11,7 +11,7 @@ const MIN_PASSWORD_LENGTH = 9;
 
 router.post('/register', async (req, res, next) => {
   try {
-    const { email, password, name, role, autoLogin } = req.body || {};
+    const { email, password, name, autoLogin } = req.body || {};
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
     if (!normalizedEmail || !password) {
@@ -27,13 +27,12 @@ router.post('/register', async (req, res, next) => {
       return res.status(409).json({ message: 'Email is already registered.' });
     }
 
-    const safeRole = normalizeRole(role);
     const displayName = String(name || '').trim() || normalizedEmail.split('@')[0];
     const passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
 
     const result = await execute(
       'INSERT INTO users (email, password_hash, username, full_name, name, role) VALUES (?, ?, ?, ?, ?, ?)',
-      [normalizedEmail, passwordHash, displayName, displayName, displayName, safeRole],
+      [normalizedEmail, passwordHash, displayName, displayName, displayName, 'user'],
     );
 
     const createdUsers = await query(

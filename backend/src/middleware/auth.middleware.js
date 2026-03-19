@@ -3,6 +3,7 @@ const {
   extractBearerToken,
   hashTokenId,
   normalizeRole,
+  parseRole,
   toSafeUser,
   verifyAccessToken,
 } = require('../utils/auth');
@@ -58,6 +59,11 @@ async function requireAuth(req, res, next) {
       return res.status(403).json({ message: 'This account is not active.' });
     }
 
+    const validatedRole = parseRole(session.role);
+    if (!validatedRole) {
+      return res.status(403).json({ message: 'This account does not have a valid role.' });
+    }
+
     await execute('UPDATE auth_sessions SET last_used_at = UTC_TIMESTAMP() WHERE id = ?', [session.session_id]).catch(
       () => {},
     );
@@ -68,7 +74,7 @@ async function requireAuth(req, res, next) {
       sessionId: session.session_id,
       user: {
         ...toSafeUser(session),
-        role: normalizeRole(session.role),
+        role: validatedRole,
       },
     };
 

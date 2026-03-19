@@ -16,7 +16,11 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const Sidebar = () => {
+interface SidebarProps {
+  onLogout?: () => void;
+}
+
+const Sidebar = ({ onLogout }: SidebarProps) => {
   const defaultProfilePhoto =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuCmqQASMOLSpK9bGM0-CgmKl9sKhEN6GVoUAzpwuV_qazu6yD8oWPjCj2CgVE-fyl5QOGCpNgh0AALDLKkdOHjRa-3p55FWqeWN2IEP7WRWdYnm7HXTQcVmjLgTru9rytSOijqqbXBENwG2h6eS5rbKl-DJofpCy0tEpZyPfoMv5AsJPZDZqpkkANt9xz8DD1AV_Bn_rHCYdbeLal-7ErCbx9aXUtuDHNY3zLpAGd8hn2VbYSXD_hlpXuc3K9cKXLeY3qGkLCYJB5Sw';
   const [profilePhoto, setProfilePhoto] = useState(defaultProfilePhoto);
@@ -98,7 +102,11 @@ const Sidebar = () => {
       </nav>
 
       <div className="px-4 pb-6 pt-4 border-t border-pink-200 bg-pink-50/20">
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-pink-300 text-pink-900 hover:bg-pink-100 active:bg-pink-200 active:scale-[0.99] transition-colors mb-4 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-pink-300 text-pink-900 hover:bg-pink-100 active:bg-pink-200 active:scale-[0.99] transition-colors mb-4 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
+        >
           <LogOut className="w-5 h-5" />
           <span>Logout</span>
         </button>

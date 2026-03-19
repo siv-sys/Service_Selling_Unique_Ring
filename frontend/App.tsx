@@ -15,7 +15,7 @@ import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
 
-const USER_HOME_PATH = '/dashboard';
+const USER_HOME_PATH = '/member';
 const ADMIN_HOME_PATH = '/admindashboard';
 
 function normalizeRole(role: string | null | undefined): AuthUser['role'] {
@@ -218,8 +218,8 @@ function AppRoutes() {
   const adminLayout = useMemo(
     () =>
       (view: ReactElement) =>
-        isAdmin ? <Layout>{view}</Layout> : <Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />,
-    [isAdmin, isAuthenticated, roleHomePath],
+        isAdmin ? <Layout onLogout={handleLogout}>{view}</Layout> : <Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />,
+    [handleLogout, isAdmin, isAuthenticated, roleHomePath],
   );
   const userOnly = useMemo(
     () =>
@@ -303,6 +303,7 @@ function AppRoutes() {
       />
 
       <Route path={USER_HOME_PATH} element={userOnly(<DashboardView />)} />
+      <Route path="/dashboard" element={<Navigate to={USER_HOME_PATH} replace />} />
       <Route path={ADMIN_HOME_PATH} element={adminLayout(<AdminDashboardView />)} />
       <Route path="/admin-dashboard" element={<Navigate to={ADMIN_HOME_PATH} replace />} />
       <Route path="/inventory" element={adminLayout(<InventoryView />)} />

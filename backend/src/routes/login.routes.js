@@ -3,15 +3,27 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { execute, pool, query } = require('../config/db');
 const { issueAuthSession } = require('../services/auth-session.service');
-const { normalizeRole, toSafeUser } = require('../utils/auth');
+const { normalizeRole, parseRole, toSafeUser } = require('../utils/auth');
 
 const router = express.Router();
 const BCRYPT_ROUNDS = 12;
-const MIN_PASSWORD_LENGTH = 9;
 
 function isBcryptHash(value) {
   return /^\$2[aby]\$\d{2}\$/.test(String(value || ''));
 }
+
+const LOGIN_USER_SELECT = `
+  SELECT
+    id,
+    email,
+    password_hash,
+    COALESCE(NULLIF(name, ''), NULLIF(full_name, ''), NULLIF(username, ''), SUBSTRING_INDEX(email, '@', 1)) AS name,
+    role,
+    COALESCE(account_status, 'ACTIVE') AS account_status
+  FROM users
+  WHERE LOWER(email) = ?
+  LIMIT 1
+`;
 
 router.post('/', async (req, res, next) => {
   try {
@@ -22,30 +34,31 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
-    if (String(password).length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({ message: 'Password must be more than 8 characters.' });
-    }
-
-    const users = await query(
-      'SELECT id, email, password_hash, name, role, account_status FROM users WHERE email = ? LIMIT 1',
-      [normalizedEmail],
-    );
+    const users = await query(LOGIN_USER_SELECT, [normalizedEmail]);
 
     if (!users.length) {
       return res.status(401).json({ message: 'Email not found.' });
     }
 
     const user = users[0];
+    const validatedRole = parseRole(user.role);
+
     if (String(user.account_status || 'ACTIVE').toUpperCase() !== 'ACTIVE') {
       return res.status(403).json({ message: 'This account is not active.' });
+    }
+
+    if (!validatedRole) {
+      return res.status(403).json({ message: 'This account does not have a valid role.' });
     }
 
     const providedPassword = String(password);
     let passwordMatches = false;
 
-    if (isBcryptHash(user.password_hash)) {
-      passwordMatches = await bcrypt.compare(providedPassword, String(user.password_hash));
-    } else if (String(user.password_hash) === providedPassword) {
+    const storedPasswordHash = String(user.password_hash || '');
+
+    if (isBcryptHash(storedPasswordHash)) {
+      passwordMatches = await bcrypt.compare(providedPassword, storedPasswordHash);
+    } else if (storedPasswordHash === providedPassword || storedPasswordHash.trim() === providedPassword) {
       passwordMatches = true;
       const upgradedHash = await bcrypt.hash(providedPassword, BCRYPT_ROUNDS);
       await execute('UPDATE users SET password_hash = ? WHERE id = ?', [upgradedHash, user.id]);
@@ -63,7 +76,13 @@ router.post('/', async (req, res, next) => {
       await execute('UPDATE users SET remember_token = NULL WHERE id = ?', [user.id]);
     }
 
-    const session = await issueAuthSession(user, req);
+    const session = await issueAuthSession(
+      {
+        ...user,
+        role: validatedRole,
+      },
+      req,
+    );
     return res.json({
       message: 'Login successful.',
       ...session,
@@ -86,18 +105,21 @@ router.post('/google', async (req, res, next) => {
   try {
     await connection.beginTransaction();
 
-    const [existingUsers] = await connection.execute(
-      'SELECT id, email, name, role, account_status FROM users WHERE email = ? LIMIT 1',
-      [normalizedEmail],
-    );
+    const [existingUsers] = await connection.execute(LOGIN_USER_SELECT, [normalizedEmail]);
 
     let userRow;
     if (existingUsers.length) {
       userRow = existingUsers[0];
+      const validatedRole = parseRole(userRow.role);
       if (String(userRow.account_status || 'ACTIVE').toUpperCase() !== 'ACTIVE') {
         await connection.rollback();
         return res.status(403).json({ message: 'This account is not active.' });
       }
+      if (!validatedRole) {
+        await connection.rollback();
+        return res.status(403).json({ message: 'This account does not have a valid role.' });
+      }
+      userRow.role = validatedRole;
     } else {
       const generatedPassword = `google_${crypto.randomUUID()}`;
       const generatedPasswordHash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);

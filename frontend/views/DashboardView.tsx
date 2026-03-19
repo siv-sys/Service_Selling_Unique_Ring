@@ -10,7 +10,11 @@ interface RecentlyViewedRing {
 }
 
 const Dashboard: React.FC = () => {
-  const [memberName, setMemberName] = useState<string>('Alexander');
+  const [memberName, setMemberName] = useState<string>(() => {
+    const storedName = sessionStorage.getItem('auth_name') || '';
+    const storedEmail = sessionStorage.getItem('auth_email') || '';
+    return storedName.trim() || storedEmail.split('@')[0] || 'Member';
+  });
   const [cartCount, setCartCount] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
