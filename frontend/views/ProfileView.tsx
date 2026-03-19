@@ -195,6 +195,14 @@ const ProfileView = ({
           overflow: hidden;
         }
 
+        .dark .profile-page {
+          background:
+            radial-gradient(circle at top right, rgba(239, 47, 90, 0.12), transparent 24%),
+            radial-gradient(circle at bottom left, rgba(61, 119, 228, 0.12), transparent 26%),
+            linear-gradient(180deg, #0f172a 0%, #111827 100%);
+          color: #e5e7eb;
+        }
+
         * {
           box-sizing: border-box;
         }
@@ -210,6 +218,13 @@ const ProfileView = ({
           background-size: 120px 120px;
           mask-image: radial-gradient(circle at center, black, transparent 80%);
           opacity: 0.45;
+        }
+
+        .dark .profile-page::before {
+          background-image:
+            linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+          opacity: 0.3;
         }
 
         .topbar {
@@ -766,6 +781,81 @@ const ProfileView = ({
 
         .hidden-input {
           display: none;
+        }
+
+        .dark .hero,
+        .dark .days-card,
+        .dark .card,
+        .dark .signout {
+          background: linear-gradient(180deg, rgba(17, 24, 39, 0.94), rgba(30, 41, 59, 0.94));
+          border-color: rgba(148, 163, 184, 0.22);
+          box-shadow: 0 18px 40px rgba(2, 6, 23, 0.35);
+        }
+
+        .dark .hero h1,
+        .dark .card h3,
+        .dark .phone-value,
+        .dark .signout h4,
+        .dark .handle-box strong,
+        .dark .handle-input,
+        .dark .profile-input,
+        .dark .phone-input {
+          color: #f8fafc;
+        }
+
+        .dark .hero p,
+        .dark .status-note,
+        .dark .days-label,
+        .dark .days-link,
+        .dark .card p,
+        .dark .handle-box,
+        .dark .footer,
+        .dark .footer-links button,
+        .dark .change-btn,
+        .dark .signout p {
+          color: #94a3b8;
+        }
+
+        .dark .profile-input,
+        .dark .phone-input,
+        .dark .handle-box,
+        .dark .cancel-btn {
+          background: #111827;
+          border-color: #374151;
+        }
+
+        .dark .cancel-btn {
+          color: #e5e7eb;
+        }
+
+        .dark .verified {
+          background: rgba(34, 197, 94, 0.12);
+          color: #86efac;
+        }
+
+        .dark .card-icon.link {
+          background: rgba(59, 130, 246, 0.16);
+          color: #93c5fd;
+        }
+
+        .dark .card-icon.phone {
+          background: rgba(34, 197, 94, 0.16);
+          color: #86efac;
+        }
+
+        .dark .days-icon,
+        .dark .change-btn {
+          background: rgba(236, 19, 128, 0.12);
+          color: #f472b6;
+        }
+
+        .dark .signout-icon {
+          border-color: rgba(236, 19, 128, 0.28);
+          color: #f472b6;
+        }
+
+        .dark .signout-arrow {
+          color: #64748b;
         }
 
         @media (max-width: 1100px) {

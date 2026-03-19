@@ -1,5 +1,31 @@
 const API_BASE_URL = '/api';
 
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+  role: 'admin' | 'user';
+  provider?: string | null;
+}
+
+export interface LoginResponse {
+  message: string;
+  user: AuthUser;
+  accessToken: string;
+  expiresAt: string;
+  rememberToken?: string | null;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export interface RegisterResponse extends MessageResponse {
+  user: AuthUser;
+  accessToken?: string;
+  expiresAt?: string;
+}
+
 function getStoredAuthValue(key: string): string | null {
   return sessionStorage.getItem(key) || localStorage.getItem(key);
 }
@@ -8,11 +34,13 @@ function buildAuthHeaders(): HeadersInit {
   const userId = getStoredAuthValue('auth_user_id');
   const roles = getStoredAuthValue('auth_roles');
   const sessionToken = getStoredAuthValue('auth_session_token');
+  const accessToken = getStoredAuthValue('auth_access_token');
 
   return {
     ...(userId ? { 'x-auth-user-id': userId } : {}),
     ...(roles ? { 'x-auth-roles': roles } : {}),
     ...(sessionToken ? { 'x-session-token': sessionToken } : {}),
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
 }
 
@@ -38,11 +66,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       throw new Error(message);
     }
 
-    const message = await response.text();
+    const message = await response.text().catch(() => '');
     throw new Error(message || `Request failed with status ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    return response.json() as Promise<T>;
+  }
+
+  return (await response.text()) as T;
 }
 
 export const api = {
@@ -54,4 +91,15 @@ export const api = {
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  login: (payload: { email: string; password: string; remember: boolean }) =>
+    request<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
+  googleLogin: (payload: { email: string; providerId?: string; name?: string }) =>
+    request<LoginResponse>('/auth/login/google', { method: 'POST', body: JSON.stringify(payload) }),
+  register: (payload: { email: string; password: string; name?: string; role?: 'admin' | 'user'; autoLogin?: boolean }) =>
+    request<RegisterResponse>('/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
+  me: () => request<RegisterResponse>('/auth/me'),
+  logout: (payload?: { all?: boolean }) =>
+    request<MessageResponse>('/auth/logout', { method: 'POST', body: JSON.stringify(payload || {}) }),
+  resetPassword: (payload: { email: string; newPassword: string }) =>
+    request<MessageResponse>('/auth/reset-password', { method: 'POST', body: JSON.stringify(payload) }),
 };

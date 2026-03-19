@@ -1,5 +1,6 @@
 import React from 'react';
 import { api } from '../lib/api';
+import { isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
 
 const PROFILE_AVATAR_STORAGE_KEY = 'eternal_rings_profile_avatar';
 const LAST_EXPORT_STORAGE_KEY = 'eternal_rings_last_export';
@@ -136,6 +137,13 @@ const formatNotificationDate = (value: string | null | undefined) => {
   });
 };
 
+const resolveThemeMode = (value: unknown) =>
+  isStoredDarkModeEnabled()
+    ? 'Dark'
+    : typeof value === 'string'
+      ? value
+      : DEFAULT_SETTINGS.themeMode;
+
 const SettingsView = ({
   onNavigateRelationship = () => {},
   onNavigateCoupleProfile = () => {},
@@ -144,7 +152,7 @@ const SettingsView = ({
   const [activeMenu, setActiveMenu] = React.useState('General');
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false);
   const [privacyLevel, setPrivacyLevel] = React.useState('Contacts');
-  const [themeMode, setThemeMode] = React.useState('Light');
+  const [themeMode, setThemeMode] = React.useState(() => (isStoredDarkModeEnabled() ? 'Dark' : 'Light'));
   const [anniversaryReminders, setAnniversaryReminders] = React.useState(true);
   const [systemUpdates, setSystemUpdates] = React.useState(false);
   const [autoSync, setAutoSync] = React.useState(true);
@@ -265,7 +273,7 @@ const SettingsView = ({
         if (!active) return;
         setTwoFactorEnabled(Boolean(data?.twoFactorEnabled));
         setPrivacyLevel(typeof data?.privacyLevel === 'string' ? data.privacyLevel : DEFAULT_SETTINGS.privacyLevel);
-        setThemeMode(typeof data?.themeMode === 'string' ? data.themeMode : DEFAULT_SETTINGS.themeMode);
+        setThemeMode(resolveThemeMode(data?.themeMode));
         setAnniversaryReminders(Boolean(data?.anniversaryReminders));
         setSystemUpdates(Boolean(data?.systemUpdates));
         setAutoSync(Boolean(data?.autoSync));
@@ -343,7 +351,7 @@ const SettingsView = ({
       const data: any = await api.delete('/settings/me');
       setTwoFactorEnabled(Boolean(data?.twoFactorEnabled));
       setPrivacyLevel(typeof data?.privacyLevel === 'string' ? data.privacyLevel : DEFAULT_SETTINGS.privacyLevel);
-      setThemeMode(typeof data?.themeMode === 'string' ? data.themeMode : DEFAULT_SETTINGS.themeMode);
+      setThemeMode(resolveThemeMode(data?.themeMode));
       setAnniversaryReminders(Boolean(data?.anniversaryReminders));
       setSystemUpdates(Boolean(data?.systemUpdates));
       setAutoSync(Boolean(data?.autoSync));
@@ -661,6 +669,10 @@ const SettingsView = ({
   const isDarkTheme =
     themeMode === 'Dark' ||
     (themeMode === 'System' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  React.useEffect(() => {
+    setDarkModePreference(isDarkTheme);
+  }, [isDarkTheme]);
   const filteredLanguages = languageOptions.filter((item) =>
     item.toLowerCase().includes(languageSearch.trim().toLowerCase())
   );
@@ -3898,4 +3910,3 @@ const SettingsView = ({
 };
 
 export default SettingsView;
-

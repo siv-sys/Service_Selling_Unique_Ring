@@ -1,123 +1,139 @@
-import React, { useEffect, useState } from 'react';
-import { AppView, Role } from '../types';
-import { api } from '../lib/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Users,
+  Package,
+  Database,
+  Heart,
+  Settings,
+  LogOut
+} from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 interface SidebarProps {
-  currentView: AppView;
-  setView: (view: AppView) => void;
-  role: Role;
-  onSignOut: () => void;
+  onLogout?: () => void;
 }
 
-interface CurrentUserProfile {
-  fullName: string;
-  avatarUrl: string | null;
-}
-
-function getStoredAuthValue(key: string): string | null {
-  return sessionStorage.getItem(key) || localStorage.getItem(key);
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, onSignOut }) => {
-  const isAdmin = role === Role.ADMIN;
-  const [profile, setProfile] = useState<CurrentUserProfile>({
-    fullName: isAdmin ? 'Admin User' : 'Member User',
-    avatarUrl: null,
-  });
+const Sidebar = ({ onLogout }: SidebarProps) => {
+  const defaultProfilePhoto =
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCmqQASMOLSpK9bGM0-CgmKl9sKhEN6GVoUAzpwuV_qazu6yD8oWPjCj2CgVE-fyl5QOGCpNgh0AALDLKkdOHjRa-3p55FWqeWN2IEP7WRWdYnm7HXTQcVmjLgTru9rytSOijqqbXBENwG2h6eS5rbKl-DJofpCy0tEpZyPfoMv5AsJPZDZqpkkANt9xz8DD1AV_Bn_rHCYdbeLal-7ErCbx9aXUtuDHNY3zLpAGd8hn2VbYSXD_hlpXuc3K9cKXLeY3qGkLCYJB5Sw';
+  const [profilePhoto, setProfilePhoto] = useState(defaultProfilePhoto);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      const rawUserId = getStoredAuthValue('auth_user_id');
-      if (!rawUserId) return;
+    const saved = localStorage.getItem('admin_profile_photo');
+    if (saved) setProfilePhoto(saved);
+  }, []);
 
-      try {
-        const user = await api.get<{ fullName: string; avatarUrl: string | null }>(`/users/${rawUserId}`);
-        setProfile({
-          fullName: user.fullName || (isAdmin ? 'Admin User' : 'Member User'),
-          avatarUrl: user.avatarUrl || null,
-        });
-      } catch (error) {
-        console.error('Failed to load sidebar profile:', error);
+  const openPhotoPicker = () => fileInputRef.current?.click();
+
+  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setProfilePhoto(reader.result);
+        localStorage.setItem('admin_profile_photo', reader.result);
       }
     };
-
-    loadProfile();
-  }, [isAdmin]);
-
-  const NavItem: React.FC<{ view: AppView; icon: string; label: string }> = ({ view, icon, label }) => {
-    const isActive = currentView === view;
-    const activeClasses = 'bg-rose-50 text-primary-red dark:bg-rose-900/20 dark:text-rose-400 shadow-sm';
-
-    return (
-      <button
-        onClick={() => setView(view)}
-        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all w-full text-left ${
-          isActive 
-            ? activeClasses + ' font-bold' 
-            : 'text-slate-500 hover:bg-rose-50/50 dark:hover:bg-slate-800'
-        }`}
-      >
-        <span className="material-symbols-outlined">{icon}</span>
-        <span className="text-sm">{label}</span>
-      </button>
-    );
+    reader.readAsDataURL(file);
+    event.target.value = '';
   };
 
+  const navItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/admindashboard' },
+    { icon: Users, label: 'User & Pair Management', path: '/users' },
+    { icon: Package, label: 'Ring Inventory', path: '/inventory' },
+    { icon: Database, label: 'Catalog Seed', path: '/catalog' },
+  ];
+
   return (
-    <aside className="w-72 hidden lg:flex flex-col border-r border-rose-100 dark:border-slate-800 bg-white dark:bg-charcoal h-full transition-all duration-300 shrink-0">
-      <div className="p-6 border-b border-rose-50 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className={`size-10 rounded-xl flex items-center justify-center text-white shadow-lg bg-primary-red shadow-rose-500/20`}>
-            <span className="material-symbols-outlined">{isAdmin ? 'shield' : 'favorite'}</span>
-          </div>
-          <div>
-            <h1 className="font-extrabold text-base tracking-tight">{isAdmin ? 'Admin Console' : 'BondKeeper'}</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isAdmin ? 'Super Admin' : 'Premium Couple'}</p>
-          </div>
+    <aside className="sticky top-0 flex h-screen w-64 flex-col border-r-2 border-pink-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center gap-3 border-b border-pink-200 p-6 dark:border-slate-800">
+        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
+          <Heart className="w-6 h-6 fill-current" />
+        </div>
+        <div>
+          <h1 className="text-lg font-black leading-tight tracking-tight text-pink-700 dark:text-pink-300">RingAdmin</h1>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-pink-500 dark:text-pink-400">Console</p>
         </div>
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar">
-        <NavItem view={AppView.DASHBOARD} icon="dashboard" label="Dashboard" />
-        
-        {isAdmin ? (
-          <>
-            <NavItem view={AppView.USER_MGMT} icon="group" label="User & Pair Mgmt" />
-            <NavItem view={AppView.INVENTORY} icon="inventory_2" label="Ring Inventory" />
-            <NavItem view={AppView.SECURITY_LOGS} icon="security" label="Security Logs" />
-            <NavItem view={AppView.ADMIN_SEED} icon="database_upload" label="Catalog Seed" />
-          </>
-        ) : (
-          <>
-            <NavItem view={AppView.COUPLE_PROFILE} icon="favorite" label="Couple Profile" />
-            <NavItem view={AppView.RELATIONSHIP} icon="diamond" label="Relationship Cert" />
-            <NavItem view={AppView.MEMORIES} icon="auto_stories" label="Shared Memories" />
-          </>
-        )}
-        
-        <div className="pt-6 mt-6 border-t border-rose-50 dark:border-slate-800">
-          <NavItem view={AppView.SETTINGS} icon="settings" label="Settings" />
+      <nav className="flex-1 px-4 space-y-1 mt-4">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) => cn(
+              'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300',
+              isActive
+                ? 'bg-pink-200 text-pink-900 font-bold border-pink-300 dark:bg-pink-500/20 dark:border-pink-400/40 dark:text-pink-200'
+                : 'text-slate-700 border-transparent hover:bg-pink-100 hover:text-pink-900 hover:border-pink-200 active:bg-pink-200 active:text-pink-900 dark:text-slate-300 dark:hover:bg-pink-500/10 dark:hover:text-pink-200 dark:hover:border-pink-400/30'
+            )}
+          >
+            <item.icon className="w-5 h-5" />
+            <span className="text-sm font-medium">{item.label}</span>
+          </NavLink>
+        ))}
+
+        <div className="pt-2 mt-2 border-t border-pink-200 dark:border-slate-800">
+          <NavLink
+            to="/settings"
+            className={({ isActive }) => cn(
+              'flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300',
+              isActive
+                ? 'bg-pink-200 text-pink-900 font-bold border-pink-300 dark:bg-pink-500/20 dark:border-pink-400/40 dark:text-pink-200'
+                : 'text-slate-700 border-transparent hover:bg-pink-100 hover:text-pink-900 hover:border-pink-200 active:bg-pink-200 active:text-pink-900 dark:text-slate-300 dark:hover:bg-pink-500/10 dark:hover:text-pink-200 dark:hover:border-pink-400/30'
+            )}
+          >
+            <Settings className="w-5 h-5" />
+            <span className="text-sm font-medium">Settings</span>
+          </NavLink>
         </div>
       </nav>
 
-      <div className="p-4 mt-auto border-t border-rose-50 dark:border-slate-800">
-        <div className="flex items-center gap-3 p-2 bg-rose-50/30 dark:bg-slate-800/50 rounded-2xl">
-          <img 
-            className="size-10 rounded-xl object-cover" 
-            src={profile.avatarUrl || 'https://picsum.photos/seed/admin/100'} 
-            alt="User avatar" 
+      <div className="border-t border-pink-200 bg-pink-50/20 px-4 pb-6 pt-4 dark:border-slate-800 dark:bg-slate-950/80">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mb-4 flex w-full items-center gap-3 rounded-xl border border-pink-300 px-4 py-3 font-semibold text-pink-900 transition-colors active:scale-[0.99] hover:bg-pink-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300 dark:border-pink-400/40 dark:text-pink-200 dark:hover:bg-pink-500/10"
+        >
+          <LogOut className="w-5 h-5" />
+          <span>Logout</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={openPhotoPicker}
+          className="flex w-full items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-pink-200 hover:bg-pink-100 dark:hover:border-pink-400/30 dark:hover:bg-pink-500/10"
+          title="Click to upload profile photo"
+        >
+          <img
+            alt="Alex Rivera"
+            className="w-10 h-10 rounded-full border-2 border-primary/20 shadow-sm object-cover"
+            src={profilePhoto}
           />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate">{profile.fullName}</p>
-            <p className="text-[10px] text-slate-400 uppercase tracking-tighter">Connected Account</p>
+          <div className="overflow-hidden text-left">
+            <p className="truncate text-sm font-bold dark:text-slate-100">Alex Rivera</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">System Admin</p>
           </div>
-          <button 
-            onClick={onSignOut}
-            className="material-symbols-outlined text-slate-400 hover:text-primary-red transition-colors"
-          >
-            logout
-          </button>
-        </div>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handlePhotoUpload}
+          className="hidden"
+        />
       </div>
     </aside>
   );

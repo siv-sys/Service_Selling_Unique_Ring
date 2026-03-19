@@ -1,11 +1,17 @@
 const express = require('express');
-const { query } = require('../config/db');
+const { execute, query } = require('../config/db');
+const { requireAdmin } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
 function resolveUserId(req) {
+  const authUserId = Number(req.auth?.user?.id);
+  if (Number.isInteger(authUserId) && authUserId > 0) {
+    return authUserId;
+  }
+
   const requestedUserId = Number(req.header('x-auth-user-id'));
-  return Number.isFinite(requestedUserId) && requestedUserId > 0 ? requestedUserId : 1;
+  return Number.isInteger(requestedUserId) && requestedUserId > 0 ? requestedUserId : 1;
 }
 
 function getDefaultSubscription() {
@@ -47,7 +53,10 @@ function mapSettingsRow(row) {
 }
 
 function mapSubscriptionRow(row) {
-  if (!row) return getDefaultSubscription();
+  if (!row) {
+    return getDefaultSubscription();
+  }
+
   return {
     planName: row.plan_name,
     autoRenewEnabled: Boolean(row.auto_renew_enabled),
@@ -62,29 +71,29 @@ function mapSessionRow(row) {
     location: row.location_label || 'Unknown location',
     status: row.status_label || 'Last active recently',
     badge: row.badge || '',
-    icon: row.icon || '💻',
+    icon: row.icon || '\u{1F4BB}',
   };
 }
 
 async function ensureSettingsRow(userId) {
-  await query(
+  await execute(
     `
       INSERT INTO user_settings (user_id)
       VALUES (?)
       ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)
     `,
-    [userId]
+    [userId],
   );
 }
 
 async function ensureSubscriptionRow(userId) {
-  await query(
+  await execute(
     `
       INSERT INTO subscriptions (user_id, plan_name, auto_renew_enabled, renewing_on)
       VALUES (?, 'Premium Plan', 1, '2026-12-12 00:00:00')
       ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)
     `,
-    [userId]
+    [userId],
   );
 }
 
@@ -99,7 +108,7 @@ async function loadSettingsBundle(userId) {
       WHERE user_id = ?
       LIMIT 1
     `,
-    [userId]
+    [userId],
   );
 
   const subscriptionRows = await query(
@@ -109,7 +118,7 @@ async function loadSettingsBundle(userId) {
       WHERE user_id = ?
       LIMIT 1
     `,
-    [userId]
+    [userId],
   );
 
   const sessionRows = await query(
@@ -119,8 +128,8 @@ async function loadSettingsBundle(userId) {
       WHERE user_id = ? AND revoked_at IS NULL
       ORDER BY created_at DESC, id DESC
     `,
-    [userId]
-  );
+    [userId],
+  ).catch(() => []);
 
   return {
     ...mapSettingsRow(settingsRows[0]),
@@ -157,9 +166,9 @@ router.put('/me', async (req, res) => {
       repeatDaily,
       soundPrefs,
       emailPrefs,
-    } = req.body;
+    } = req.body || {};
 
-    await query(
+    await execute(
       `
         INSERT INTO user_settings (
           user_id,
@@ -228,7 +237,7 @@ router.put('/me', async (req, res) => {
         emailPrefs?.productTips ? 1 : 0,
         emailPrefs?.occasionReminders ? 1 : 0,
         emailPrefs?.partnerAlerts ? 1 : 0,
-      ]
+      ],
     );
 
     const data = await loadSettingsBundle(userId);
@@ -242,7 +251,7 @@ router.delete('/me', async (req, res) => {
   try {
     const userId = resolveUserId(req);
     await ensureSettingsRow(userId);
-    await query(
+    await execute(
       `
         UPDATE user_settings
         SET
@@ -269,7 +278,7 @@ router.delete('/me', async (req, res) => {
           last_synced_at = NULL
         WHERE user_id = ?
       `,
-      [userId]
+      [userId],
     );
 
     const data = await loadSettingsBundle(userId);
@@ -283,13 +292,13 @@ router.post('/me/export', async (req, res) => {
   try {
     const userId = resolveUserId(req);
     await ensureSettingsRow(userId);
-    await query(
+    await execute(
       `
         UPDATE user_settings
         SET last_export_at = CURRENT_TIMESTAMP
         WHERE user_id = ?
       `,
-      [userId]
+      [userId],
     );
 
     const data = await loadSettingsBundle(userId);
@@ -302,9 +311,9 @@ router.post('/me/export', async (req, res) => {
 router.patch('/me/subscription', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    const { autoRenewEnabled } = req.body;
+    const { autoRenewEnabled } = req.body || {};
     await ensureSubscriptionRow(userId);
-    await query(
+    await execute(
       `
         UPDATE subscriptions
         SET
@@ -315,7 +324,7 @@ router.patch('/me/subscription', async (req, res) => {
           END
         WHERE user_id = ?
       `,
-      [autoRenewEnabled ? 1 : 0, autoRenewEnabled ? 1 : 0, userId]
+      [autoRenewEnabled ? 1 : 0, autoRenewEnabled ? 1 : 0, userId],
     );
 
     const data = await loadSettingsBundle(userId);
@@ -328,13 +337,13 @@ router.patch('/me/subscription', async (req, res) => {
 router.delete('/me/sessions/:sessionId', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    await query(
+    await execute(
       `
         UPDATE user_sessions
         SET revoked_at = CURRENT_TIMESTAMP
         WHERE id = ? AND user_id = ? AND revoked_at IS NULL
       `,
-      [req.params.sessionId, userId]
+      [req.params.sessionId, userId],
     );
 
     const data = await loadSettingsBundle(userId);
@@ -347,14 +356,18 @@ router.delete('/me/sessions/:sessionId', async (req, res) => {
 router.post('/me/sessions/logout-all', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    await query(
+    await execute(
       `
         UPDATE user_sessions
         SET revoked_at = CURRENT_TIMESTAMP
         WHERE user_id = ? AND revoked_at IS NULL
       `,
-      [userId]
-    );
+      [userId],
+    ).catch(() => {});
+    await execute(
+      'UPDATE auth_sessions SET revoked_at = UTC_TIMESTAMP() WHERE user_id = ? AND revoked_at IS NULL',
+      [userId],
+    ).catch(() => {});
 
     return res.json({ success: true, activeSessions: [] });
   } catch (error) {
@@ -365,26 +378,195 @@ router.post('/me/sessions/logout-all', async (req, res) => {
 router.delete('/me/account', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    await query(
+    await execute(
       `
         UPDATE users
-        SET account_status = 'DELETED'
+        SET account_status = 'DELETED', remember_token = NULL
         WHERE id = ?
       `,
-      [userId]
+      [userId],
     );
-    await query(
+    await execute(
       `
         UPDATE user_sessions
         SET revoked_at = CURRENT_TIMESTAMP
         WHERE user_id = ? AND revoked_at IS NULL
       `,
-      [userId]
-    );
+      [userId],
+    ).catch(() => {});
+    await execute(
+      'UPDATE auth_sessions SET revoked_at = UTC_TIMESTAMP() WHERE user_id = ? AND revoked_at IS NULL',
+      [userId],
+    ).catch(() => {});
 
     return res.json({ success: true });
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/system', requireAdmin, async (req, res, next) => {
+  try {
+    const rows = await query(
+      'SELECT id, shop_name, support_email, currency, updated_at FROM system_settings ORDER BY id ASC LIMIT 1',
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: 'System settings not found.' });
+    }
+
+    return res.json({
+      message: 'System settings loaded.',
+      settings: rows[0],
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.put('/system', requireAdmin, async (req, res, next) => {
+  try {
+    const { shop_name, support_email, currency } = req.body || {};
+    const normalizedShopName = String(shop_name || '').trim();
+    const normalizedSupportEmail = String(support_email || '').trim();
+    const normalizedCurrency = String(currency || '').trim().toUpperCase();
+
+    if (!normalizedShopName || !normalizedSupportEmail || !normalizedCurrency) {
+      return res.status(400).json({
+        message: 'shop_name, support_email, and currency are required.',
+      });
+    }
+
+    const rows = await query('SELECT id FROM system_settings ORDER BY id ASC LIMIT 1');
+
+    if (!rows.length) {
+      const result = await execute(
+        'INSERT INTO system_settings (shop_name, support_email, currency) VALUES (?, ?, ?)',
+        [normalizedShopName, normalizedSupportEmail, normalizedCurrency],
+      );
+
+      const created = await query(
+        'SELECT id, shop_name, support_email, currency, updated_at FROM system_settings WHERE id = ? LIMIT 1',
+        [result.insertId],
+      );
+
+      return res.status(201).json({
+        message: 'System settings created successfully.',
+        settings: created[0],
+      });
+    }
+
+    const settingsId = rows[0].id;
+
+    await execute(
+      'UPDATE system_settings SET shop_name = ?, support_email = ?, currency = ? WHERE id = ?',
+      [normalizedShopName, normalizedSupportEmail, normalizedCurrency, settingsId],
+    );
+
+    const updated = await query(
+      'SELECT id, shop_name, support_email, currency, updated_at FROM system_settings WHERE id = ? LIMIT 1',
+      [settingsId],
+    );
+
+    return res.json({
+      message: 'System settings saved successfully.',
+      settings: updated[0],
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/notifications/:userId', async (req, res, next) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ message: 'Valid userId is required.' });
+    }
+
+    if (req.auth?.user?.role !== 'admin' && req.auth?.user?.id !== userId) {
+      return res.status(403).json({ message: 'You can only view your own notification preferences.' });
+    }
+
+    const rows = await query(
+      `SELECT id, user_id, system_updates, created_at
+       FROM notification_preferences
+       WHERE user_id = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [userId],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: 'Notification preferences not found.' });
+    }
+
+    return res.json({
+      message: 'Notification preferences loaded.',
+      preferences: rows[0],
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.put('/notifications/:userId', async (req, res, next) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ message: 'Valid userId is required.' });
+    }
+
+    if (req.auth?.user?.role !== 'admin' && req.auth?.user?.id !== userId) {
+      return res.status(403).json({ message: 'You can only update your own notification preferences.' });
+    }
+
+    const systemUpdates = Boolean(req.body?.system_updates);
+
+    const existing = await query(
+      'SELECT id FROM notification_preferences WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+      [userId],
+    );
+
+    if (!existing.length) {
+      const created = await execute(
+        'INSERT INTO notification_preferences (user_id, system_updates) VALUES (?, ?)',
+        [userId, systemUpdates],
+      );
+
+      const createdRow = await query(
+        `SELECT id, user_id, system_updates, created_at
+         FROM notification_preferences
+         WHERE id = ?
+         LIMIT 1`,
+        [created.insertId],
+      );
+
+      return res.status(201).json({
+        message: 'Notification preferences created successfully.',
+        preferences: createdRow[0],
+      });
+    }
+
+    await execute('UPDATE notification_preferences SET system_updates = ? WHERE id = ?', [
+      systemUpdates,
+      existing[0].id,
+    ]);
+
+    const updated = await query(
+      `SELECT id, user_id, system_updates, created_at
+       FROM notification_preferences
+       WHERE id = ?
+       LIMIT 1`,
+      [existing[0].id],
+    );
+
+    return res.json({
+      message: 'Notification preferences saved successfully.',
+      preferences: updated[0],
+    });
+  } catch (error) {
+    return next(error);
   }
 });
 
