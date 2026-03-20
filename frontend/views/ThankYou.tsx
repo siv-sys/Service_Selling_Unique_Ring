@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  getUserScopedSessionStorageItem,
+  setUserScopedSessionStorageItem,
+  removeUserScopedSessionStorageItem,
+  setUserScopedLocalStorageItem,
+} from '../lib/userStorage';
 
 // Types
 interface PurchaseData {
@@ -46,12 +52,12 @@ const ThankYou: React.FC = () => {
   // Check if we have purchase data from previous page
   useEffect(() => {
     try {
-      const storedCouple = sessionStorage.getItem('bondKeeper_couple');
+      const storedCouple = getUserScopedSessionStorageItem('bondKeeper_couple');
       if (storedCouple) {
         const coupleData: CoupleProfile = JSON.parse(storedCouple);
         
         // Check if we have a pending purchase to show
-        const showThankYou = sessionStorage.getItem('showThankYou') === 'true';
+        const showThankYou = getUserScopedSessionStorageItem('showThankYou') === 'true';
         
         if (showThankYou) {
           setPurchaseData({
@@ -60,7 +66,7 @@ const ThankYou: React.FC = () => {
             ring: coupleData.ring,
             sku: coupleData.sku,
             price: coupleData.price,
-            newStock: parseInt(sessionStorage.getItem('newStock') || '0'),
+            newStock: parseInt(getUserScopedSessionStorageItem('newStock') || '0'),
             date: coupleData.purchaseDate
           });
           
@@ -70,7 +76,7 @@ const ThankYou: React.FC = () => {
           }, 500);
           
           // Clear the flag
-          sessionStorage.removeItem('showThankYou');
+          removeUserScopedSessionStorageItem('showThankYou');
         }
       }
     } catch (e) {
@@ -130,8 +136,8 @@ const ThankYou: React.FC = () => {
     };
 
     // Store in session
-    sessionStorage.setItem('bondKeeper_couple', JSON.stringify(coupleProfile));
-    localStorage.removeItem('cart');
+    setUserScopedSessionStorageItem('bondKeeper_couple', JSON.stringify(coupleProfile));
+    setUserScopedLocalStorageItem('cart', '[]');
 
     // Show the beautiful modal
     showThankYouModal({
@@ -292,9 +298,9 @@ const purchaseData = {
 };
 
 // Store data in sessionStorage and redirect
-sessionStorage.setItem('bondKeeper_couple', JSON.stringify(coupleProfile));
-sessionStorage.setItem('showThankYou', 'true');
-sessionStorage.setItem('newStock', newStock.toString());
+setUserScopedSessionStorageItem('bondKeeper_couple', JSON.stringify(coupleProfile));
+setUserScopedSessionStorageItem('showThankYou', 'true');
+setUserScopedSessionStorageItem('newStock', newStock.toString());
 
 // Redirect to ThankYou page
 navigate('/thank-you');`}

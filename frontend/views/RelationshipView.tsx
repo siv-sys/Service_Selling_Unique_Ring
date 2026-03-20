@@ -1,5 +1,6 @@
    import React from 'react';
 import { Link } from 'react-router-dom';
+import { getUserScopedLocalStorageItem } from '../lib/userStorage';
 
 const RelationshipView = ({
   onNavigateSettings = () => {},
@@ -30,7 +31,7 @@ const RelationshipView = ({
   React.useEffect(() => {
     const syncCartCount = () => {
       try {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const cart = JSON.parse(getUserScopedLocalStorageItem('cart') || '[]');
         setCartCount(cart.length);
       } catch {
         setCartCount(0);

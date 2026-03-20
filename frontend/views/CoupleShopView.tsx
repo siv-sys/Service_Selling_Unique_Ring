@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
+import {
+  getUserScopedLocalStorageItem,
+  setUserScopedLocalStorageItem,
+  getUserScopedSessionStorageItem,
+  setUserScopedSessionStorageItem,
+} from '../lib/userStorage';
 
 // Types
 interface Ring {
@@ -98,7 +104,7 @@ const CoupleShopView: React.FC = () => {
   // Fetch cart count from backend
   const fetchCartCount = async () => {
     try {
-      const sessionId = localStorage.getItem('sessionId');
+      const sessionId = getUserScopedLocalStorageItem('sessionId');
       if (!sessionId) return;
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
@@ -324,7 +330,7 @@ const addToCart = async (ring: Ring) => {
     }
     
     // Get existing session ID or null
-    let sessionId = localStorage.getItem('sessionId');
+    let sessionId = getUserScopedLocalStorageItem('sessionId');
     
     const response = await fetch(`${API_BASE_URL}/cart/add`, {
       method: 'POST',
@@ -346,7 +352,7 @@ const addToCart = async (ring: Ring) => {
     if (response.ok) {
       // Save the session ID from server if it's new
       if (data.sessionId && !sessionId) {
-        localStorage.setItem('sessionId', data.sessionId);
+        setUserScopedLocalStorageItem('sessionId', data.sessionId);
         console.log('Saved new session ID:', data.sessionId);
       }
       
@@ -403,8 +409,9 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
   // Toggle favorite
   const toggleFavorite = (ringId: number, event: React.MouseEvent) => {
     event.preventDefault();
-    const isFav = localStorage.getItem(`fav-${ringId}`) === 'true';
-    localStorage.setItem(`fav-${ringId}`, (!isFav).toString());
+    const favoriteKey = `favorite_ring_${ringId}`;
+    const isFav = getUserScopedLocalStorageItem(favoriteKey) === 'true';
+    setUserScopedLocalStorageItem(favoriteKey, (!isFav).toString());
     
     // Force re-render of the favorite icon
     const target = event.currentTarget.querySelector('.material-symbols-outlined');
@@ -421,7 +428,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
 
   // Navigate to ring detail
   const viewRingDetail = (ring: Ring) => {
-    sessionStorage.setItem('currentRing', JSON.stringify(ring));
+    setUserScopedSessionStorageItem('currentRing', JSON.stringify(ring));
     navigate(`/shop/rings/${ring.id}`);
   };
 
@@ -612,7 +619,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               const statusColor = ring.status === 'AVAILABLE' ? 'bg-green-500' : 
                                  ring.status === 'RESERVED' ? 'bg-yellow-500' : 'bg-gray-500';
 
-              const isFav = localStorage.getItem(`fav-${ring.id}`) === 'true';
+              const isFav = getUserScopedLocalStorageItem(`favorite_ring_${ring.id}`) === 'true';
 
               return (
                 <div key={ring.id} className="ring-card group flex flex-col">

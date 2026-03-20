@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
+import { getUserScopedLocalStorageItem } from '../lib/userStorage';
 
 // Types
 interface CartItem {
@@ -98,7 +99,7 @@ const Cart: React.FC = () => {
   const fetchCart = async () => {
     try {
       setIsLoading(true);
-      const sessionId = localStorage.getItem('sessionId') || 'guest';
+      const sessionId = getUserScopedLocalStorageItem('sessionId') || 'guest';
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
         headers: {
@@ -128,7 +129,7 @@ const Cart: React.FC = () => {
     if (newQuantity < 1) return;
     
     try {
-      const sessionId = localStorage.getItem('sessionId') || 'guest';
+      const sessionId = getUserScopedLocalStorageItem('sessionId') || 'guest';
       
       const response = await fetch(`${API_BASE_URL}/cart/${itemId}`, {
         method: 'PUT',
@@ -154,7 +155,7 @@ const Cart: React.FC = () => {
   // Remove item from cart
   const removeItem = async (itemId: number) => {
     try {
-      const sessionId = localStorage.getItem('sessionId') || 'guest';
+      const sessionId = getUserScopedLocalStorageItem('sessionId') || 'guest';
       
       const response = await fetch(`${API_BASE_URL}/cart/${itemId}`, {
         method: 'DELETE',

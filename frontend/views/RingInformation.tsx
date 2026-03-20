@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
+import {
+  getUserScopedLocalStorageItem,
+  setUserScopedLocalStorageItem,
+  getUserScopedSessionStorageItem,
+  setUserScopedSessionStorageItem,
+} from '../lib/userStorage';
 
 interface RingData {
   id?: number;
@@ -57,7 +63,7 @@ const MyRingView: React.FC = () => {
   // Fetch cart count from backend
   const fetchCartCount = async () => {
     try {
-      const sessionId = localStorage.getItem('sessionId');
+      const sessionId = getUserScopedLocalStorageItem('sessionId');
       if (!sessionId) return;
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
@@ -105,7 +111,7 @@ const MyRingView: React.FC = () => {
 
   const readStoredRing = (): RingData | null => {
     try {
-      const storedRing = sessionStorage.getItem('currentRing');
+      const storedRing = getUserScopedSessionStorageItem('currentRing');
       if (!storedRing) return null;
       return normalizeRingData(JSON.parse(storedRing));
     } catch (error) {
@@ -157,7 +163,7 @@ const MyRingView: React.FC = () => {
         const data = await response.json();
         const nextRing = data?.data || data;
         applyRingData(nextRing);
-        sessionStorage.setItem('currentRing', JSON.stringify(normalizeRingData(nextRing)));
+        setUserScopedSessionStorageItem('currentRing', JSON.stringify(normalizeRingData(nextRing)));
       } catch (error) {
         if (storedRing && matchesRequestedRing(storedRing)) {
           return;
@@ -196,7 +202,7 @@ const MyRingView: React.FC = () => {
     
     try {
       // Get existing session ID or null
-      let sessionId = localStorage.getItem('sessionId');
+      let sessionId = getUserScopedLocalStorageItem('sessionId');
       
       const response = await fetch(`${API_BASE_URL}/cart/add`, {
         method: 'POST',
@@ -218,7 +224,7 @@ const MyRingView: React.FC = () => {
       if (response.ok) {
         // Save the session ID from server if it's new
         if (data.sessionId && !sessionId) {
-          localStorage.setItem('sessionId', data.sessionId);
+          setUserScopedLocalStorageItem('sessionId', data.sessionId);
         }
         
         // Update cart count

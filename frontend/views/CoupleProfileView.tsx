@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getUserScopedLocalStorageItem } from '../lib/userStorage';
 
 interface RingData {
   id: string;
@@ -96,7 +97,7 @@ const CoupleProfileView: React.FC = () => {
   // Load cart count
   useEffect(() => {
     try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      const cart = JSON.parse(getUserScopedLocalStorageItem('cart') || '[]');
       setCartCount(cart.length);
     } catch {
       setCartCount(0);
@@ -105,7 +106,7 @@ const CoupleProfileView: React.FC = () => {
     // Listen for cart updates
     const handleCartUpdate = () => {
       try {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const cart = JSON.parse(getUserScopedLocalStorageItem('cart') || '[]');
         setCartCount(cart.length);
       } catch {
         setCartCount(0);

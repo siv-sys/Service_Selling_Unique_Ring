@@ -1,9 +1,13 @@
 import React from 'react';
 import { api } from '../lib/api';
 import { isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
+import { getStoredAuthValue, getUserScopedLocalStorageItem } from '../lib/userStorage';
 
-const PROFILE_AVATAR_STORAGE_KEY = 'eternal_rings_profile_avatar';
+const PROFILE_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
 const LAST_EXPORT_STORAGE_KEY = 'eternal_rings_last_export';
+const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
+const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
+const DEFAULT_PROFILE_NAME = 'Member';
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80';
 
@@ -184,7 +188,7 @@ const SettingsView = ({
   const [sessionToDelete, setSessionToDelete] = React.useState<string | null>(null);
   const [lastExportAt, setLastExportAt] = React.useState<string | null>(() => {
     try {
-      return localStorage.getItem(LAST_EXPORT_STORAGE_KEY);
+      return getUserScopedLocalStorageItem(LAST_EXPORT_STORAGE_KEY);
     } catch {
       return null;
     }
@@ -201,10 +205,14 @@ const SettingsView = ({
   const [subscription, setSubscription] = React.useState(getDefaultSubscription());
   const [navAvatar, setNavAvatar] = React.useState(() => {
     try {
-      return localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR;
+      return getUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR;
     } catch {
       return DEFAULT_AVATAR;
     }
+  });
+  const [navDisplayName, setNavDisplayName] = React.useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_PROFILE_NAME;
+    return sessionStorage.getItem('auth_name')?.trim() || DEFAULT_PROFILE_NAME;
   });
   const [adminSystemSettings, setAdminSystemSettings] = React.useState<AdminSystemSettings>({
     shopName: '',
@@ -216,19 +224,48 @@ const SettingsView = ({
   const [adminSettingsError, setAdminSettingsError] = React.useState('');
 
   React.useEffect(() => {
-    const syncAvatar = () => {
+    let active = true;
+
+    const syncProfileIdentity = async () => {
       try {
-        setNavAvatar(localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR);
+        setNavAvatar(getUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR);
       } catch {
         setNavAvatar(DEFAULT_AVATAR);
       }
+
+      setNavDisplayName(sessionStorage.getItem('auth_name')?.trim() || DEFAULT_PROFILE_NAME);
+
+      const rawUserId = getStoredAuthValue('auth_user_id');
+      if (!rawUserId) return;
+
+      try {
+        const user = await api.get<{ fullName: string; avatarUrl: string | null }>(`/users/${rawUserId}`);
+        if (!active) return;
+
+        setNavDisplayName(user.fullName || sessionStorage.getItem('auth_name')?.trim() || DEFAULT_PROFILE_NAME);
+        setNavAvatar(user.avatarUrl || getUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY) || DEFAULT_AVATAR);
+      } catch {
+        // Keep the local fallback values.
+      }
     };
 
-    window.addEventListener('focus', syncAvatar);
-    window.addEventListener('storage', syncAvatar);
+    const handleProfileSync = () => {
+      void syncProfileIdentity();
+    };
+
+    void syncProfileIdentity();
+
+    window.addEventListener('focus', handleProfileSync);
+    window.addEventListener('storage', handleProfileSync);
+    window.addEventListener(USER_AVATAR_UPDATED_EVENT, handleProfileSync);
+    window.addEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileSync);
+
     return () => {
-      window.removeEventListener('focus', syncAvatar);
-      window.removeEventListener('storage', syncAvatar);
+      active = false;
+      window.removeEventListener('focus', handleProfileSync);
+      window.removeEventListener('storage', handleProfileSync);
+      window.removeEventListener(USER_AVATAR_UPDATED_EVENT, handleProfileSync);
+      window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileSync);
     };
   }, []);
 
@@ -3667,11 +3704,11 @@ const SettingsView = ({
             <span className="material-symbols-outlined">shopping_cart</span>
           </button>
           <span className="divider" />
-          <span className="profile-name">Alex & Jamie</span>
+          <span className="profile-name">{navDisplayName}</span>
           <img
             className="avatar"
             src={navAvatar}
-            alt="Profile"
+            alt={navDisplayName}
             onClick={onNavigateProfile}
           />
         </div>

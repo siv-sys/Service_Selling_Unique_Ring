@@ -1,10 +1,18 @@
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { API_BASE_URL } from '../lib/api';
+import { api, API_BASE_URL } from '../lib/api';
 import { isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
-const COUPLE_PROFILE_STORAGE_KEY = 'bondkeeper_profile_persist_v1';
+import {
+  getStoredAuthValue,
+  getUserScopedLocalStorageItem,
+  setUserScopedLocalStorageItem,
+  removeUserScopedLocalStorageItem,
+} from '../lib/userStorage';
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
+const USER_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
+const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
+const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
 
 type NavItem = {
   label: string;
@@ -19,16 +27,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Relationship', to: '/relationship' },
 ];
 
-function readStoredCoupleName() {
-  try {
-    const raw = localStorage.getItem(COUPLE_PROFILE_STORAGE_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as { title?: unknown } | null;
-    return typeof parsed?.title === 'string' && parsed.title.trim() ? parsed.title.trim() : null;
-  } catch {
-    return null;
-  }
+function readStoredUserAvatar() {
+  return getUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY);
 }
 
 export default function UserShell({ children }: PropsWithChildren) {
@@ -36,20 +36,20 @@ export default function UserShell({ children }: PropsWithChildren) {
   const [cartCount, setCartCount] = useState(0);
   const [displayName, setDisplayName] = useState('Alex & Jamie');
   const [hasPurchasedRing, setHasPurchasedRing] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => readStoredUserAvatar());
 
   useEffect(() => {
     const savedDarkMode = isStoredDarkModeEnabled();
     setIsDarkMode(savedDarkMode);
 
-    const storedCoupleName = readStoredCoupleName();
     const authName = sessionStorage.getItem('auth_name')?.trim();
-    setDisplayName(storedCoupleName || authName || 'Alex & Jamie');
-    setHasPurchasedRing(Boolean(localStorage.getItem(PURCHASED_RING_STORAGE_KEY)));
+    setDisplayName(authName || 'Member');
+    setHasPurchasedRing(Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY)));
   }, []);
 
   useEffect(() => {
     const syncPurchasedRingState = () => {
-      setHasPurchasedRing(Boolean(localStorage.getItem(PURCHASED_RING_STORAGE_KEY)));
+      setHasPurchasedRing(Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY)));
     };
 
     window.addEventListener('storage', syncPurchasedRingState);
@@ -61,9 +61,61 @@ export default function UserShell({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
+    const syncAvatarFromStorage = () => {
+      if (!active) return;
+      setAvatarUrl(readStoredUserAvatar());
+      setDisplayName(sessionStorage.getItem('auth_name')?.trim() || 'Member');
+    };
+
+    const loadCurrentUserProfile = async () => {
+      const rawUserId = getStoredAuthValue('auth_user_id');
+      if (!rawUserId) {
+        syncAvatarFromStorage();
+        return;
+      }
+
+      try {
+        const user = await api.get<{ fullName: string; avatarUrl: string | null }>(`/users/${rawUserId}`);
+        if (!active) return;
+
+        setDisplayName(user.fullName || sessionStorage.getItem('auth_name')?.trim() || 'Member');
+        setAvatarUrl(user.avatarUrl || null);
+        try {
+          if (user.avatarUrl) {
+            setUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY, user.avatarUrl);
+          } else {
+            removeUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY);
+          }
+        } catch {
+          // Ignore local storage write errors.
+        }
+      } catch {
+        syncAvatarFromStorage();
+      }
+    };
+
+    void loadCurrentUserProfile();
+
+    window.addEventListener('focus', syncAvatarFromStorage);
+    window.addEventListener('storage', syncAvatarFromStorage);
+    window.addEventListener(USER_AVATAR_UPDATED_EVENT, syncAvatarFromStorage);
+    window.addEventListener(USER_PROFILE_UPDATED_EVENT, syncAvatarFromStorage);
+
+    return () => {
+      active = false;
+      window.removeEventListener('focus', syncAvatarFromStorage);
+      window.removeEventListener('storage', syncAvatarFromStorage);
+      window.removeEventListener(USER_AVATAR_UPDATED_EVENT, syncAvatarFromStorage);
+      window.removeEventListener(USER_PROFILE_UPDATED_EVENT, syncAvatarFromStorage);
+    };
+  }, []);
+
+  useEffect(() => {
     const updateCartCount = async () => {
       try {
-        const sessionId = localStorage.getItem('sessionId');
+        const sessionId = getUserScopedLocalStorageItem('sessionId');
         if (sessionId) {
           const response = await fetch(`${API_BASE_URL}/cart`, {
             headers: {
@@ -78,7 +130,7 @@ export default function UserShell({ children }: PropsWithChildren) {
           }
         }
 
-        const storedCart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const storedCart = JSON.parse(getUserScopedLocalStorageItem('cart') || '[]');
         setCartCount(Array.isArray(storedCart) ? storedCart.length : 0);
       } catch {
         setCartCount(0);
@@ -168,8 +220,12 @@ export default function UserShell({ children }: PropsWithChildren) {
                 {displayName}
               </span>
               <Link to="/profile" aria-label="Profile">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary/70 to-primary text-white shadow-md shadow-primary/15">
-                  <span className="material-symbols-outlined text-[20px]">favorite</span>
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary/70 to-primary text-white shadow-md shadow-primary/15">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-[20px]">favorite</span>
+                  )}
                 </div>
               </Link>
             </div>

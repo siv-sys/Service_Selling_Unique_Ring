@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
+import { getUserScopedLocalStorageItem } from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
@@ -67,7 +68,7 @@ const RingInformation: React.FC = () => {
   // Fetch cart count from backend
   const fetchCartCount = async () => {
     try {
-      const sessionId = localStorage.getItem('sessionId');
+      const sessionId = getUserScopedLocalStorageItem('sessionId');
       if (!sessionId) return;
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
@@ -93,7 +94,7 @@ const RingInformation: React.FC = () => {
     showLoading();
     
     try {
-      const storedRing = localStorage.getItem(PURCHASED_RING_STORAGE_KEY);
+      const storedRing = getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY);
       
       if (storedRing) {
         const ring = JSON.parse(storedRing);

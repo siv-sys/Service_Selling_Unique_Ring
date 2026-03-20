@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  getUserScopedLocalStorageItem,
+  setUserScopedLocalStorageItem,
+  getUserScopedSessionStorageItem,
+  setUserScopedSessionStorageItem,
+} from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
@@ -71,7 +77,7 @@ const PurchaseView: React.FC = () => {
   // Load ring data from sessionStorage
   useEffect(() => {
     // Try to get from purchaseRing (set by "Buy Now" button)
-    const purchaseRing = sessionStorage.getItem('purchaseRing');
+    const purchaseRing = getUserScopedSessionStorageItem('purchaseRing');
     if (purchaseRing) {
       try {
         const parsedRing = JSON.parse(purchaseRing);
@@ -90,7 +96,7 @@ const PurchaseView: React.FC = () => {
       }
     } else {
       // Try to get from currentRing (set by "See More" button)
-      const currentRing = sessionStorage.getItem('currentRing');
+      const currentRing = getUserScopedSessionStorageItem('currentRing');
       if (currentRing) {
         try {
           const parsedRing = JSON.parse(currentRing);
@@ -126,7 +132,7 @@ const PurchaseView: React.FC = () => {
   // Load cart count
   useEffect(() => {
     try {
-      const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+      const cart = JSON.parse(getUserScopedLocalStorageItem('cart') || '[]');
       setCartCount(cart.length);
     } catch {
       setCartCount(0);
@@ -134,7 +140,7 @@ const PurchaseView: React.FC = () => {
 
     const handleCartUpdate = () => {
       try {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        const cart = JSON.parse(getUserScopedLocalStorageItem('cart') || '[]');
         setCartCount(cart.length);
       } catch {
         setCartCount(0);
@@ -294,10 +300,10 @@ const PurchaseView: React.FC = () => {
     };
 
     // Store data in sessionStorage for the Thank You page
-    sessionStorage.setItem('bondKeeper_couple', JSON.stringify(coupleProfile));
-    sessionStorage.setItem('showThankYou', 'true');
-    sessionStorage.setItem('newStock', newStock.toString());
-    localStorage.setItem(
+    setUserScopedSessionStorageItem('bondKeeper_couple', JSON.stringify(coupleProfile));
+    setUserScopedSessionStorageItem('showThankYou', 'true');
+    setUserScopedSessionStorageItem('newStock', newStock.toString());
+    setUserScopedLocalStorageItem(
       PURCHASED_RING_STORAGE_KEY,
       JSON.stringify({
         id: ringData.id,
@@ -312,7 +318,7 @@ const PurchaseView: React.FC = () => {
         created_at: new Date().toISOString(),
       })
     );
-    localStorage.removeItem('cart'); // clear cart
+    setUserScopedLocalStorageItem('cart', '[]'); // clear cart
 
     // Show beautiful modal
     setModalData({

@@ -1,7 +1,17 @@
 import React from 'react';
 import { api } from '../lib/api';
+import {
+  getStoredAuthValue,
+  getUserScopedLocalStorageItem,
+  removeUserScopedLocalStorageItem,
+  setUserScopedLocalStorageItem,
+} from '../lib/userStorage';
 
 const PROFILE_STORAGE_KEY = 'bondkeeper_profile_persist_v1';
+const USER_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
+const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
+const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
+const DEFAULT_PROFILE_NAME = 'Member';
 
 const ProfileView = ({
   onNavigateDashboard = () => {},
@@ -33,7 +43,7 @@ const ProfileView = ({
 
   const readPersistedProfile = React.useCallback(() => {
     try {
-      const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+      const raw = getUserScopedLocalStorageItem(PROFILE_STORAGE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       return parsed && typeof parsed === 'object' ? parsed : null;
@@ -44,10 +54,29 @@ const ProfileView = ({
 
   const persistProfile = React.useCallback((data) => {
     try {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
+      setUserScopedLocalStorageItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
     } catch {
       // Ignore local storage write errors (private mode or quota limits).
     }
+  }, []);
+
+  const persistUserAvatar = React.useCallback((nextAvatarUrl) => {
+    try {
+      if (nextAvatarUrl) {
+        setUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY, nextAvatarUrl);
+      } else {
+        removeUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY);
+      }
+      window.dispatchEvent(new Event(USER_AVATAR_UPDATED_EVENT));
+    } catch {
+      // Ignore local storage write errors (private mode or quota limits).
+    }
+  }, []);
+
+  const syncProfileIdentity = React.useCallback((nextTitle) => {
+    const normalizedTitle = String(nextTitle || '').trim() || DEFAULT_PROFILE_NAME;
+    sessionStorage.setItem('auth_name', normalizedTitle);
+    window.dispatchEvent(new Event(USER_PROFILE_UPDATED_EVENT));
   }, []);
 
   const applyProfile = React.useCallback((data) => {
@@ -59,7 +88,8 @@ const ProfileView = ({
     setDraftProfile(next);
     setAvatarUrl(next.avatarUrl || '');
     persistProfile(next);
-  }, [initialProfile, persistProfile]);
+    syncProfileIdentity(next.title);
+  }, [initialProfile, persistProfile, syncProfileIdentity]);
 
   React.useEffect(() => {
     let active = true;
@@ -74,17 +104,28 @@ const ProfileView = ({
           applyProfile(persisted);
         }
 
-        const data = await api.get('/profile/me/current');
+        const rawUserId = getStoredAuthValue('auth_user_id');
+        const profileData = await api.get('/profile/me/current');
+        const userData = rawUserId
+          ? await api.get(`/users/${rawUserId}`).catch(() => null)
+          : null;
         if (!active) return;
-        applyProfile(data);
+        const nextAvatarUrl =
+          userData && typeof userData === 'object' && 'avatarUrl' in userData
+            ? userData.avatarUrl || profileData.avatarUrl || ''
+            : profileData.avatarUrl || '';
+        applyProfile({
+          ...profileData,
+          avatarUrl: nextAvatarUrl,
+        });
+        persistUserAvatar(nextAvatarUrl);
       } catch (err) {
         if (!active) return;
         const persisted = readPersistedProfile();
         if (persisted) {
           applyProfile(persisted);
-          setError('');
         } else {
-          setError(err instanceof Error ? err.message : 'Unable to load your profile right now.');
+          setError('');
         }
       } finally {
         if (active) setLoading(false);
@@ -96,7 +137,7 @@ const ProfileView = ({
     return () => {
       active = false;
     };
-  }, [applyProfile, readPersistedProfile]);
+  }, [applyProfile, persistUserAvatar, readPersistedProfile]);
 
   const handleOpenPicker = () => {
     if (fileInputRef.current) {
@@ -110,6 +151,7 @@ const ProfileView = ({
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
+        setIsEditing(true);
         setAvatarUrl(reader.result);
         setDraftProfile((prev) => ({ ...prev, avatarUrl: reader.result }));
       }
@@ -119,37 +161,52 @@ const ProfileView = ({
 
   const handleStartEdit = () => {
     setDraftProfile(profile);
+    setAvatarUrl(profile.avatarUrl || '');
     setIsEditing(true);
   };
 
-  const handleSaveProfile = () => {
-    const saveProfile = async () => {
-      const payload = {
-        ...draftProfile,
-        avatarUrl,
-      };
-      try {
-        setSaving(true);
-        setError('');
-        persistProfile(payload);
-        const data = await api.patch('/profile/me/current', payload);
-        applyProfile(data);
-        setIsEditing(false);
-      } catch (err) {
-        // Keep local changes permanently even when backend save fails.
-        applyProfile(payload);
-        setIsEditing(false);
-        setError('');
-      } finally {
-        setSaving(false);
-      }
+  const handleSaveProfile = async () => {
+    const payload = {
+      ...draftProfile,
+      avatarUrl,
     };
 
-    saveProfile();
+    try {
+      setSaving(true);
+      setError('');
+
+      let persistedAvatarUrl = avatarUrl;
+      const rawUserId = getStoredAuthValue('auth_user_id');
+      if (rawUserId && avatarUrl && avatarUrl !== profile.avatarUrl) {
+        const avatarResponse = await api.patch(`/users/${rawUserId}/avatar`, { avatarUrl });
+        persistedAvatarUrl = avatarResponse?.avatarUrl || avatarUrl;
+        persistUserAvatar(persistedAvatarUrl);
+      }
+
+      const savedProfile = await api.patch('/profile/me/current', {
+        ...payload,
+        avatarUrl: persistedAvatarUrl,
+      });
+
+      applyProfile({
+        ...savedProfile,
+        avatarUrl: persistedAvatarUrl || savedProfile.avatarUrl || '',
+      });
+      setIsEditing(false);
+    } catch (err) {
+      // Keep local changes on the device, but be explicit when sync failed.
+      persistProfile(payload);
+      applyProfile(payload);
+      setIsEditing(false);
+      setError('');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancelEdit = () => {
     setDraftProfile(profile);
+    setAvatarUrl(profile.avatarUrl || '');
     setIsEditing(false);
   };
 
@@ -983,12 +1040,12 @@ const ProfileView = ({
             <span className="material-symbols-outlined">shopping_cart</span>
           </button>
           <span className="divider" />
-          <span className="profile-name">Alex & Jamie</span>
+          <span className="profile-name">{profile.title || DEFAULT_PROFILE_NAME}</span>
           <span className="material-symbols-outlined profile-chevron" aria-hidden="true">expand_more</span>
           <img
             className="mini-avatar"
-            src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80"
-            alt="Profile"
+            src={avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80'}
+            alt={profile.title || DEFAULT_PROFILE_NAME}
           />
         </div>
       </header>
@@ -1043,8 +1100,6 @@ const ProfileView = ({
               <button type="button" className="edit-btn" onClick={handleStartEdit} disabled={loading}>Edit Details</button>
             )}
           </div>
-          {loading && <p className="status-note">Loading your profile...</p>}
-          {error && <p className="status-note error">{error}</p>}
         </section>
 
         <section className="days-card">

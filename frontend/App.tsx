@@ -23,6 +23,7 @@ import RingInformationView from './views/RingInformation';
 import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
+import { getUserScopedLocalStorageItem } from './lib/userStorage';
 
 const USER_HOME_PATH = '/dashboard';
 const ADMIN_HOME_PATH = '/admindashboard';
@@ -63,7 +64,7 @@ function getStoredAccessToken(): string | null {
 
 function hasPurchasedRing() {
   if (typeof window === 'undefined') return false;
-  return Boolean(localStorage.getItem(PURCHASED_RING_STORAGE_KEY));
+  return Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY));
 }
 
 function persistAuth(user: AuthUser, accessToken: string, remember: boolean, rememberToken?: string | null) {

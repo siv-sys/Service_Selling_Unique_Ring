@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
+import { getUserScopedLocalStorageItem, setUserScopedSessionStorageItem } from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
@@ -18,7 +19,7 @@ const Dashboard: React.FC = () => {
   const cartCount = 0;
   const isDarkMode = false;
   const hasPurchasedRing =
-    typeof window !== 'undefined' && Boolean(localStorage.getItem(PURCHASED_RING_STORAGE_KEY));
+    typeof window !== 'undefined' && Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY));
 
   // Sample recently viewed rings data
   const recentlyViewedRings: RecentlyViewedRing[] = [
@@ -229,7 +230,7 @@ const Dashboard: React.FC = () => {
                 to={`/shop?ring=${ring.id}`}
                 onClick={() => {
                   // You can store the selected ring in sessionStorage if needed
-                  sessionStorage.setItem('currentRing', JSON.stringify({
+                  setUserScopedSessionStorageItem('currentRing', JSON.stringify({
                     name: ring.name,
                     metal: ring.material,
                     img: ring.image
