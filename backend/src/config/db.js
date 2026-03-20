@@ -45,6 +45,30 @@ async function initializeSettingsTables() {
     ) ENGINE=InnoDB
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS admin_profile_settings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT UNSIGNED NULL,
+      full_name VARCHAR(120) NOT NULL,
+      role VARCHAR(80) NOT NULL,
+      email VARCHAR(190) NOT NULL,
+      avatar_url MEDIUMTEXT NULL,
+      system_updates BOOLEAN DEFAULT TRUE,
+      security_alerts BOOLEAN DEFAULT TRUE,
+      order_placement BOOLEAN DEFAULT FALSE,
+      push_notifications BOOLEAN DEFAULT TRUE,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `);
+
+  const adminProfileColumns = await query('SHOW COLUMNS FROM admin_profile_settings');
+  const hasUserIdColumn = adminProfileColumns.some(
+    (column) => String(column.Field || '').toLowerCase() === 'user_id',
+  );
+  if (!hasUserIdColumn) {
+    await query('ALTER TABLE admin_profile_settings ADD COLUMN user_id BIGINT UNSIGNED NULL');
+  }
+
   const rows = await query('SELECT id FROM system_settings LIMIT 1');
   if (!rows.length) {
     await query(
@@ -52,6 +76,7 @@ async function initializeSettingsTables() {
       ['Aura Rings Main', 'support@aurarings.com', 'USD'],
     );
   }
+
 }
 
 module.exports = {

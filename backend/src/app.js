@@ -20,13 +20,19 @@ app.get('/', (req, res) => {
     message: 'Service Selling Unique Ring backend is running.',
     health: '/api/health',
     settings: '/api/settings/system',
+    adminProfile: '/api/settings/admin-profile',
   });
 });
 
 app.get('/api', (req, res) => {
   res.json({
     message: 'API is available.',
-    endpoints: ['/api/health', '/api/settings/system', '/api/settings/notifications/:userId'],
+    endpoints: [
+      '/api/health',
+      '/api/settings/system',
+      '/api/settings/notifications/:userId',
+      '/api/settings/admin-profile',
+    ],
   });
 });
 

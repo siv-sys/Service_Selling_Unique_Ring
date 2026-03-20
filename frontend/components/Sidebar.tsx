@@ -14,27 +14,59 @@ interface CurrentUserProfile {
   avatarUrl: string | null;
 }
 
+interface StoredSettingsProfile {
+  fullName?: string;
+  avatarUrl?: string;
+}
+
 function getStoredAuthValue(key: string): string | null {
   return sessionStorage.getItem(key) || localStorage.getItem(key);
 }
 
+function getStoredSettingsProfile(): StoredSettingsProfile {
+  const raw = localStorage.getItem('settings_view_v1');
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as StoredSettingsProfile;
+    return {
+      fullName: typeof parsed.fullName === 'string' ? parsed.fullName : undefined,
+      avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, onSignOut }) => {
   const isAdmin = role === Role.ADMIN;
+  const storedProfile = getStoredSettingsProfile();
   const [profile, setProfile] = useState<CurrentUserProfile>({
-    fullName: isAdmin ? 'Admin User' : 'Member User',
-    avatarUrl: null,
+    fullName: isAdmin ? storedProfile.fullName || 'Admin User' : 'Member User',
+    avatarUrl: isAdmin ? storedProfile.avatarUrl || null : null,
   });
 
   useEffect(() => {
     const loadProfile = async () => {
+      const localProfile = getStoredSettingsProfile();
+      if (isAdmin && (localProfile.fullName || localProfile.avatarUrl)) {
+        setProfile((previous) => ({
+          fullName: localProfile.fullName || previous.fullName,
+          avatarUrl: localProfile.avatarUrl || previous.avatarUrl,
+        }));
+      }
+
       const rawUserId = getStoredAuthValue('auth_user_id');
       if (!rawUserId) return;
 
       try {
         const user = await api.get<{ fullName: string; avatarUrl: string | null }>(`/users/${rawUserId}`);
+        const stored = getStoredSettingsProfile();
         setProfile({
-          fullName: user.fullName || (isAdmin ? 'Admin User' : 'Member User'),
-          avatarUrl: user.avatarUrl || null,
+          fullName:
+            (isAdmin ? stored.fullName : '') ||
+            user.fullName ||
+            (isAdmin ? 'Admin User' : 'Member User'),
+          avatarUrl: (isAdmin ? stored.avatarUrl : '') || user.avatarUrl || null,
         });
       } catch (error) {
         console.error('Failed to load sidebar profile:', error);
@@ -42,6 +74,23 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, role, onSignOut
     };
 
     loadProfile();
+
+    const syncStoredProfile = () => {
+      if (!isAdmin) return;
+      const localProfile = getStoredSettingsProfile();
+      setProfile((previous) => ({
+        fullName: localProfile.fullName || previous.fullName,
+        avatarUrl: localProfile.avatarUrl || previous.avatarUrl,
+      }));
+    };
+
+    window.addEventListener('admin-profile-updated', syncStoredProfile);
+    window.addEventListener('storage', syncStoredProfile);
+
+    return () => {
+      window.removeEventListener('admin-profile-updated', syncStoredProfile);
+      window.removeEventListener('storage', syncStoredProfile);
+    };
   }, [isAdmin]);
 
   const NavItem: React.FC<{ view: AppView; icon: string; label: string }> = ({ view, icon, label }) => {
