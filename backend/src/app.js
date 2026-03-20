@@ -1,19 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-<<<<<<< HEAD
 const fs = require('fs');
-=======
->>>>>>> ef5cde89b20e9ceeecbac3d8171cd2af67dcf559
 const path = require('path');
-const fs = require('fs');
 const env = require('./config/env');
 const { ping } = require('./config/db');
-<<<<<<< HEAD
-=======
-
-// Import routes
 const healthRoutes = require('./routes/health.routes');
->>>>>>> ef5cde89b20e9ceeecbac3d8171cd2af67dcf559
 const dashboardRoutes = require('./routes/dashboard.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
 const authRoutes = require('./routes/auth.routes');
@@ -26,14 +17,9 @@ const scansRoutes = require('./routes/scans.routes');
 
 const app = express();
 
-<<<<<<< HEAD
-app.use(cors({ origin: env.frontendOrigin }));
-app.use(express.json());
-=======
 // Middleware
 app.use(cors({ origin: env.frontendOrigin, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
->>>>>>> ef5cde89b20e9ceeecbac3d8171cd2af67dcf559
 
 // Health check
 app.get('/api/health', async (req, res) => {

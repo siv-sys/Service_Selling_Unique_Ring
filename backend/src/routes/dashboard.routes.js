@@ -491,13 +491,15 @@ router.get('/', async (_req, res) => {
       query("SELECT COUNT(*) AS total FROM relationship_pairs WHERE status IN ('CONNECTED', 'SYNCING')"),
       // Get user_ring statistics
       query(`
-        SELECT 
+        SELECT
           COUNT(*) as total_assigned,
-          SUM(CASE WHEN ring_status = 'ASSIGNED' THEN 1 ELSE 0 END) as assigned_count,
-          SUM(CASE WHEN ring_status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
-          SUM(CASE WHEN ring_status = 'UNASSIGNED' THEN 1 ELSE 0 END) as unassigned_count,
-          COUNT(DISTINCT user_id) as total_users_with_rings
-        FROM users_ring
+          SUM(CASE WHEN r.status = 'ASSIGNED' THEN 1 ELSE 0 END) as assigned_count,
+          SUM(CASE WHEN r.status = 'RESERVED' THEN 1 ELSE 0 END) as pending_count,
+          SUM(CASE WHEN r.status = 'AVAILABLE' THEN 1 ELSE 0 END) as unassigned_count,
+          COUNT(DISTINCT pm.user_id) as total_users_with_rings
+        FROM rings r
+        LEFT JOIN ring_pair_links rpl ON rpl.ring_id = r.id
+        LEFT JOIN pair_members pm ON pm.pair_id = rpl.pair_id
       `),
     ]);
 
@@ -556,7 +558,7 @@ router.get('/', async (_req, res) => {
           u.created_at,
           COALESCE(rm.model_name, 'SmartRing') AS model_name,
           CASE 
-            WHEN ur.id IS NOT NULL THEN 'Ring Purchased'
+            WHEN rpl.id IS NOT NULL THEN 'Ring Assigned'
             ELSE 'No Ring'
           END AS ring_status,
           rp.status as pair_status,
@@ -568,11 +570,10 @@ router.get('/', async (_req, res) => {
         FROM pair_members pm
         LEFT JOIN users u ON u.id = pm.user_id
         LEFT JOIN relationship_pairs rp ON rp.id = pm.pair_id
-        LEFT JOIN users_ring ur ON ur.user_id = u.id AND ur.ring_status = 'ASSIGNED'
-        LEFT JOIN rings rg ON rg.id = ur.ring_id
+        LEFT JOIN ring_pair_links rpl ON rpl.pair_id = pm.pair_id
+        LEFT JOIN rings rg ON rg.id = rpl.ring_id
         LEFT JOIN ring_models rm ON rm.id = rg.model_id
         WHERE u.account_status <> 'DELETED'
-          AND ur.id IS NOT NULL
         ORDER BY pm.joined_at DESC
         LIMIT 10
       `),

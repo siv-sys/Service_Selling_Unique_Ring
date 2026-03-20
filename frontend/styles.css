@@ -2,15 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #0f172a;
+    background: #f8fafc;
+    line-height: 1.6;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
 }
 
-body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: #0f172a;
-  background: #f8fafc;
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-50 transition-colors;
+  }
+
+  .card {
+    @apply bg-white rounded-xl border border-pink-300 shadow-sm;
+  }
+
+  .stat-card {
+    @apply bg-white p-6 rounded-xl border border-pink-300 shadow-sm hover:shadow-md transition-shadow cursor-pointer;
+  }
+
+  .alert-item {
+    @apply flex gap-4 items-start p-3 rounded-lg border-l-4;
+  }
+
+  .alert-red {
+    @apply border-rose-400 bg-rose-50 ring-1 ring-rose-100;
+  }
+
+  .alert-green {
+    @apply border-emerald-400 bg-emerald-50 ring-1 ring-emerald-100;
+  }
+
+  .alert-primary {
+    @apply border-primary bg-pink-50 ring-1 ring-pink-100;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent;
+  }
+
+  .hover-lift {
+    @apply transition-transform hover:scale-105;
+  }
+
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-sm border border-white/20;
+  }
 }

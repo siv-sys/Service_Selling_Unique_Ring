@@ -1,9 +1,4 @@
-<<<<<<< HEAD
-﻿
 const mysql = require('mysql2/promise');
-=======
-﻿const mysql = require('mysql2/promise');
->>>>>>> ef5cde89b20e9ceeecbac3d8171cd2af67dcf559
 const env = require('./env');
 
 const pool = mysql.createPool({
@@ -18,13 +13,8 @@ const pool = mysql.createPool({
   namedPlaceholders: true,
 });
 
-<<<<<<< HEAD
-async function query(sql, params = []) {
-  const [rows] = await pool.query(sql, params);
-=======
 async function query(sql, params = {}) {
   const [rows] = await pool.execute(sql, params);
->>>>>>> ef5cde89b20e9ceeecbac3d8171cd2af67dcf559
   return rows;
 }
 
@@ -42,13 +32,9 @@ async function ping() {
   }
 }
 
-<<<<<<< HEAD
 module.exports = {
   pool,
   query,
   execute,
   ping,
 };
-=======
-module.exports = { pool, query, ping };
->>>>>>> ef5cde89b20e9ceeecbac3d8171cd2af67dcf559
