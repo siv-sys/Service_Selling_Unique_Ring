@@ -30,6 +30,7 @@ router.get('/me', async (req, res) => {
         message: row.message,
         createdAt: row.created_at,
         unread: Boolean(row.unread),
+        metadata: row.metadata ? JSON.parse(row.metadata) : null,
       }))
     );
   } catch (error) {

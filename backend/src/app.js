@@ -17,6 +17,8 @@ const settingsRoutes = require('./routes/settings.routes');
 const usersRoutes = require('./routes/users.routes');
 const adminRoutes = require('./routes/admin.routes');
 const adminPairsRoutes = require('./routes/admin-pairs.routes');
+const pairInvitationsRoutes = require('./routes/pair-invitations.routes');
+const pairsRoutes = require('./routes/pairs.routes');
 
 const app = express();
 
@@ -93,6 +95,8 @@ app.use('/api/settings', requireAuth, settingsRoutes);
 app.use('/api/users', requireAuth, usersRoutes);
 app.use('/api/admin/migrations', requireAuth, requireAdmin, adminRoutes);
 app.use('/api/admin/pairs', requireAuth, requireAdmin, adminPairsRoutes);
+app.use('/api/pair-invitations', requireAuth, pairInvitationsRoutes);
+app.use('/api/pairs', requireAuth, pairsRoutes);
 
 /*
 |--------------------------------------------------------------------------

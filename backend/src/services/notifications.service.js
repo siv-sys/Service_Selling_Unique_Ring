@@ -9,6 +9,7 @@ async function createNotification({
   title,
   message,
   unread = true,
+  metadata = null,
 }) {
   if (!userId || !type || !title || !message) {
     throw new Error('userId, type, title, and message are required');
@@ -16,10 +17,10 @@ async function createNotification({
 
   const result = await query(
     `
-      INSERT INTO notifications (user_id, type, icon, icon_class, action_key, title, message, unread)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO notifications (user_id, type, icon, icon_class, action_key, title, message, unread, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    [userId, type, icon, iconClass, actionKey, title, message, unread ? 1 : 0]
+    [userId, type, icon, iconClass, actionKey, title, message, unread ? 1 : 0, metadata ? JSON.stringify(metadata) : null]
   );
 
   return {
@@ -32,6 +33,7 @@ async function createNotification({
     title,
     message,
     unread: Boolean(unread),
+    metadata,
   };
 }
 

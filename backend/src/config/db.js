@@ -222,6 +222,7 @@ async function initializeCoreTables() {
       title VARCHAR(160) NOT NULL,
       message VARCHAR(500) NOT NULL,
       unread BOOLEAN NOT NULL DEFAULT TRUE,
+      metadata JSON NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       read_at DATETIME NULL,
       clicked_at DATETIME NULL,

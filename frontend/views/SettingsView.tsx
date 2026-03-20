@@ -561,6 +561,11 @@ const SettingsView = ({
       return;
     }
 
+    if (item.actionKey === 'pair_invitation_accept_reject') {
+      // Don't close notification - show action buttons
+      return;
+    }
+
     if (item.actionKey === 'help_support') {
       setActiveMenu('Help & Support');
     } else if (item.actionKey === 'general') {
@@ -572,6 +577,56 @@ const SettingsView = ({
     }
 
     setIsNotificationOpen(false);
+  };
+
+  const handleAcceptInvitation = async (notification: any) => {
+    try {
+      const invitationId = notification.metadata?.invitationId;
+      if (!invitationId) {
+        showSaveMessage('Invalid invitation');
+        return;
+      }
+
+      const result: any = await api.post(`/pair-invitations/${invitationId}/accept`, {});
+      
+      if ((result as any).success) {
+        showSaveMessage('Connection accepted! Redirecting...');
+        // Remove notification from list
+        setNotifications((current) => current.filter((n) => n.id !== notification.id));
+        // Close panel
+        setIsNotificationOpen(false);
+        // Optionally navigate to relationship page
+        setTimeout(() => {
+          onNavigateCoupleProfile();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      showSaveMessage('Failed to accept invitation');
+    }
+  };
+
+  const handleRejectInvitation = async (notification: any) => {
+    try {
+      const invitationId = notification.metadata?.invitationId;
+      if (!invitationId) {
+        showSaveMessage('Invalid invitation');
+        return;
+      }
+
+      const result: any = await api.post(`/pair-invitations/${invitationId}/reject`, {});
+      
+      if ((result as any).success) {
+        showSaveMessage('Invitation declined');
+        // Remove notification from list
+        setNotifications((current) => current.filter((n) => n.id !== notification.id));
+        // Close panel
+        setIsNotificationOpen(false);
+      }
+    } catch (error) {
+      console.error('Error rejecting invitation:', error);
+      showSaveMessage('Failed to decline invitation');
+    }
   };
 
   const playSoundPreview = (soundId: 'anniversary' | 'reminders' | 'messages') => {
@@ -3671,20 +3726,67 @@ const SettingsView = ({
                 </header>
                 <div className="notification-list">
                   {notifications.map((item) => (
-                    <button
+                    <div
                       key={item.id}
-                      type="button"
-                      className="notification-item"
+                      className={`notification-item ${item.actionKey === 'pair_invitation_accept_reject' ? 'pair-invitation-item' : ''}`}
                       onClick={() => handleNotificationClick(item)}
                     >
                       <div className={`notification-icon ${item.iconClass}`}>{item.icon}</div>
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <h3 className="notification-item-title">{item.title}</h3>
                         <p className="notification-item-copy">{item.message}</p>
                         <div className="notification-time">{item.createdAt ? formatNotificationDate(item.createdAt) : item.time}</div>
+                        {item.actionKey === 'pair_invitation_accept_reject' && (
+                          <div className="pair-invitation-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                            <button
+                              type="button"
+                              className="pair-invitation-btn pair-invitation-btn-accept"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAcceptInvitation(item);
+                              }}
+                              style={{
+                                flex: 1,
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #ef2f5a, #ff4081)',
+                                color: 'white',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'transform 0.2s, box-shadow 0.2s'
+                              }}
+                            >
+                              Accept Connection
+                            </button>
+                            <button
+                              type="button"
+                              className="pair-invitation-btn pair-invitation-btn-reject"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRejectInvitation(item);
+                              }}
+                              style={{
+                                flex: 1,
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                border: '2px solid #ef2f5a',
+                                background: 'transparent',
+                                color: '#ef2f5a',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'transform 0.2s, background 0.2s'
+                              }}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
                       </div>
                       {item.unread ? <span className="notification-dot" aria-hidden="true" /> : <span />}
-                    </button>
+                    </div>
                   ))}
                 </div>
                 <footer className="notification-footer">View all activity</footer>

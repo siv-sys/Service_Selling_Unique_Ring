@@ -1,6 +1,7 @@
 const app = require('./app');
 const env = require('./config/env');
 const { initializeCoreTables, ping } = require('./config/db');
+const { initializeSocketIO } = require('./utils/socket');
 
 function listenOnAvailablePort(startPort, retriesLeft = 10) {
   return new Promise((resolve, reject) => {
@@ -37,12 +38,16 @@ async function startServer() {
   const { server, port } = await listenOnAvailablePort(env.port);
   app.locals.port = port;
 
+  // Initialize Socket.IO
+  const io = initializeSocketIO(server);
+
   console.log(`Backend running at http://localhost:${port}`);
   if (port !== env.port) {
     console.log(`Preferred port ${env.port} was busy, so the server started on ${port}.`);
   }
   console.log(`Database: ${env.db.database}`);
   console.log(`Database status: ${dbReady ? 'connected' : 'disconnected'}`);
+  console.log(`Socket.IO status: initialized`);
 
   server.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {
