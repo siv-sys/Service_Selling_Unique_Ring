@@ -1,5 +1,6 @@
 const express = require('express');
 const { execute, query } = require('../config/db');
+const { createNotification } = require('../services/notifications.service');
 
 const router = express.Router();
 
@@ -363,6 +364,58 @@ async function syncInventoryForModel(modelId) {
   return syncedInventoryItems;
 }
 
+async function notifyUsersAboutCatalogItem(item, createdRings) {
+  const users = await query(
+    `
+      SELECT id
+      FROM users
+      WHERE role = 'user'
+        AND COALESCE(account_status, 'ACTIVE') = 'ACTIVE'
+    `
+  );
+
+  if (!users.length) {
+    return 0;
+  }
+
+  const notificationType = 'catalog_update';
+  const eventStamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const title = `New Ring Added: ${item.modelName} [${eventStamp}]`;
+  const message = `${item.modelName} (${item.material}) is now available in Couple Shop${createdRings > 0 ? ` with ${createdRings} unit(s) in stock` : ''}.`;
+  const metadata = {
+    modelName: item.modelName,
+    material: item.material,
+    basePrice: item.basePrice,
+    createdRings,
+    createdAt: new Date().toISOString(),
+  };
+
+  let sentCount = 0;
+  for (const user of users) {
+    try {
+      await createNotification({
+        userId: user.id,
+        type: notificationType,
+        icon: '\u{1F48D}',
+        iconClass: 'system',
+        actionKey: 'catalog_seed_new_item',
+        title,
+        message,
+        unread: true,
+        metadata,
+      });
+      sentCount += 1;
+    } catch (error) {
+      // Ignore duplicate notification key collisions and continue sending to other users.
+      if (!String(error?.message || '').toLowerCase().includes('duplicate')) {
+        console.warn(`Notification insert failed for user ${user.id}: ${error.message}`);
+      }
+    }
+  }
+
+  return sentCount;
+}
+
 router.post('/seed-catalog', async (req, res, next) => {
   try {
     await ensureRingTables();
@@ -400,6 +453,7 @@ router.post('/seed-catalog', async (req, res, next) => {
     let createdModels = 0;
     let createdRings = 0;
     let syncedInventoryItems = 0;
+    let createdNotifications = 0;
 
     for (const item of catalogItems) {
       const existingModels = await query('SELECT id FROM ring_models WHERE model_name = ? LIMIT 1', [item.modelName]);
@@ -407,8 +461,13 @@ router.post('/seed-catalog', async (req, res, next) => {
       if (!existingModels.length) {
         createdModels += 1;
       }
-      createdRings += await createRingsForModel(modelId, item);
+      const createdRingsForItem = await createRingsForModel(modelId, item);
+      createdRings += createdRingsForItem;
       syncedInventoryItems += await syncInventoryForModel(modelId);
+
+      if (createdRingsForItem > 0 || !existingModels.length) {
+        createdNotifications += await notifyUsersAboutCatalogItem(item, createdRingsForItem);
+      }
     }
 
     return res.json({
@@ -416,6 +475,7 @@ router.post('/seed-catalog', async (req, res, next) => {
       createdModels,
       createdRings,
       syncedInventoryItems,
+      createdNotifications,
     });
   } catch (error) {
     return next(error);

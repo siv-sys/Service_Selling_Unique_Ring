@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { api, resolveApiAssetUrl } from '../lib/api';
+import { THEME_EVENT, isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
 import { getUserScopedLocalStorageItem } from '../lib/userStorage';
 
 type ProfilePayload = {
@@ -50,15 +51,17 @@ const RelationshipView = ({
   const [daysTogetherLabel, setDaysTogetherLabel] = React.useState('1y 53d together');
 
   React.useEffect(() => {
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    setIsDarkMode(savedDarkMode);
+    setIsDarkMode(isStoredDarkModeEnabled());
+  }, []);
 
-    if (savedDarkMode) {
-      document.documentElement.classList.add('dark');
-      return;
-    }
-
-    document.documentElement.classList.remove('dark');
+  React.useEffect(() => {
+    const syncTheme = () => setIsDarkMode(isStoredDarkModeEnabled());
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener(THEME_EVENT, syncTheme);
+    return () => {
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener(THEME_EVENT, syncTheme);
+    };
   }, []);
 
   React.useEffect(() => {
@@ -168,14 +171,7 @@ const RelationshipView = ({
   const handleThemeToggle = () => {
     const nextDarkMode = !isDarkMode;
     setIsDarkMode(nextDarkMode);
-    localStorage.setItem('darkMode', String(nextDarkMode));
-
-    if (nextDarkMode) {
-      document.documentElement.classList.add('dark');
-      return;
-    }
-
-    document.documentElement.classList.remove('dark');
+    setDarkModePreference(nextDarkMode);
   };
 
   return (

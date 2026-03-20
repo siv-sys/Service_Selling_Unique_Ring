@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, API_BASE_URL } from '../lib/api';
+import { THEME_EVENT, isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
 import { getStoredAuthValue, getUserScopedLocalStorageItem } from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
@@ -36,11 +37,17 @@ const RingInformation: React.FC = () => {
 
   // Load dark mode preference
   useEffect(() => {
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    setIsDarkMode(savedDarkMode);
-    if (savedDarkMode) {
-      document.documentElement.classList.add('dark');
-    }
+    setIsDarkMode(isStoredDarkModeEnabled());
+  }, []);
+
+  useEffect(() => {
+    const syncTheme = () => setIsDarkMode(isStoredDarkModeEnabled());
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener(THEME_EVENT, syncTheme);
+    return () => {
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener(THEME_EVENT, syncTheme);
+    };
   }, []);
 
   // Load cart count
@@ -157,13 +164,7 @@ const RingInformation: React.FC = () => {
   const toggleDarkMode = () => {
     const newDarkMode = !isDarkMode;
     setIsDarkMode(newDarkMode);
-    localStorage.setItem('darkMode', String(newDarkMode));
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    setDarkModePreference(newDarkMode);
   };
 
   // Handle notification click
@@ -411,20 +412,21 @@ const RingInformation: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-4 py-4">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-4 py-6 md:py-8">
         {/* Ring Title */}
-        <div className="mb-6">
-          <h1 className="heading-serif text-4xl font-bold text-primary">{ringName}</h1>
-          <p className="text-primary/70 dark:text-primary/60">Ring ID: {ringIdentifier}</p>
+        <div className="mb-7 md:mb-8 rounded-3xl border border-primary/15 bg-white/70 dark:bg-charcoal/40 backdrop-blur-sm p-5 md:p-7 shadow-[0_20px_50px_rgba(236,19,128,0.08)]">
+          <p className="text-[11px] tracking-[0.2em] uppercase font-bold text-primary/60 mb-2">Your Signature Ring</p>
+          <h1 className="heading-serif text-4xl md:text-5xl font-bold text-primary leading-[1.05]">{ringName}</h1>
+          <p className="text-primary/70 dark:text-primary/60 mt-2 text-sm md:text-base">Ring ID: {ringIdentifier}</p>
         </div>
 
         {/* Image Gallery - Main Image */}
-        <div className="glass-panel rounded-3xl p-4 diamond-shine mb-16">
+        <div className="glass-panel rounded-3xl p-4 md:p-5 diamond-shine mb-10 md:mb-12 shadow-[0_26px_60px_rgba(2,6,23,0.14)]">
           <img 
             id="ringImage" 
             src={ringImage} 
             alt={ringName}
-            className="w-full h-[500px] object-cover rounded-2xl ring-image-premium"
+            className="w-full h-[340px] md:h-[500px] object-cover rounded-2xl ring-image-premium"
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://www.loville.co/cdn/shop/products/CPR5013FANTASY-1_600x600.jpg?v=1586341339';
             }}
@@ -432,29 +434,29 @@ const RingInformation: React.FC = () => {
         </div>
 
         {/* All Information in One Place */}
-        <div className="glass-panel rounded-3xl p-8">
+        <div className="glass-panel rounded-3xl p-5 md:p-8 border border-primary/10 shadow-[0_24px_50px_rgba(15,23,42,0.1)]">
           
           {/* Quick Specs Row */}
-          <div id="quickSpecs" className="grid grid-cols-2 md:grid-cols-5 gap-4 pb-6 border-b border-primary/10 mb-6">
-            <div>
+          <div id="quickSpecs" className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 pb-7 border-b border-primary/10 mb-7">
+            <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
               <p className="text-xs text-primary/60 dark:text-primary/40">MATERIAL</p>
-              <p className="font-semibold text-primary">{material}</p>
+              <p className="font-semibold text-primary mt-1 text-[15px]">{material}</p>
             </div>
-            <div>
+            <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
               <p className="text-xs text-primary/60 dark:text-primary/40">PRICE</p>
-              <p className="font-semibold text-primary">${price.toLocaleString()}</p>
+              <p className="font-semibold text-primary mt-1 text-[15px]">${price.toLocaleString()}</p>
             </div>
-            <div>
+            <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
               <p className="text-xs text-primary/60 dark:text-primary/40">SIZE</p>
-              <p className="font-semibold text-primary">{size} US</p>
+              <p className="font-semibold text-primary mt-1 text-[15px]">{size} US</p>
             </div>
-            <div>
+            <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
               <p className="text-xs text-primary/60 dark:text-primary/40">STATUS</p>
-              <p className="font-semibold text-primary">{ringData.status || 'Available'}</p>
+              <p className="font-semibold text-primary mt-1 text-[15px]">{ringData.status || 'Available'}</p>
             </div>
-            <div>
+            <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
               <p className="text-xs text-primary/60 dark:text-primary/40">MODEL</p>
-              <p className="font-semibold text-primary">{ringData.model_name || 'Signature'}</p>
+              <p className="font-semibold text-primary mt-1 text-[15px]">{ringData.model_name || 'Signature'}</p>
             </div>
           </div>
           
@@ -464,22 +466,22 @@ const RingInformation: React.FC = () => {
               <span className="material-symbols-outlined text-primary">schedule</span>
               <h3 className="heading-serif text-xl font-bold text-primary">Creation Timeline</h3>
             </div>
-            <div id="timeline" className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
+            <div id="timeline" className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
                 <p className="text-sm text-primary/60 dark:text-primary/40">Created</p>
-                <p className="font-medium text-primary">{formatDate(createdDate.toISOString())}</p>
+                <p className="font-medium text-primary mt-1">{formatDate(createdDate.toISOString())}</p>
               </div>
-              <div>
+              <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
                 <p className="text-sm text-primary/60 dark:text-primary/40">Completed</p>
-                <p className="font-medium text-primary">{formatDate(completionDate.toISOString())}</p>
+                <p className="font-medium text-primary mt-1">{formatDate(completionDate.toISOString())}</p>
               </div>
-              <div>
+              <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
                 <p className="text-sm text-primary/60 dark:text-primary/40">Origin</p>
-                <p className="font-medium text-primary">Antwerp, Belgium</p>
+                <p className="font-medium text-primary mt-1">Antwerp, Belgium</p>
               </div>
-              <div>
+              <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-3">
                 <p className="text-sm text-primary/60 dark:text-primary/40">Workshop</p>
-                <p className="font-medium text-primary">BondKeeper Studio #{getWorkshopNumber()}</p>
+                <p className="font-medium text-primary mt-1">BondKeeper Studio #{getWorkshopNumber()}</p>
               </div>
             </div>
           </div>
@@ -490,10 +492,10 @@ const RingInformation: React.FC = () => {
               <span className="material-symbols-outlined text-primary">history</span>
               <h3 className="heading-serif text-xl font-bold text-primary">History & Provenance</h3>
             </div>
-            <p id="historyText" className="text-charcoal/70 dark:text-cream/70 leading-relaxed mb-3">
+            <p id="historyText" className="text-charcoal/70 dark:text-cream/70 leading-7 mb-3 text-[15px]">
               The "{ringName}" collection was inspired by timeless love stories spanning generations. This particular piece features a {material} ring hand-selected by our master craftsmen for its exceptional quality and beauty.
             </p>
-            <div id="certification" className="bg-primary/5 p-3 rounded-lg inline-block">
+            <div id="certification" className="bg-primary/5 border border-primary/20 p-3 rounded-xl inline-block">
               <p className="text-sm flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-sm">verified</span>
                 Certified by International Gemological Institute (IGI #{certNumber}-2024)
@@ -527,9 +529,9 @@ const RingInformation: React.FC = () => {
               <h3 className="heading-serif text-xl font-bold text-primary">How to Wear & Care</h3>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* Wear Instructions */}
-              <div>
+              <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-4">
                 <p className="font-medium mb-3 flex items-center gap-2 text-primary">
                   <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
                   Daily Wear
@@ -557,7 +559,7 @@ const RingInformation: React.FC = () => {
               </div>
               
               {/* Care Instructions */}
-              <div>
+              <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-4">
                 <p className="font-medium mb-3 flex items-center gap-2 text-primary">
                   <span className="material-symbols-outlined text-primary text-sm">cleaning_services</span>
                   Cleaning
@@ -585,7 +587,7 @@ const RingInformation: React.FC = () => {
                   <span className="material-symbols-outlined text-sm">error</span>
                   Do NOT Use
                 </p>
-                <p id="doNotUseList" className="text-sm bg-red-500 dark:bg-red-900/20 p-3 rounded-lg dark:text-orange-500">
+                <p id="doNotUseList" className="text-sm bg-red-500/90 dark:bg-red-900/30 p-3 rounded-xl text-white dark:text-orange-200">
                   Ultrasonic cleaners, harsh chemicals, toothpaste, baking soda, or abrasive materials
                 </p>
               </div>

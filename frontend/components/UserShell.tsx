@@ -2,7 +2,6 @@ import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { api, API_BASE_URL, resolveApiAssetUrl } from '../lib/api';
-import { isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
 import {
   getStoredAuthValue,
   getUserScopedLocalStorageItem,
@@ -25,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'My Ring', to: '/myring' },
   { label: 'Couple Profile', to: '/couple-profile' },
   { label: 'Relationship', to: '/relationship' },
+  { label: 'Settings', to: '/settings' },
 ];
 
 function readStoredUserAvatar() {
@@ -32,16 +32,12 @@ function readStoredUserAvatar() {
 }
 
 export default function UserShell({ children }: PropsWithChildren) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [displayName, setDisplayName] = useState('Alex & Jamie');
   const [hasPurchasedRing, setHasPurchasedRing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => readStoredUserAvatar());
 
   useEffect(() => {
-    const savedDarkMode = isStoredDarkModeEnabled();
-    setIsDarkMode(savedDarkMode);
-
     const authName = sessionStorage.getItem('auth_name')?.trim();
     setDisplayName(authName || 'Member');
     setHasPurchasedRing(Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY)));
@@ -147,12 +143,6 @@ export default function UserShell({ children }: PropsWithChildren) {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
-  const toggleDarkMode = () => {
-    const nextMode = !isDarkMode;
-    setIsDarkMode(nextMode);
-    setDarkModePreference(nextMode);
-  };
-
   const navItems = useMemo(
     () => NAV_ITEMS.filter((item) => item.to !== '/myring' || hasPurchasedRing),
     [hasPurchasedRing],
@@ -160,7 +150,7 @@ export default function UserShell({ children }: PropsWithChildren) {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-charcoal dark:text-white">
-      <header className="sticky top-0 z-50 border-b border-primary/10 bg-white/95 backdrop-blur dark:bg-charcoal/90">
+      <header className="sticky top-0 z-50 border-b border-primary/10 bg-white/95 backdrop-blur dark:border-slate-700/70 dark:bg-slate-950/95">
         <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between gap-6 px-6 md:px-8">
           <div className="flex min-w-0 items-center gap-6 lg:gap-10">
             <Link to="/dashboard" className="flex shrink-0 items-center gap-2 text-primary">
@@ -168,7 +158,7 @@ export default function UserShell({ children }: PropsWithChildren) {
               <span className="heading-serif text-2xl font-semibold tracking-tight">BondKeeper</span>
             </Link>
 
-            <nav className="hidden items-center gap-7 text-sm font-medium text-slate-700 dark:text-slate-200 lg:flex">
+            <nav className="hidden items-center gap-7 text-sm font-medium text-slate-700 dark:text-slate-100 lg:flex">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -176,7 +166,7 @@ export default function UserShell({ children }: PropsWithChildren) {
                   className={({ isActive }) =>
                     [
                       'border-b pb-1 transition-colors',
-                      isActive ? 'border-primary/40 text-slate-950 dark:text-white' : 'border-transparent hover:text-primary',
+                      isActive ? 'border-primary/40 text-slate-950 dark:text-white' : 'border-transparent hover:text-primary dark:hover:text-pink-300',
                     ].join(' ')
                   }
                 >
@@ -190,21 +180,12 @@ export default function UserShell({ children }: PropsWithChildren) {
             <button
               type="button"
               aria-label="Notifications"
-              className="text-slate-500 transition-colors hover:text-primary dark:text-slate-300"
+              className="text-slate-500 transition-colors hover:text-primary dark:text-slate-200"
             >
               <span className="material-symbols-outlined">notifications_none</span>
             </button>
 
-            <button
-              type="button"
-              aria-label="Toggle theme"
-              onClick={toggleDarkMode}
-              className="text-slate-500 transition-colors hover:text-primary dark:text-slate-300"
-            >
-              <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
-            </button>
-
-            <Link to="/cart" className="relative text-slate-500 transition-colors hover:text-primary dark:text-slate-300">
+            <Link to="/cart" className="relative text-slate-500 transition-colors hover:text-primary dark:text-slate-200">
               <span className="material-symbols-outlined">shopping_cart</span>
               {cartCount > 0 ? (
                 <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
@@ -213,7 +194,7 @@ export default function UserShell({ children }: PropsWithChildren) {
               ) : null}
             </Link>
 
-            <div className="hidden h-8 w-px bg-primary/15 sm:block" />
+            <div className="hidden h-8 w-px bg-primary/15 dark:bg-slate-600/70 sm:block" />
 
             <div className="flex items-center gap-3">
               <span className="hidden text-sm font-medium text-slate-800 dark:text-slate-100 md:inline">

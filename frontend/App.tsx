@@ -354,7 +354,14 @@ function AppRoutes() {
       <Route path="/inventory" element={adminLayout(<InventoryView />)} />
       <Route path="/users" element={adminLayout(<UserPairMgmt />)} />
       <Route path="/catalog" element={adminLayout(<AdminSeedView />)} />
-      <Route path="/settings" element={adminLayout(<SettingsView />)} />
+      <Route
+        path="/settings"
+        element={
+          isAdmin
+            ? adminLayout(<SettingsView />)
+            : userLayout(<SettingsView />)
+        }
+      />
       <Route path="/memories" element={userLayout(<MemoriesView />)} />
 
       <Route path="*" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
