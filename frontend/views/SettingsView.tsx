@@ -1,5 +1,5 @@
 import React from 'react';
-import { api } from '../lib/api';
+import { api, resolveApiAssetUrl } from '../lib/api';
 import { isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
 import { getStoredAuthValue, getUserScopedLocalStorageItem } from '../lib/userStorage';
 
@@ -3809,7 +3809,7 @@ const SettingsView = ({
           <span className="profile-name">{navDisplayName}</span>
           <img
             className="avatar"
-            src={navAvatar}
+            src={resolveApiAssetUrl(navAvatar)}
             alt={navDisplayName}
             onClick={onNavigateProfile}
           />

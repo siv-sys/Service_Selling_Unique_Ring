@@ -5,7 +5,7 @@ import { GoogleIcon } from './GoogleIcon';
 
 interface GoogleAccountSelectorProps {
   onBack: () => void;
-  onSelect: (email: string) => void;
+  onSelect: (email: string, name?: string) => void;
 }
 
 const ArrowLeftIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
@@ -46,7 +46,8 @@ export function GoogleAccountSelector({ onBack, onSelect }: GoogleAccountSelecto
     }
 
     setShowEmailError(false);
-    onSelect(value);
+    const inferredName = value.split('@')[0];
+    onSelect(value, inferredName);
   };
 
   return (
@@ -77,7 +78,7 @@ export function GoogleAccountSelector({ onBack, onSelect }: GoogleAccountSelecto
             {ACCOUNTS.map((account) => (
               <button
                 key={account.id}
-                onClick={() => onSelect(account.email)}
+                onClick={() => onSelect(account.email, account.name)}
                 className="group flex w-full items-center gap-5 border-b border-slate-100 px-6 py-5 text-left transition-all hover:bg-neutral-50"
               >
                 <img

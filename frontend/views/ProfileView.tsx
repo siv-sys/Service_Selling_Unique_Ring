@@ -1,5 +1,5 @@
 import React from 'react';
-import { api } from '../lib/api';
+import { api, resolveApiAssetUrl } from '../lib/api';
 import {
   getStoredAuthValue,
   getUserScopedLocalStorageItem,
@@ -1044,7 +1044,7 @@ const ProfileView = ({
           <span className="material-symbols-outlined profile-chevron" aria-hidden="true">expand_more</span>
           <img
             className="mini-avatar"
-            src={avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80'}
+            src={resolveApiAssetUrl(avatarUrl) || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80'}
             alt={profile.title || DEFAULT_PROFILE_NAME}
           />
         </div>
@@ -1054,7 +1054,7 @@ const ProfileView = ({
         <section className="hero">
           <div className="hero-avatar-wrap">
             {avatarUrl ? (
-              <img className="hero-avatar" src={avatarUrl} alt="Selected profile" />
+              <img className="hero-avatar" src={resolveApiAssetUrl(avatarUrl)} alt="Selected profile" />
             ) : (
               <div className="hero-avatar" />
             )}

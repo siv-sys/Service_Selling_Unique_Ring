@@ -1,5 +1,31 @@
 export const API_BASE_URL = '/api';
 
+export function resolveApiAssetUrl(url: string | null | undefined): string {
+  if (!url) return '';
+
+  const trimmed = String(url).trim();
+  if (!trimmed) return '';
+
+  if (
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('blob:') ||
+    /^https?:\/\//i.test(trimmed)
+  ) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('/')) {
+    try {
+      const apiUrl = new URL(API_BASE_URL, window.location.origin);
+      return new URL(trimmed, apiUrl.origin).toString();
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return trimmed;
+}
+
 export interface AuthUser {
   id: number;
   email: string;

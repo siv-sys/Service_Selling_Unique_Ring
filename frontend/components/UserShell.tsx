@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { api, API_BASE_URL } from '../lib/api';
+import { api, API_BASE_URL, resolveApiAssetUrl } from '../lib/api';
 import { isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
 import {
   getStoredAuthValue,
@@ -222,7 +222,7 @@ export default function UserShell({ children }: PropsWithChildren) {
               <Link to="/profile" aria-label="Profile">
                 <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary/70 to-primary text-white shadow-md shadow-primary/15">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                    <img src={resolveApiAssetUrl(avatarUrl)} alt={displayName} className="h-full w-full object-cover" />
                   ) : (
                     <span className="material-symbols-outlined text-[20px]">favorite</span>
                   )}

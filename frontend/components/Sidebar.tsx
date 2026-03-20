@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { api, resolveApiAssetUrl } from '../lib/api';
+import { getStoredAuthValue } from '../lib/userStorage';
 import {
   LayoutDashboard,
   Users,
@@ -24,11 +26,33 @@ const Sidebar = ({ onLogout }: SidebarProps) => {
   const defaultProfilePhoto =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuCmqQASMOLSpK9bGM0-CgmKl9sKhEN6GVoUAzpwuV_qazu6yD8oWPjCj2CgVE-fyl5QOGCpNgh0AALDLKkdOHjRa-3p55FWqeWN2IEP7WRWdYnm7HXTQcVmjLgTru9rytSOijqqbXBENwG2h6eS5rbKl-DJofpCy0tEpZyPfoMv5AsJPZDZqpkkANt9xz8DD1AV_Bn_rHCYdbeLal-7ErCbx9aXUtuDHNY3zLpAGd8hn2VbYSXD_hlpXuc3K9cKXLeY3qGkLCYJB5Sw';
   const [profilePhoto, setProfilePhoto] = useState(defaultProfilePhoto);
+  const [profileName, setProfileName] = useState('Admin');
+  const [roleLabel, setRoleLabel] = useState('System Admin');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('admin_profile_photo');
     if (saved) setProfilePhoto(saved);
+
+    const authRole = String(getStoredAuthValue('auth_roles') || '').toLowerCase();
+    setRoleLabel(authRole === 'admin' ? 'System Admin' : 'Member');
+
+    const loadAdminProfile = async () => {
+      const rawUserId = getStoredAuthValue('auth_user_id');
+      if (!rawUserId) return;
+
+      try {
+        const user = await api.get<{ fullName: string; avatarUrl: string | null }>(`/users/${rawUserId}`);
+        setProfileName(user.fullName || 'Admin');
+        if (user.avatarUrl) {
+          setProfilePhoto(resolveApiAssetUrl(user.avatarUrl));
+        }
+      } catch {
+        // Keep fallback display values when profile query is unavailable.
+      }
+    };
+
+    void loadAdminProfile();
   }, []);
 
   const openPhotoPicker = () => fileInputRef.current?.click();
@@ -39,8 +63,21 @@ const Sidebar = ({ onLogout }: SidebarProps) => {
     if (!file.type.startsWith('image/')) return;
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       if (typeof reader.result === 'string') {
+        const rawUserId = getStoredAuthValue('auth_user_id');
+        if (rawUserId) {
+          try {
+            const updated = await api.patch<{ avatarUrl: string }>(`/users/${rawUserId}/avatar`, { avatarUrl: reader.result });
+            const resolvedAvatar = resolveApiAssetUrl(updated.avatarUrl);
+            setProfilePhoto(resolvedAvatar);
+            localStorage.setItem('admin_profile_photo', resolvedAvatar);
+            return;
+          } catch {
+            // Fallback to local-only save if backend sync fails.
+          }
+        }
+
         setProfilePhoto(reader.result);
         localStorage.setItem('admin_profile_photo', reader.result);
       }
@@ -118,13 +155,13 @@ const Sidebar = ({ onLogout }: SidebarProps) => {
           title="Click to upload profile photo"
         >
           <img
-            alt="Alex Rivera"
+            alt={profileName}
             className="w-10 h-10 rounded-full border-2 border-primary/20 shadow-sm object-cover"
             src={profilePhoto}
           />
           <div className="overflow-hidden text-left">
-            <p className="truncate text-sm font-bold dark:text-slate-100">Alex Rivera</p>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">System Admin</p>
+            <p className="truncate text-sm font-bold dark:text-slate-100">{profileName}</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{roleLabel}</p>
           </div>
         </button>
         <input

@@ -1,6 +1,27 @@
-   import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
+import { api, resolveApiAssetUrl } from '../lib/api';
 import { getUserScopedLocalStorageItem } from '../lib/userStorage';
+
+type ProfilePayload = {
+  title?: string;
+  handle?: string;
+  avatarUrl?: string | null;
+};
+
+type ConnectionPayload = {
+  success?: boolean;
+  connection?: {
+    establishedAt?: string | null;
+    pairCode?: string | null;
+    pair_code?: string | null;
+    partners?: Array<{
+      name?: string | null;
+      email?: string | null;
+      avatar?: string | null;
+    }>;
+  } | null;
+};
 
 const RelationshipView = ({
   onNavigateSettings = () => {},
@@ -15,6 +36,18 @@ const RelationshipView = ({
   const [linkedRings, setLinkedRings] = React.useState<string[]>([]);
   const [cartCount, setCartCount] = React.useState(4);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [primaryName, setPrimaryName] = React.useState('Member');
+  const [primaryHandle, setPrimaryHandle] = React.useState('member');
+  const [primaryAvatar, setPrimaryAvatar] = React.useState(
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80'
+  );
+  const [partnerName, setPartnerName] = React.useState('Partner');
+  const [partnerHandle, setPartnerHandle] = React.useState('partner');
+  const [partnerAvatar, setPartnerAvatar] = React.useState(
+    'https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?auto=format&fit=crop&w=240&q=80'
+  );
+  const [establishedDate, setEstablishedDate] = React.useState('1/1/2025');
+  const [daysTogetherLabel, setDaysTogetherLabel] = React.useState('1y 53d together');
 
   React.useEffect(() => {
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
@@ -26,6 +59,68 @@ const RelationshipView = ({
     }
 
     document.documentElement.classList.remove('dark');
+  }, []);
+
+  React.useEffect(() => {
+    const formatHandle = (value: string) =>
+      String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '') || 'member';
+
+    const formatDateLabel = (value: string | null | undefined) => {
+      if (!value) return '1/1/2025';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '1/1/2025';
+      return date.toLocaleDateString();
+    };
+
+    const formatDaysTogether = (value: string | null | undefined) => {
+      if (!value) return 'Not paired yet';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return 'Not paired yet';
+      const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)));
+      return `${days} day${days === 1 ? '' : 's'} together`;
+    };
+
+    const loadProfileCardData = async () => {
+      try {
+        const profile = await api.get<ProfilePayload>('/profile/me/current');
+        setPrimaryName(profile.title || 'Member');
+        setPrimaryHandle(formatHandle(profile.handle || profile.title || 'member'));
+        if (profile.avatarUrl) {
+          setPrimaryAvatar(resolveApiAssetUrl(profile.avatarUrl));
+        }
+      } catch {
+        // Keep fallback values.
+      }
+
+      try {
+        const connectionData = await api.get<ConnectionPayload>('/pairs/my-connection');
+        const connection = connectionData?.connection;
+        if (!connection) return;
+
+        const establishedAt = connection.establishedAt || null;
+        setPairCode(connection.pairCode || connection.pair_code || 'PAIR001');
+        setEstablishedDate(formatDateLabel(establishedAt));
+        setDaysTogetherLabel(formatDaysTogether(establishedAt));
+
+        const partner = Array.isArray(connection.partners) ? connection.partners[0] : null;
+        if (partner) {
+          const nextPartnerName = partner.name || partner.email?.split('@')[0] || 'Partner';
+          setPartnerName(nextPartnerName);
+          setPartnerHandle(formatHandle(nextPartnerName));
+          if (partner.avatar) {
+            setPartnerAvatar(resolveApiAssetUrl(partner.avatar));
+          }
+        }
+      } catch {
+        // Keep fallback values.
+      }
+    };
+
+    void loadProfileCardData();
   }, []);
 
   React.useEffect(() => {
@@ -202,15 +297,15 @@ const RelationshipView = ({
 
         .identity {
           display: grid;
-          grid-template-columns: 1fr 170px 1fr;
-          gap: 34px;
-          align-items: start;
+          grid-template-columns: minmax(240px, 1fr) minmax(200px, auto) minmax(240px, 1fr);
+          gap: 22px;
+          align-items: stretch;
           justify-items: center;
           margin-bottom: 52px;
           border: 1px solid rgba(255, 42, 162, 0.15);
-          border-radius: 22px;
+          border-radius: 26px;
           background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 246, 242, 0.8));
-          padding: 24px 18px;
+          padding: 22px;
         }
         .dark .identity {
           border-color: rgba(255, 42, 162, 0.2);
@@ -219,42 +314,72 @@ const RelationshipView = ({
 
         .user {
           text-align: center;
+          width: 100%;
+          border: 1px solid rgba(255, 42, 162, 0.14);
+          border-radius: 18px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(254, 248, 251, 0.82));
+          padding: 20px 14px 16px;
+          display: grid;
+          justify-items: center;
+          gap: 4px;
+        }
+        .dark .user {
+          border-color: rgba(255, 42, 162, 0.24);
+          background: linear-gradient(180deg, rgba(58, 53, 56, 0.92), rgba(35, 30, 34, 0.9));
         }
 
         .avatar {
-          width: 104px;
-          height: 104px;
+          width: 108px;
+          height: 108px;
           border-radius: 50%;
-          border: 4px solid rgba(250, 246, 242, 0.9);
-          box-shadow: 0 0 0 1px rgba(255, 42, 162, 0.2), 0 10px 18px rgba(0, 0, 0, 0.1);
+          border: 4px solid rgba(255, 255, 255, 0.95);
+          box-shadow: 0 0 0 1px rgba(255, 42, 162, 0.28), 0 10px 22px rgba(0, 0, 0, 0.12);
           object-fit: cover;
-          margin-bottom: 14px;
+          margin-bottom: 8px;
         }
 
-        .user h2,
-        .user h3 {
+        .user-name {
           margin: 0;
-          font-size: 32px;
-          font-weight: 900;
+          font-size: clamp(34px, 4vw, 50px);
+          font-weight: 850;
           color: #1e1b1a;
           letter-spacing: -0.03em;
-          line-height: 1.15;
+          line-height: 1.04;
         }
-        .dark .user h2,
-        .dark .user h3 { color: rgba(250, 246, 242, 0.95); }
+        .dark .user-name { color: rgba(250, 246, 242, 0.95); }
 
-        .user span {
-          color: #6b7280;
-          font-size: 15px;
-          font-weight: 600;
-          display: block;
-          margin-top: 4px;
+        .user-handle {
+          color: #5b6f86;
+          font-size: 16px;
+          font-weight: 700;
+          line-height: 1.2;
         }
-        .dark .user span { color: rgba(250, 246, 242, 0.6); }
+        .dark .user-handle { color: rgba(250, 246, 242, 0.62); }
+
+        .user-role {
+          margin-top: 2px;
+          color: #7f8fa5;
+          font-size: 12px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          font-weight: 800;
+        }
+        .dark .user-role { color: rgba(250, 246, 242, 0.48); }
 
         .center-info {
           text-align: center;
-          padding-top: 4px;
+          width: 100%;
+          border: 1px dashed rgba(255, 42, 162, 0.28);
+          border-radius: 20px;
+          background: linear-gradient(180deg, rgba(255, 242, 250, 0.85), rgba(255, 248, 252, 0.65));
+          padding: 18px 14px;
+          display: grid;
+          align-content: center;
+          gap: 4px;
+        }
+        .dark .center-info {
+          border-color: rgba(255, 42, 162, 0.34);
+          background: linear-gradient(180deg, rgba(63, 43, 57, 0.76), rgba(39, 30, 37, 0.68));
         }
 
         .center-heart {
@@ -282,11 +407,12 @@ const RelationshipView = ({
         .dark .center-info .kicker { color: rgba(250, 246, 242, 0.5); }
 
         .center-info .date {
-          margin: 7px 0 0;
+          margin: 5px 0 0;
           color: #1e1b1a;
-          font-size: 34px;
+          font-size: clamp(32px, 3.4vw, 44px);
           font-weight: 900;
-          line-height: 1.2;
+          line-height: 1.05;
+          letter-spacing: -0.03em;
         }
         .dark .center-info .date { color: rgba(250, 246, 242, 0.95); }
 
@@ -674,10 +800,7 @@ const RelationshipView = ({
             margin-bottom: 8px;
           }
 
-          .user h2,
-          .user h3 {
-            font-size: 26px;
-          }
+          .user-name { font-size: clamp(30px, 7vw, 44px); }
 
           .row {
             font-size: 14px;
@@ -795,28 +918,30 @@ const RelationshipView = ({
             <article className="user">
               <img
                 className="avatar"
-                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80"
-                alt="John Carter"
+                src={primaryAvatar}
+                alt={primaryName}
               />
-             <h2>Sav Siv</h2>
-              <span>@siv123</span>
+             <h2 className="user-name">{primaryName}</h2>
+              <span className="user-handle">@{primaryHandle}</span>
+              <p className="user-role">Primary Profile</p>
             </article>
 
             <article className="center-info">
               <div className="center-heart">{'\u2764'}</div>
               <p className="kicker">Established</p>
-              <p className="date">1/1/2025</p>
-              <p className="days">1y 53d together</p>
+              <p className="date">{establishedDate}</p>
+              <p className="days">{daysTogetherLabel}</p>
             </article>
 
             <article className="user">
               <img
                 className="avatar"
-                src="https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?auto=format&fit=crop&w=240&q=80"
-                alt="Anna Lee"
+                src={partnerAvatar}
+                alt={partnerName}
               />
-             <h2>Thalita</h2>
-              <span>@anna456</span>
+             <h2 className="user-name">{partnerName}</h2>
+              <span className="user-handle">@{partnerHandle}</span>
+              <p className="user-role">Linked Partner</p>
             </article>
           </div>
 

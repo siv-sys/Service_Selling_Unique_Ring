@@ -18,7 +18,7 @@ const LOGIN_USER_SELECT = `
     id,
     email,
     password_hash,
-    COALESCE(NULLIF(name, ''), NULLIF(full_name, ''), NULLIF(username, ''), SUBSTRING_INDEX(email, '@', 1)) AS name,
+    COALESCE(NULLIF(full_name, ''), NULLIF(name, ''), NULLIF(username, ''), SUBSTRING_INDEX(email, '@', 1)) AS name,
     role,
     COALESCE(account_status, 'ACTIVE') AS account_status
   FROM users

@@ -179,14 +179,14 @@ function AppRoutes() {
     }
   };
 
-  const handleGoogleLogin = async (email: string) => {
+  const handleGoogleLogin = async (email: string, name?: string) => {
     try {
       setIsGoogleLoggingIn(true);
       setLoginError(null);
       const response = await api.googleLogin({
         email,
         providerId: email,
-        name: email.split('@')[0],
+        name: String(name || '').trim() || email.split('@')[0],
       });
       goToRoleHome(response.user, response.accessToken, false);
     } catch (error) {

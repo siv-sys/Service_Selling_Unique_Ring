@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AppView, ThemeType } from '../types';
-import { api } from '../lib/api';
+import { api, resolveApiAssetUrl } from '../lib/api';
 
 interface UserTopNavProps {
   currentView: AppView;
@@ -103,7 +103,7 @@ const UserTopNav: React.FC<UserTopNavProps> = ({ currentView, setView, onSignOut
         <button onClick={onSignOut} className="flex items-center gap-3" title={profile.fullName}>
           <span className="hidden md:inline text-[22px] text-[#27272a] font-normal">{profile.fullName}</span>
           <div className="size-10 rounded-full overflow-hidden border border-[#efedf1] shadow-sm">
-            <img src={profile.avatarUrl || 'https://picsum.photos/seed/user123/100'} alt="Avatar" className="w-full h-full object-cover" />
+            <img src={resolveApiAssetUrl(profile.avatarUrl) || 'https://picsum.photos/seed/user123/100'} alt="Avatar" className="w-full h-full object-cover" />
           </div>
         </button>
       </div>

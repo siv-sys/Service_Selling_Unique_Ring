@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../lib/api';
-import { getUserScopedLocalStorageItem } from '../lib/userStorage';
+import { api, API_BASE_URL } from '../lib/api';
+import { getStoredAuthValue, getUserScopedLocalStorageItem } from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
@@ -30,7 +30,7 @@ const RingInformation: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [coupleName, setCoupleName] = useState<string>('Alex & Jamie');
+  const [coupleName, setCoupleName] = useState<string>('Member');
   const [cartCount, setCartCount] = useState<number>(0);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
 
@@ -53,6 +53,23 @@ const RingInformation: React.FC = () => {
 
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, []);
+
+  // Load current user display name from database
+  useEffect(() => {
+    const loadDisplayName = async () => {
+      const rawUserId = getStoredAuthValue('auth_user_id');
+      if (!rawUserId) return;
+
+      try {
+        const user = await api.get<{ fullName: string; avatarUrl: string | null }>(`/users/${rawUserId}`);
+        setCoupleName(user.fullName || 'Member');
+      } catch {
+        setCoupleName(sessionStorage.getItem('auth_name')?.trim() || 'Member');
+      }
+    };
+
+    void loadDisplayName();
   }, []);
 
   // Auto-hide notification
