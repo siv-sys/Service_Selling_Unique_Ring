@@ -1,6 +1,7 @@
 {
   "name": "service-selling-unique-ring-backend",
   "version": "1.0.0",
+  "type": "commonjs",
   "description": "Backend API for Service Selling Unique Ring",
   "main": "src/server.js",
   "scripts": {

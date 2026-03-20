@@ -474,4 +474,4 @@ router.get('/my-invitations', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

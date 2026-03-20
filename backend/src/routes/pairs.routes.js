@@ -65,4 +65,4 @@ router.get('/my-connection', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;
