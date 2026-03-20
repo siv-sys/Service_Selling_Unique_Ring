@@ -546,7 +546,7 @@ const Dashboard_admin = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {systemUsers.map((user) => (
+                  {systemUsers.map((user) => (g
                     <tr key={user.id} className="hover:bg-pink-50/30 transition-colors">
                       <td className="px-6 py-3 text-sm font-semibold text-slate-900">{user.name}</td>
                       <td className="px-6 py-3 text-sm text-slate-600">{user.email}</td>
