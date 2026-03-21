@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Header from '../components/Header';
-import { api } from '../lib/api';
+import { api, resolveApiAssetUrl } from '../lib/api';
 import {
   Users,
   Link2Off,
@@ -32,6 +32,7 @@ type PairSummary = {
 type PairItem = {
   id: number;
   names: string;
+  memberAvatars?: Array<string | null>;
   pairCode: string;
   pairStatus: 'CONNECTED' | 'PENDING' | 'SYNCING' | 'SUSPENDED' | 'UNPAIRED';
   accessLevel: 'FULL_ACCESS' | 'LIMITED' | 'REVOKED';
@@ -660,6 +661,22 @@ const FilterSelect = ({ label, options, value, onChange }: any) => (
 const UserRow = ({ pair, busy, onToggle, onDelete }: any) => {
   const [selectedAction, setSelectedAction] = useState<'view' | 'chart' | 'link' | 'delete' | null>(null);
   const OSIcon = pair.platform === 'Android' ? Cpu : Smartphone;
+  const memberNames = String(pair.names || '').split('&').map((name: string) => name.trim()).filter(Boolean);
+  const memberAvatars = Array.isArray(pair.memberAvatars) ? pair.memberAvatars : [];
+
+  const renderAvatar = (name: string | undefined, avatarUrl: string | null | undefined, className: string) => {
+    const label = name || 'User';
+    const resolvedAvatar = avatarUrl ? resolveApiAssetUrl(avatarUrl) : '';
+    if (resolvedAvatar) {
+      return <img className={className} src={resolvedAvatar} alt={label} />;
+    }
+
+    return (
+      <div className={`${className} bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold`}>
+        {label.slice(0, 1).toUpperCase()}
+      </div>
+    );
+  };
 
   return (
     <tr className={`hover:bg-primary/5 transition-all duration-200 group ${pair.disabled ? 'bg-slate-50/30' : 'hover:translate-x-0.5'}`}>
@@ -689,8 +706,8 @@ const UserRow = ({ pair, busy, onToggle, onDelete }: any) => {
       <td className="p-5">
         <div className={`flex items-center gap-4 ${pair.disabled ? 'grayscale opacity-70' : ''}`}>
           <div className="relative w-12 h-8">
-            <img className="absolute left-0 top-0 w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover z-10" src={`https://picsum.photos/seed/${pair.names.split('&')[0]?.trim() || pair.id}/100`} alt="" />
-            <img className="absolute left-4 top-0 w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover z-0" src={`https://picsum.photos/seed/${pair.names.split('&')[1]?.trim() || `pair-${pair.id}`}/100`} alt="" />
+            {renderAvatar(memberNames[0], memberAvatars[0], 'absolute left-0 top-0 w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover z-10')}
+            {renderAvatar(memberNames[1], memberAvatars[1], 'absolute left-4 top-0 w-8 h-8 rounded-full border-2 border-white shadow-sm object-cover z-0')}
           </div>
           <div>
             <p className={`text-sm font-bold ${pair.disabled ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{pair.names}</p>

@@ -87,6 +87,10 @@ function mapPairRow(row) {
   return {
     id: Number(row.id),
     names: toDisplayName(row),
+    memberAvatars: [
+      row.member_one_avatar || null,
+      row.member_two_avatar || null,
+    ],
     pairCode,
     pairStatus,
     accessLevel,
@@ -116,6 +120,28 @@ async function loadPairRows() {
         rp.pair_code,
         rp.status AS pair_status,
         rp.access_level,
+        SUBSTRING_INDEX(
+          GROUP_CONCAT(
+            COALESCE(NULLIF(u.avatar_url, ''), '')
+            ORDER BY pm.member_role
+            SEPARATOR '||'
+          ),
+          '||',
+          1
+        ) AS member_one_avatar,
+        SUBSTRING_INDEX(
+          SUBSTRING_INDEX(
+            GROUP_CONCAT(
+              COALESCE(NULLIF(u.avatar_url, ''), '')
+              ORDER BY pm.member_role
+              SEPARATOR '||'
+            ),
+            '||',
+            2
+          ),
+          '||',
+          -1
+        ) AS member_two_avatar,
         GROUP_CONCAT(
           DISTINCT COALESCE(
             NULLIF(u.full_name, ''),

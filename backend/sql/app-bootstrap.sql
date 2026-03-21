@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   title VARCHAR(160) NOT NULL,
   message VARCHAR(500) NOT NULL,
   unread TINYINT(1) NOT NULL DEFAULT 1,
+  metadata JSON NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   read_at DATETIME NULL,
   clicked_at DATETIME NULL,
@@ -88,6 +89,9 @@ CREATE TABLE IF NOT EXISTS notifications (
   KEY idx_notifications_unread (user_id, unread, created_at),
   CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+ALTER TABLE notifications
+ADD COLUMN IF NOT EXISTS metadata JSON NULL AFTER unread;
 
 CREATE TABLE IF NOT EXISTS user_settings (
   user_id BIGINT UNSIGNED PRIMARY KEY,

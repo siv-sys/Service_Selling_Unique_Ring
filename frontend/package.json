@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run build && node server.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "node server.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

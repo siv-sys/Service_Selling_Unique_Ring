@@ -3,10 +3,24 @@ const { query } = require('../config/db');
 
 const router = express.Router();
 
+function getCurrentUserId(req) {
+  const authUserId = Number(req.auth?.user?.id);
+  if (Number.isInteger(authUserId) && authUserId > 0) {
+    return authUserId;
+  }
+
+  const headerUserId = Number(req.header('x-auth-user-id'));
+  if (Number.isInteger(headerUserId) && headerUserId > 0) {
+    return headerUserId;
+  }
+
+  return 0;
+}
+
 // Get my connection details
 router.get('/my-connection', async (req, res) => {
   try {
-    const currentUserId = Number(req.header('x-auth-user-id'));
+    const currentUserId = getCurrentUserId(req);
 
     // Find active relationship pair for current user
     const pairs = await query(

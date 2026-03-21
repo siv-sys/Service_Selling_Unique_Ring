@@ -24,6 +24,41 @@ type ConnectionPayload = {
   } | null;
 };
 
+type Invitation = {
+  id: number;
+  type: 'sent' | 'received';
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+  createdAt: string;
+  respondedAt: string | null;
+  user: {
+    id: number | null;
+    email: string;
+    name: string | null;
+    avatar: string | null;
+  };
+};
+
+type InvitationListPayload = {
+  success?: boolean;
+  invitations?: {
+    sent: Invitation[];
+    received: Invitation[];
+  };
+};
+
+type SearchResult = {
+  id: number;
+  email: string;
+  displayName: string;
+  avatar: string | null;
+  accountStatus: string;
+};
+
+type SearchPayload = {
+  success?: boolean;
+  users?: SearchResult[];
+};
+
 const RelationshipView = ({
   onNavigateSettings = () => {},
   onNavigateCoupleProfile = () => {},
@@ -49,6 +84,72 @@ const RelationshipView = ({
   );
   const [establishedDate, setEstablishedDate] = React.useState('1/1/2025');
   const [daysTogetherLabel, setDaysTogetherLabel] = React.useState('1y 53d together');
+  const [inviteQuery, setInviteQuery] = React.useState('');
+  const [inviteRingId, setInviteRingId] = React.useState('');
+  const [searchResults, setSearchResults] = React.useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [isSendingInvite, setIsSendingInvite] = React.useState(false);
+  const [inviteMessage, setInviteMessage] = React.useState('');
+  const [inviteMessageTone, setInviteMessageTone] = React.useState<'success' | 'error' | ''>('');
+  const [invitations, setInvitations] = React.useState<{ sent: Invitation[]; received: Invitation[] }>({
+    sent: [],
+    received: []
+  });
+  const [loadingInvitations, setLoadingInvitations] = React.useState(true);
+  const [connectionLoaded, setConnectionLoaded] = React.useState(false);
+
+  const applyConnectionData = React.useCallback((connection: ConnectionPayload['connection']) => {
+    const formatHandle = (value: string) =>
+      String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '') || 'member';
+
+    const formatDateLabel = (value: string | null | undefined) => {
+      if (!value) return '1/1/2025';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '1/1/2025';
+      return date.toLocaleDateString();
+    };
+
+    const formatDaysTogether = (value: string | null | undefined) => {
+      if (!value) return 'Not paired yet';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return 'Not paired yet';
+      const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)));
+      return `${days} day${days === 1 ? '' : 's'} together`;
+    };
+
+    if (!connection) return;
+
+    const establishedAt = connection.establishedAt || null;
+    setPairCode(connection.pairCode || connection.pair_code || 'PAIR001');
+    setEstablishedDate(formatDateLabel(establishedAt));
+    setDaysTogetherLabel(formatDaysTogether(establishedAt));
+    setStatus('PAIRED');
+
+    const partner = Array.isArray(connection.partners) ? connection.partners[0] : null;
+    if (partner) {
+      const nextPartnerName = partner.name || partner.email?.split('@')[0] || 'Partner';
+      setPartnerName(nextPartnerName);
+      setPartnerHandle(formatHandle(nextPartnerName));
+      if (partner.avatar) {
+        setPartnerAvatar(resolveApiAssetUrl(partner.avatar));
+      }
+    }
+  }, []);
+
+  const refreshConnection = React.useCallback(async () => {
+    try {
+      const connectionData = await api.get<ConnectionPayload>('/pairs/my-connection');
+      applyConnectionData(connectionData?.connection || null);
+    } catch {
+      // Keep current values if connection refresh fails.
+    } finally {
+      setConnectionLoaded(true);
+    }
+  }, [applyConnectionData]);
 
   React.useEffect(() => {
     setIsDarkMode(isStoredDarkModeEnabled());
@@ -72,21 +173,6 @@ const RelationshipView = ({
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_|_$/g, '') || 'member';
 
-    const formatDateLabel = (value: string | null | undefined) => {
-      if (!value) return '1/1/2025';
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return '1/1/2025';
-      return date.toLocaleDateString();
-    };
-
-    const formatDaysTogether = (value: string | null | undefined) => {
-      if (!value) return 'Not paired yet';
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return 'Not paired yet';
-      const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)));
-      return `${days} day${days === 1 ? '' : 's'} together`;
-    };
-
     const loadProfileCardData = async () => {
       try {
         const profile = await api.get<ProfilePayload>('/profile/me/current');
@@ -99,32 +185,55 @@ const RelationshipView = ({
         // Keep fallback values.
       }
 
-      try {
-        const connectionData = await api.get<ConnectionPayload>('/pairs/my-connection');
-        const connection = connectionData?.connection;
-        if (!connection) return;
-
-        const establishedAt = connection.establishedAt || null;
-        setPairCode(connection.pairCode || connection.pair_code || 'PAIR001');
-        setEstablishedDate(formatDateLabel(establishedAt));
-        setDaysTogetherLabel(formatDaysTogether(establishedAt));
-
-        const partner = Array.isArray(connection.partners) ? connection.partners[0] : null;
-        if (partner) {
-          const nextPartnerName = partner.name || partner.email?.split('@')[0] || 'Partner';
-          setPartnerName(nextPartnerName);
-          setPartnerHandle(formatHandle(nextPartnerName));
-          if (partner.avatar) {
-            setPartnerAvatar(resolveApiAssetUrl(partner.avatar));
-          }
-        }
-      } catch {
-        // Keep fallback values.
-      }
+      await refreshConnection();
     };
 
     void loadProfileCardData();
+  }, [refreshConnection]);
+
+  React.useEffect(() => {
+    const loadInvitations = async () => {
+      try {
+        const result = await api.get<InvitationListPayload>('/pair-invitations/my-invitations');
+        if (result?.success && result.invitations) {
+          setInvitations(result.invitations);
+        }
+      } catch {
+        // Keep empty invitation state.
+      } finally {
+        setLoadingInvitations(false);
+      }
+    };
+
+    void loadInvitations();
   }, []);
+
+  React.useEffect(() => {
+    const searchUsers = async () => {
+      const query = inviteQuery.trim();
+      if (query.length < 2) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const result = await api.get<SearchPayload>(`/pair-invitations/search-users?q=${encodeURIComponent(query)}`);
+        setSearchResults(Array.isArray(result?.users) ? result.users : []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      void searchUsers();
+    }, 220);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [inviteQuery]);
 
   React.useEffect(() => {
     const syncCartCount = () => {
@@ -173,6 +282,84 @@ const RelationshipView = ({
     setIsDarkMode(nextDarkMode);
     setDarkModePreference(nextDarkMode);
   };
+
+  const refreshInvitations = async () => {
+    const result = await api.get<InvitationListPayload>('/pair-invitations/my-invitations');
+    if (result?.success && result.invitations) {
+      setInvitations(result.invitations);
+    }
+  };
+
+  const handleSendInvite = async (targetEmail?: string) => {
+    const inviteeEmail = (targetEmail || inviteQuery).trim();
+    if (!inviteeEmail) {
+      setInviteMessage('Enter a partner email or choose a profile first.');
+      setInviteMessageTone('error');
+      return;
+    }
+
+    setIsSendingInvite(true);
+    setInviteMessage('');
+    setInviteMessageTone('');
+
+    try {
+      const result = await api.post<{ success?: boolean; message?: string }>('/pair-invitations/send', {
+        inviteeEmail,
+        inviteeRingIdentifier: inviteRingId.trim() || undefined
+      });
+      setInviteMessage(result?.message || `Invitation sent to ${inviteeEmail}`);
+      setInviteMessageTone('success');
+      setInviteQuery('');
+      setInviteRingId('');
+      setSearchResults([]);
+      await refreshInvitations();
+    } catch (error: any) {
+      setInviteMessage(error instanceof Error ? error.message : 'Failed to send invitation');
+      setInviteMessageTone('error');
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
+  const handleInvitationAction = async (action: 'accept' | 'reject' | 'cancel', invitationId: number) => {
+    try {
+      await api.post(`/pair-invitations/${invitationId}/${action}`, {});
+      setInvitations((current) => ({
+        sent: current.sent.filter((item) => item.id !== invitationId),
+        received: current.received.filter((item) => item.id !== invitationId)
+      }));
+      setInviteMessage(
+        action === 'accept'
+          ? 'Invitation accepted. Your relationship is now connected.'
+          : action === 'reject'
+            ? 'Invitation rejected.'
+            : 'Invitation cancelled.'
+      );
+      setInviteMessageTone('success');
+      if (action === 'accept') {
+        await refreshInvitations();
+        await refreshConnection();
+      }
+    } catch (error: any) {
+      setInviteMessage(error instanceof Error ? error.message : `Failed to ${action} invitation`);
+      setInviteMessageTone('error');
+    }
+  };
+
+  const handleCopyMyId = async () => {
+    const value = primaryHandle ? `@${primaryHandle}` : primaryName;
+    try {
+      await navigator.clipboard.writeText(value);
+      setInviteMessage(`Copied ${value} to clipboard.`);
+      setInviteMessageTone('success');
+    } catch {
+      setInviteMessage('Could not copy automatically. Please copy your ID manually.');
+      setInviteMessageTone('error');
+    }
+  };
+
+  const pendingInvitations = [...invitations.received, ...invitations.sent].filter((item) => item.status === 'PENDING');
+  const hasRelationship = status === 'PAIRED' || status === 'PUBLIC' || status === 'PARTNERS' || status === 'PRIVATE';
 
   return (
     <div className="relationship-page">
@@ -265,6 +452,401 @@ const RelationshipView = ({
           background: rgba(0, 0, 0, 0.2);
           color: rgba(250, 246, 242, 0.6);
         }
+
+        .invite-shell {
+          background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,245,240,0.92));
+          border: 1px solid rgba(255, 42, 162, 0.1);
+          border-radius: 32px;
+          box-shadow: 0 26px 50px rgba(15, 23, 42, 0.07);
+          padding: 42px 34px 30px;
+          margin-bottom: 28px;
+        }
+        .dark .invite-shell {
+          background: linear-gradient(180deg, rgba(44, 39, 37, 0.96), rgba(29, 27, 26, 0.92));
+          border-color: rgba(255, 42, 162, 0.16);
+          box-shadow: 0 26px 50px rgba(0, 0, 0, 0.28);
+        }
+
+        .invite-hero {
+          display: grid;
+          gap: 20px;
+          justify-items: start;
+          margin-bottom: 24px;
+        }
+
+        .invite-kicker {
+          font-size: 11px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #9ca3af;
+          font-weight: 800;
+        }
+        .dark .invite-kicker { color: rgba(250, 246, 242, 0.48); }
+
+        .invite-form-row {
+          display: grid;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .search-input-wrap {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 168px;
+          gap: 12px;
+          align-items: center;
+          width: 100%;
+          padding: 6px;
+          border-radius: 14px;
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+        }
+        .dark .search-input-wrap {
+          background: rgba(17, 24, 39, 0.35);
+          border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .search-field {
+          width: 100%;
+          border-radius: 10px;
+          border: 0;
+          background: transparent;
+          height: 44px;
+          padding: 0 14px;
+          font-size: 14px;
+          color: #0f172a;
+          font-family: inherit;
+        }
+        .dark .search-field {
+          background: transparent;
+          color: rgba(250, 246, 242, 0.92);
+        }
+
+        .search-field:focus {
+          outline: none;
+        }
+
+        .send-btn {
+          height: 40px;
+          border: 0;
+          border-radius: 10px;
+          background: linear-gradient(180deg, #f97316, #ea580c);
+          color: #fff;
+          font-size: 13px;
+          font-weight: 800;
+          cursor: pointer;
+          box-shadow: 0 10px 22px rgba(249, 115, 22, 0.24);
+          padding: 0 18px;
+        }
+
+        .search-caption {
+          font-size: 11px;
+          letter-spacing: 0.04em;
+          color: #94a3b8;
+          font-weight: 700;
+        }
+        .dark .search-caption {
+          color: rgba(250, 246, 242, 0.48);
+        }
+
+        .send-btn:disabled {
+          opacity: 0.6;
+          cursor: wait;
+        }
+
+        .invite-feedback {
+          margin-top: 12px;
+          font-size: 13px;
+          font-weight: 700;
+        }
+        .invite-feedback.success { color: #16a34a; }
+        .invite-feedback.error { color: #dc2626; }
+
+        .search-results {
+          margin-top: 14px;
+          display: grid;
+          gap: 10px;
+        }
+
+        .search-result {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 12px 14px;
+          border-radius: 16px;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          background: rgba(255, 255, 255, 0.75);
+        }
+        .dark .search-result {
+          border-color: rgba(255, 255, 255, 0.08);
+          background: rgba(17, 24, 39, 0.28);
+        }
+
+        .search-result-main {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .mini-avatar {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          object-fit: cover;
+          background: linear-gradient(135deg, rgba(251,146,60,0.22), rgba(249,115,22,0.38));
+          display: grid;
+          place-items: center;
+          color: #ea580c;
+          font-size: 15px;
+          font-weight: 800;
+          flex: 0 0 auto;
+        }
+
+        .search-result-name {
+          font-size: 14px;
+          font-weight: 800;
+          color: #0f172a;
+        }
+        .dark .search-result-name { color: rgba(250, 246, 242, 0.96); }
+
+        .search-result-sub {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .dark .search-result-sub { color: rgba(250, 246, 242, 0.56); }
+
+        .invite-small-btn,
+        .ghost-btn,
+        .tiny-btn {
+          border-radius: 10px;
+          font-family: inherit;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .invite-small-btn {
+          border: 0;
+          background: linear-gradient(180deg, #f97316, #ea580c);
+          color: #fff;
+          padding: 10px 14px;
+          font-size: 12px;
+        }
+
+        .pending-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin: 26px 0 16px;
+          gap: 12px;
+        }
+
+        .pending-title {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 800;
+          color: #111827;
+        }
+        .dark .pending-title { color: rgba(250, 246, 242, 0.95); }
+
+        .pending-count {
+          font-size: 11px;
+          font-weight: 800;
+          color: #f97316;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+
+        .pending-box {
+          border: 1px dashed rgba(226, 232, 240, 0.95);
+          background: rgba(255, 255, 255, 0.58);
+          border-radius: 24px;
+          min-height: 224px;
+          padding: 20px;
+          display: grid;
+          place-items: center;
+        }
+        .dark .pending-box {
+          border-color: rgba(255, 255, 255, 0.08);
+          background: rgba(17, 24, 39, 0.18);
+        }
+
+        .pending-empty {
+          max-width: 360px;
+          text-align: center;
+          display: grid;
+          gap: 12px;
+          justify-items: center;
+        }
+
+        .pending-empty-icon {
+          width: 74px;
+          height: 74px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          background: rgba(241, 245, 249, 0.78);
+          color: #cbd5e1;
+          font-size: 32px;
+        }
+
+        .pending-empty h3 {
+          margin: 0;
+          font-size: 22px;
+          color: #0f172a;
+          font-weight: 800;
+        }
+        .dark .pending-empty h3 { color: rgba(250, 246, 242, 0.96); }
+
+        .pending-empty p {
+          margin: 0;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        .dark .pending-empty p { color: rgba(250, 246, 242, 0.58); }
+
+        .pending-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .ghost-btn,
+        .tiny-btn {
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          background: #fff;
+          color: #334155;
+          padding: 10px 14px;
+          font-size: 12px;
+        }
+        .dark .ghost-btn,
+        .dark .tiny-btn {
+          border-color: rgba(255,255,255,0.1);
+          background: rgba(17, 24, 39, 0.35);
+          color: rgba(250, 246, 242, 0.82);
+        }
+
+        .pending-list {
+          width: 100%;
+          display: grid;
+          gap: 14px;
+        }
+
+        .pending-card {
+          border-radius: 18px;
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          background: rgba(255, 255, 255, 0.9);
+          padding: 16px;
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          align-items: center;
+        }
+        .pending-card.received { border-color: rgba(244, 114, 182, 0.45); }
+        .pending-card.sent { border-color: rgba(251, 146, 60, 0.45); }
+        .dark .pending-card {
+          background: rgba(17, 24, 39, 0.28);
+          border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .pending-card-meta {
+          min-width: 0;
+          display: grid;
+          gap: 4px;
+        }
+
+        .pending-card-title {
+          font-size: 15px;
+          font-weight: 800;
+          color: #111827;
+        }
+        .dark .pending-card-title { color: rgba(250, 246, 242, 0.95); }
+
+        .pending-card-sub {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        .dark .pending-card-sub { color: rgba(250, 246, 242, 0.56); }
+
+        .pending-badge {
+          width: fit-content;
+          padding: 5px 10px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 800;
+          background: rgba(249, 115, 22, 0.12);
+          color: #ea580c;
+        }
+
+        .pending-card-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .tiny-btn.accept {
+          background: #16a34a;
+          border-color: #16a34a;
+          color: #fff;
+        }
+        .tiny-btn.reject {
+          background: #dc2626;
+          border-color: #dc2626;
+          color: #fff;
+        }
+
+        .benefits-grid {
+          margin-top: 22px;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .benefit-card {
+          border-radius: 18px;
+          border: 1px solid rgba(226, 232, 240, 0.9);
+          background: rgba(255,255,255,0.76);
+          padding: 18px;
+          display: grid;
+          gap: 8px;
+        }
+        .dark .benefit-card {
+          border-color: rgba(255,255,255,0.08);
+          background: rgba(17, 24, 39, 0.22);
+        }
+
+        .benefit-top {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 14px;
+          font-weight: 800;
+          color: #111827;
+        }
+        .dark .benefit-top { color: rgba(250, 246, 242, 0.95); }
+
+        .benefit-icon {
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          display: grid;
+          place-items: center;
+          background: rgba(249, 115, 22, 0.12);
+          color: #ea580c;
+          font-size: 16px;
+        }
+
+        .benefit-card p {
+          margin: 0;
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.6;
+        }
+        .dark .benefit-card p { color: rgba(250, 246, 242, 0.56); }
 
         .certificate {
           background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(250, 246, 242, 0.9));
@@ -699,7 +1281,11 @@ const RelationshipView = ({
 
         .outline-btn:hover,
         .solid-btn:hover,
-        .ring-add-btn:hover {
+        .ring-add-btn:hover,
+        .send-btn:hover,
+        .invite-small-btn:hover,
+        .ghost-btn:hover,
+        .tiny-btn:hover {
           transform: translateY(-1px);
           filter: saturate(1.03);
         }
@@ -751,12 +1337,17 @@ const RelationshipView = ({
             padding: 40px 14px 30px;
           }
 
+          .invite-shell {
+            padding: 28px 18px 22px;
+            border-radius: 24px;
+          }
+
           .hero h1 {
             font-size: clamp(32px, 8.4vw, 56px);
           }
 
           .hero p {
-            font-size: 18px;
+            font-size: 16px;
           }
 
           .identity {
@@ -782,8 +1373,17 @@ const RelationshipView = ({
             font-size: inherit;
           }
 
-          .grid-cards {
+          .grid-cards,
+          .benefits-grid {
             grid-template-columns: 1fr;
+          }
+
+          .search-input-wrap {
+            grid-template-columns: 1fr;
+          }
+
+          .send-btn {
+            width: 100%;
           }
 
           .card {
@@ -847,6 +1447,23 @@ const RelationshipView = ({
             padding: 6px 10px;
           }
 
+          .pending-card {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .pending-card-actions {
+            justify-content: flex-start;
+          }
+
+          .linked-controls {
+            flex-direction: column;
+          }
+
+          .ring-add-btn {
+            width: 100%;
+          }
+
           .footer {
             margin-top: 30px;
             letter-spacing: 0.18em;
@@ -902,168 +1519,312 @@ const RelationshipView = ({
       </header>
 
       <main className="relationship-wrap">
-        <section className="hero">
-          <span className="label">{'\u2726'} Always & Forever</span>
-          <h1>Relationship Certificate</h1>
-          <p>Live relationship profile from your database.</p>
-          <span className="pair-code">{pairCode}</span>
-        </section>
-
-        <section className="certificate">
-          <div className="identity">
-            <article className="user">
-              <img
-                className="avatar"
-                src={primaryAvatar}
-                alt={primaryName}
-              />
-             <h2 className="user-name">{primaryName}</h2>
-              <span className="user-handle">@{primaryHandle}</span>
-              <p className="user-role">Primary Profile</p>
-            </article>
-
-            <article className="center-info">
-              <div className="center-heart">{'\u2764'}</div>
-              <p className="kicker">Established</p>
-              <p className="date">{establishedDate}</p>
-              <p className="days">{daysTogetherLabel}</p>
-            </article>
-
-            <article className="user">
-              <img
-                className="avatar"
-                src={partnerAvatar}
-                alt={partnerName}
-              />
-             <h2 className="user-name">{partnerName}</h2>
-              <span className="user-handle">@{partnerHandle}</span>
-              <p className="user-role">Linked Partner</p>
-            </article>
-          </div>
-
-          <div className="grid-cards">
-            <section className="card">
-              <h4>Pair Metadata</h4>
-              <div className="meta">
-                <label className="row">
-                  <span>Access:</span>
-                  <select
-                    className="field-select"
-                    value={access}
-                    onChange={(event) => setAccess(event.target.value)}
-                  >
-                    <option value="GRANTED">GRANTED</option>
-                    <option value="REVOKED">REVOKED</option>
-                  </select>
-                </label>
-                <label className="row">
-                  <span>Code:</span>
+        {connectionLoaded && !hasRelationship && (
+          <section className="invite-shell">
+            <section className="hero invite-hero">
+              <span className="label">{'\u2726'} Always & Forever</span>
+              <h1>Start Your Journey Together</h1>
+              <p>
+                Connect with your partner to create your digital relationship certificate and celebrate your love.
+                Once linked, you can document milestones and share your story.
+              </p>
+              <div className="invite-kicker">Invite by ID</div>
+              <div className="invite-form-row">
+                <div className="search-caption">Invite by ID</div>
+                <div className="search-input-wrap">
                   <input
-                    className="field-input"
-                    value={pairCode}
-                    onChange={(event) => setPairCode(event.target.value.toUpperCase())}
+                    className="search-field"
+                    value={inviteQuery}
+                    onChange={(event) => setInviteQuery(event.target.value)}
+                    placeholder="Search by Partner ID (e.g., @john123) or email"
                   />
-                </label>
-                <label className="row">
-                  <span>Status:</span>
-                  <select
-                    className="field-select"
-                    value={status}
-                    onChange={(event) => setStatus(event.target.value)}
-                  >
-                    <option value="PAIRED">PAIRED</option>
-                    <option value="UNPAIRED">UNPAIRED</option>
-                    <option value="PUBLIC">PUBLIC</option>
-                    <option value="PARTNERS">PARTNERS</option>
-                    <option value="PRIVATE">PRIVATE</option>
-                  </select>
-                </label>
+                  <button className="send-btn" type="button" disabled={isSendingInvite} onClick={() => void handleSendInvite()}>
+                    {isSendingInvite ? 'Sending...' : 'Send Invitation'}
+                  </button>
+                </div>
               </div>
-              <button className="outline-btn" type="button" onClick={handleUnpair}>
-                Unpair Relationship
-              </button>
+              {inviteMessage && <div className={`invite-feedback ${inviteMessageTone}`}>{inviteMessage}</div>}
+
+              {(isSearching || searchResults.length > 0) && (
+                <div className="search-results">
+                  {isSearching && <div className="search-result-sub">Searching partners...</div>}
+                  {!isSearching && searchResults.map((user) => (
+                    <div className="search-result" key={user.id}>
+                      <div className="search-result-main">
+                        {user.avatar ? (
+                          <img className="mini-avatar" src={resolveApiAssetUrl(user.avatar)} alt={user.displayName} />
+                        ) : (
+                          <div className="mini-avatar">{user.displayName.slice(0, 1).toUpperCase()}</div>
+                        )}
+                        <div>
+                          <div className="search-result-name">{user.displayName}</div>
+                          <div className="search-result-sub">{user.email}</div>
+                        </div>
+                      </div>
+                      <button className="invite-small-btn" type="button" onClick={() => void handleSendInvite(user.email)}>
+                        Invite
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
-            <section className="card">
-              <h4>Privacy Vault</h4>
-              <p className="helper">Visibility mode from 'proximity_preferences'.</p>
-              <div className="options">
-                <label className={`option ${visibility === 'public' ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="visibility"
-                    value="public"
-                    checked={visibility === 'public'}
-                    onChange={(event) => setVisibility(event.target.value)}
-                  />
-                  <span>Public Presence</span>
-                  <span className="dot" />
-                </label>
-                <label className={`option ${visibility === 'partners' ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="visibility"
-                    value="partners"
-                    checked={visibility === 'partners'}
-                    onChange={(event) => setVisibility(event.target.value)}
-                  />
-                  <span>Partners Only</span>
-                  <span className="dot" />
-                </label>
-                <label className={`option ${visibility === 'private' ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="visibility"
-                    value="private"
-                    checked={visibility === 'private'}
-                    onChange={(event) => setVisibility(event.target.value)}
-                  />
-                  <span>Private</span>
-                  <span className="dot" />
-                </label>
-              </div>
-              <button className="solid-btn" type="button" onClick={handleSaveVisibility}>
-                Save Visibility
-              </button>
-            </section>
-          </div>
-
-          <div className="divider" />
-
-          <section className="linked">
-            <h5>Linked Rings</h5>
-            <div className="linked-box">
-              {linkedRings.length === 0 ? 'No rings linked.' : `${linkedRings.length} ring(s) linked.`}
+            <div className="pending-head">
+              <h2 className="pending-title">Pending Invitations</h2>
+              <span className="pending-count">
+                {loadingInvitations ? 'Loading...' : `${pendingInvitations.length} request${pendingInvitations.length === 1 ? '' : 's'}`}
+              </span>
             </div>
-            <div className="linked-controls">
-              <input
-                className="ring-input"
-                value={ringInput}
-                onChange={(event) => setRingInput(event.target.value)}
-                placeholder="Enter ring id"
-              />
-              <button className="ring-add-btn" type="button" onClick={handleAddRing}>
-                Add Ring
-              </button>
+
+            <div className="pending-box">
+              {loadingInvitations ? (
+                <div className="pending-empty">
+                  <div className="pending-empty-icon">...</div>
+                  <h3>Loading invitations</h3>
+                  <p>Checking sent and received requests for your relationship profile.</p>
+                </div>
+              ) : pendingInvitations.length === 0 ? (
+                <div className="pending-empty">
+                  <div className="pending-empty-icon">+</div>
+                  <h3>No pending invites yet</h3>
+                  <p>When you receive or send a partner request, it will appear here. Share your ID with your partner to get started.</p>
+                  <div className="pending-actions">
+                    <button className="ghost-btn" type="button">How it works</button>
+                    <button className="ghost-btn" type="button" onClick={() => void handleCopyMyId()}>Copy My ID</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pending-list">
+                  {pendingInvitations.map((invitation) => (
+                    <article className={`pending-card ${invitation.type}`} key={`${invitation.type}-${invitation.id}`}>
+                      <div className="search-result-main">
+                        {invitation.user.avatar ? (
+                          <img
+                            className="mini-avatar"
+                            src={resolveApiAssetUrl(invitation.user.avatar)}
+                            alt={invitation.user.name || invitation.user.email}
+                          />
+                        ) : (
+                          <div className="mini-avatar">
+                            {(invitation.user.name || invitation.user.email || '?').slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="pending-card-meta">
+                          <div className="pending-card-title">{invitation.user.name || invitation.user.email}</div>
+                          <div className="pending-card-sub">{invitation.user.email}</div>
+                          <div className="pending-badge">
+                            {invitation.type === 'received' ? 'Waiting for you' : 'Waiting for them'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pending-card-actions">
+                        {invitation.type === 'received' ? (
+                          <>
+                            <button className="tiny-btn accept" type="button" onClick={() => void handleInvitationAction('accept', invitation.id)}>
+                              Accept
+                            </button>
+                            <button className="tiny-btn reject" type="button" onClick={() => void handleInvitationAction('reject', invitation.id)}>
+                              Reject Invitation
+                            </button>
+                          </>
+                        ) : (
+                          <button className="tiny-btn" type="button" onClick={() => void handleInvitationAction('cancel', invitation.id)}>
+                            Cancel Request
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
-            {linkedRings.length > 0 && (
-              <ul className="ring-list">
-                {linkedRings.map((ring) => (
-                  <li className="ring-item" key={ring}>
-                    <span>{ring}</span>
-                    <button
-                      className="ring-remove"
-                      type="button"
-                      onClick={() => setLinkedRings((current) => current.filter((item) => item !== ring))}
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+
+            <div className="benefits-grid">
+              <article className="benefit-card">
+                <div className="benefit-top">
+                  <span className="benefit-icon">P</span>
+                  <span>Privacy First</span>
+                </div>
+                <p>Only you and your partner can see your shared certificate and timeline data.</p>
+              </article>
+              <article className="benefit-card">
+                <div className="benefit-top">
+                  <span className="benefit-icon">D</span>
+                  <span>Digital Milestone</span>
+                </div>
+                <p>Capture a unique digital keepsake that grows with your relationship over time.</p>
+              </article>
+            </div>
           </section>
-        </section>
+        )}
+
+        {hasRelationship && (
+          <>
+            <section className="hero">
+              <span className="label">{'\u2726'} Relationship Certificate</span>
+              <h1>Live Relationship Profile</h1>
+              <p>Connected partner details synced from your database and pair settings.</p>
+              <span className="pair-code">{pairCode}</span>
+            </section>
+
+            <section className="certificate">
+              <div className="identity">
+                <article className="user">
+                  <img
+                    className="avatar"
+                    src={primaryAvatar}
+                    alt={primaryName}
+                  />
+                 <h2 className="user-name">{primaryName}</h2>
+                  <span className="user-handle">@{primaryHandle}</span>
+                  <p className="user-role">Primary Profile</p>
+                </article>
+
+                <article className="center-info">
+                  <div className="center-heart">{'\u2764'}</div>
+                  <p className="kicker">Established</p>
+                  <p className="date">{establishedDate}</p>
+                  <p className="days">{daysTogetherLabel}</p>
+                </article>
+
+                <article className="user">
+                  <img
+                    className="avatar"
+                    src={partnerAvatar}
+                    alt={partnerName}
+                  />
+                 <h2 className="user-name">{partnerName}</h2>
+                  <span className="user-handle">@{partnerHandle}</span>
+                  <p className="user-role">Linked Partner</p>
+                </article>
+              </div>
+
+              <div className="grid-cards">
+                <section className="card">
+                  <h4>Pair Metadata</h4>
+                  <div className="meta">
+                    <label className="row">
+                      <span>Access:</span>
+                      <select
+                        className="field-select"
+                        value={access}
+                        onChange={(event) => setAccess(event.target.value)}
+                      >
+                        <option value="GRANTED">GRANTED</option>
+                        <option value="REVOKED">REVOKED</option>
+                      </select>
+                    </label>
+                    <label className="row">
+                      <span>Code:</span>
+                      <input
+                        className="field-input"
+                        value={pairCode}
+                        onChange={(event) => setPairCode(event.target.value.toUpperCase())}
+                      />
+                    </label>
+                    <label className="row">
+                      <span>Status:</span>
+                      <select
+                        className="field-select"
+                        value={status}
+                        onChange={(event) => setStatus(event.target.value)}
+                      >
+                        <option value="PAIRED">PAIRED</option>
+                        <option value="UNPAIRED">UNPAIRED</option>
+                        <option value="PUBLIC">PUBLIC</option>
+                        <option value="PARTNERS">PARTNERS</option>
+                        <option value="PRIVATE">PRIVATE</option>
+                      </select>
+                    </label>
+                  </div>
+                  <button className="outline-btn" type="button" onClick={handleUnpair}>
+                    Unpair Relationship
+                  </button>
+                </section>
+
+                <section className="card">
+                  <h4>Privacy Vault</h4>
+                  <p className="helper">Visibility mode from 'proximity_preferences'.</p>
+                  <div className="options">
+                    <label className={`option ${visibility === 'public' ? 'active' : ''}`}>
+                      <input
+                        type="radio"
+                        name="visibility"
+                        value="public"
+                        checked={visibility === 'public'}
+                        onChange={(event) => setVisibility(event.target.value)}
+                      />
+                      <span>Public Presence</span>
+                      <span className="dot" />
+                    </label>
+                    <label className={`option ${visibility === 'partners' ? 'active' : ''}`}>
+                      <input
+                        type="radio"
+                        name="visibility"
+                        value="partners"
+                        checked={visibility === 'partners'}
+                        onChange={(event) => setVisibility(event.target.value)}
+                      />
+                      <span>Partners Only</span>
+                      <span className="dot" />
+                    </label>
+                    <label className={`option ${visibility === 'private' ? 'active' : ''}`}>
+                      <input
+                        type="radio"
+                        name="visibility"
+                        value="private"
+                        checked={visibility === 'private'}
+                        onChange={(event) => setVisibility(event.target.value)}
+                      />
+                      <span>Private</span>
+                      <span className="dot" />
+                    </label>
+                  </div>
+                  <button className="solid-btn" type="button" onClick={handleSaveVisibility}>
+                    Save Visibility
+                  </button>
+                </section>
+              </div>
+
+              <div className="divider" />
+
+              <section className="linked">
+                <h5>Linked Rings</h5>
+                <div className="linked-box">
+                  {linkedRings.length === 0 ? 'No rings linked.' : `${linkedRings.length} ring(s) linked.`}
+                </div>
+                <div className="linked-controls">
+                  <input
+                    className="ring-input"
+                    value={ringInput}
+                    onChange={(event) => setRingInput(event.target.value)}
+                    placeholder="Enter ring id"
+                  />
+                  <button className="ring-add-btn" type="button" onClick={handleAddRing}>
+                    Add Ring
+                  </button>
+                </div>
+                {linkedRings.length > 0 && (
+                  <ul className="ring-list">
+                    {linkedRings.map((ring) => (
+                      <li className="ring-item" key={ring}>
+                        <span>{ring}</span>
+                        <button
+                          className="ring-remove"
+                          type="button"
+                          onClick={() => setLinkedRings((current) => current.filter((item) => item !== ring))}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </section>
+          </>
+        )}
 
         <p className="footer">Built for two {'\u2022'} forever connected</p>
       </main>

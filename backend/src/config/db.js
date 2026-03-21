@@ -233,6 +233,10 @@ async function initializeCoreTables() {
     ) ENGINE=InnoDB
   `);
   await execute(`ALTER TABLE notifications MODIFY COLUMN user_id ${userIdType} NOT NULL`);
+  await execute(`
+    ALTER TABLE notifications
+    ADD COLUMN IF NOT EXISTS metadata JSON NULL AFTER unread
+  `).catch(() => {});
   await execute(
     `
       ALTER TABLE notifications

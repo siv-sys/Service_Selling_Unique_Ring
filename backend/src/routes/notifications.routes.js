@@ -11,7 +11,7 @@ router.get('/me', async (req, res) => {
 
     const rows = await query(
       `
-        SELECT id, type, icon, icon_class, action_key, title, message, unread, created_at
+        SELECT id, type, icon, icon_class, action_key, title, message, unread, metadata, created_at
         FROM notifications
         WHERE user_id = ?
         ORDER BY created_at DESC, id DESC

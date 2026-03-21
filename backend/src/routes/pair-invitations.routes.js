@@ -1,15 +1,29 @@
 ﻿const express = require('express');
 const crypto = require('crypto');
-const { query } = require('../config/db');
+const { query, execute } = require('../config/db');
 const { createNotification } = require('../services/notifications.service');
 
 const router = express.Router();
+
+function getCurrentUserId(req) {
+  const authUserId = Number(req.auth?.user?.id);
+  if (Number.isInteger(authUserId) && authUserId > 0) {
+    return authUserId;
+  }
+
+  const headerUserId = Number(req.header('x-auth-user-id'));
+  if (Number.isInteger(headerUserId) && headerUserId > 0) {
+    return headerUserId;
+  }
+
+  return 0;
+}
 
 // Search users by email or name
 router.get('/search-users', async (req, res) => {
   try {
     const searchQuery = req.query.q || '';
-    const currentUserId = Number(req.header('x-auth-user-id'));
+    const currentUserId = getCurrentUserId(req);
 
     if (!searchQuery || searchQuery.length < 2) {
       return res.json({ success: true, users: [] });
@@ -75,11 +89,29 @@ router.get('/search-users', async (req, res) => {
 // Send a pair invitation
 router.post('/send', async (req, res) => {
   try {
-    const inviterUserId = Number(req.header('x-auth-user-id'));
-    const { inviteeEmail, inviteeRingIdentifier } = req.body;
+    const inviterUserId = getCurrentUserId(req);
+    const inviteeEmail = String(req.body?.inviteeEmail || '').trim().toLowerCase();
+    const inviteeRingIdentifier = String(req.body?.inviteeRingIdentifier || '').trim();
+    const invitationToken = crypto.randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
     if (!inviterUserId || !inviteeEmail) {
       return res.status(400).json({ message: 'Inviter user ID and invitee email are required' });
+    }
+
+    const inviterRows = await query(
+      'SELECT id, email, COALESCE(name, full_name, username) as name FROM users WHERE id = ? LIMIT 1',
+      [inviterUserId]
+    );
+
+    const inviter = inviterRows[0];
+    if (!inviter) {
+      return res.status(404).json({ message: 'Inviter account not found' });
+    }
+
+    if (String(inviter.email || '').trim().toLowerCase() === inviteeEmail) {
+      return res.status(400).json({ message: 'You cannot send an invitation to yourself' });
     }
 
     // Find or create invitee user by email
@@ -91,11 +123,7 @@ router.post('/send', async (req, res) => {
     let inviteeUserId = null;
     if (inviteeUserRows.length === 0) {
       // User doesn't exist - create invitation with just email
-      const invitationToken = crypto.randomUUID();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
-
-      const [result] = await query(
+      const result = await execute(
         `INSERT INTO pair_invitations 
          (inviter_user_id, invitee_handle, invitee_ring_identifier, invitation_token, status, expires_at, created_at)
          VALUES (?, ?, ?, ?, 'PENDING', ?, NOW())`,
@@ -111,26 +139,50 @@ router.post('/send', async (req, res) => {
 
     inviteeUserId = inviteeUserRows[0].id;
 
-    // Check if there's already a pending invitation
-    const existingInvites = await query(
-      `SELECT id FROM pair_invitations 
-       WHERE inviter_user_id = ? AND invitee_user_id = ? AND status = 'PENDING'`,
+    const existingPairRows = await query(
+      `
+        SELECT rp.id
+        FROM relationship_pairs rp
+        JOIN pair_members pm1 ON pm1.pair_id = rp.id AND pm1.user_id = ?
+        JOIN pair_members pm2 ON pm2.pair_id = rp.id AND pm2.user_id = ?
+        WHERE rp.status IN ('PENDING', 'CONNECTED', 'SYNCING')
+        LIMIT 1
+      `,
       [inviterUserId, inviteeUserId]
     );
 
-    if (existingInvites.length > 0) {
+    if (existingPairRows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'You are already connected with this user'
+      });
+    }
+
+    // Check if there's already a pending invitation
+    const existingInvites = await query(
+      `SELECT id, inviter_user_id, invitee_user_id FROM pair_invitations 
+       WHERE (
+         (inviter_user_id = ? AND invitee_user_id = ?)
+         OR (inviter_user_id = ? AND invitee_user_id = ?)
+       ) AND status = 'PENDING'`,
+      [inviterUserId, inviteeUserId, inviteeUserId, inviterUserId]
+    );
+
+    if (existingInvites.some((invite) => Number(invite.inviter_user_id) === inviterUserId)) {
       return res.status(400).json({ 
         success: false,
         message: 'You already have a pending invitation to this user' 
       });
     }
 
-    // Create the invitation
-    const invitationToken = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    if (existingInvites.some((invite) => Number(invite.inviter_user_id) === inviteeUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This user has already invited you. Please accept or reject their request.'
+      });
+    }
 
-    const [result] = await query(
+    const result = await execute(
       `INSERT INTO pair_invitations 
        (inviter_user_id, invitee_user_id, invitee_ring_identifier, invitation_token, status, expires_at, created_at)
        VALUES (?, ?, ?, ?, 'PENDING', ?, NOW())`,
@@ -139,12 +191,6 @@ router.post('/send', async (req, res) => {
 
     const invitationId = result.insertId;
 
-    // Get inviter info for notification
-    const inviterInfo = await query(
-      'SELECT email, COALESCE(name, full_name, username) as name FROM users WHERE id = ?',
-      [inviterUserId]
-    );
-
     // Create notification for invitee
     await createNotification({
       userId: inviteeUserId,
@@ -152,11 +198,11 @@ router.post('/send', async (req, res) => {
       icon: '\u{1F491}',
       actionKey: 'pair_invitation_accept_reject',
       title: 'New Connection Request',
-      message: `You have received a connection request from ${inviterInfo[0].name || inviterInfo[0].email}. Accept to start your journey together!`,
+      message: `You have received a connection request from ${inviter.name || inviter.email}. Accept to start your journey together!`,
       metadata: {
         invitationId,
         inviterUserId,
-        inviterEmail: inviterInfo[0].email
+        inviterEmail: inviter.email
       }
     });
 
@@ -165,7 +211,7 @@ router.post('/send', async (req, res) => {
       global.io.to(`user_${inviteeUserId}`).emit('notification', {
         type: 'pair_invitation',
         invitationId,
-        from: inviterInfo[0].name || inviterInfo[0].email
+        from: inviter.name || inviter.email
       });
     }
 
@@ -189,10 +235,10 @@ router.post('/send', async (req, res) => {
 router.post('/:invitationId/cancel', async (req, res) => {
   try {
     const invitationId = Number(req.params.invitationId);
-    const currentUserId = Number(req.header('x-auth-user-id'));
+    const currentUserId = getCurrentUserId(req);
 
     // Verify the invitation belongs to the current user
-    const [rows] = await query(
+    const rows = await query(
       `SELECT * FROM pair_invitations WHERE id = ? AND inviter_user_id = ?`,
       [invitationId, currentUserId]
     );
@@ -208,7 +254,7 @@ router.post('/:invitationId/cancel', async (req, res) => {
     }
 
     // Update status to CANCELLED
-    await query(
+    await execute(
       `UPDATE pair_invitations SET status = 'CANCELLED', responded_at = NOW() WHERE id = ?`,
       [invitationId]
     );
@@ -229,10 +275,10 @@ router.post('/:invitationId/cancel', async (req, res) => {
 router.post('/:invitationId/accept', async (req, res) => {
   try {
     const invitationId = Number(req.params.invitationId);
-    const currentUserId = Number(req.header('x-auth-user-id'));
+    const currentUserId = getCurrentUserId(req);
 
     // Get invitation details
-    const [rows] = await query(
+    const rows = await query(
       `SELECT * FROM pair_invitations WHERE id = ? AND invitee_user_id = ?`,
       [invitationId, currentUserId]
     );
@@ -247,78 +293,62 @@ router.post('/:invitationId/accept', async (req, res) => {
       return res.status(400).json({ message: 'This invitation is no longer pending' });
     }
 
-    // Start transaction
-    await query('START TRANSACTION');
+    await execute(
+      `UPDATE pair_invitations 
+       SET status = 'ACCEPTED', responded_at = NOW() 
+       WHERE id = ?`,
+      [invitationId]
+    );
 
-    try {
-      // Update invitation status to ACCEPTED
-      await query(
-        `UPDATE pair_invitations 
-         SET status = 'ACCEPTED', responded_at = NOW() 
-         WHERE id = ?`,
-        [invitationId]
-      );
+    const pairCode = crypto.randomUUID();
+    const pairResult = await execute(
+      `INSERT INTO relationship_pairs 
+       (pair_code, status, access_level, established_at, created_by_user_id, created_at)
+       VALUES (?, 'CONNECTED', 'FULL_ACCESS', CURDATE(), ?, NOW())`,
+      [pairCode, invitation.inviter_user_id]
+    );
 
-      // Create relationship pair
-      const pairCode = crypto.randomUUID();
-      const [pairResult] = await query(
-        `INSERT INTO relationship_pairs 
-         (pair_code, status, access_level, established_at, created_at)
-         VALUES (?, 'CONNECTED', 'FULL_ACCESS', NOW(), NOW())`,
-        [pairCode]
-      );
+    const pairId = pairResult.insertId;
 
-      const pairId = pairResult.insertId;
+    await execute(
+      `INSERT INTO pair_members (pair_id, user_id, member_role, joined_at)
+       VALUES (?, ?, 'OWNER', NOW()), (?, ?, 'PARTNER', NOW())`,
+      [pairId, invitation.inviter_user_id, pairId, invitation.invitee_user_id]
+    );
 
-      // Add both users as partners
-      await query(
-        `INSERT INTO pair_members (pair_id, user_id, member_role, joined_at)
-         VALUES (?, ?, 'PARTNER_A', NOW()), (?, ?, 'PARTNER_B', NOW())`,
-        [pairId, invitation.inviter_user_id, pairId, invitation.invitee_user_id]
-      );
+    const inviteeInfo = await query(
+      'SELECT email, COALESCE(name, full_name, username) as name FROM users WHERE id = ?',
+      [invitation.invitee_user_id]
+    );
 
-      // Notify inviter that their invitation was accepted
-      const inviteeInfo = await query(
-        'SELECT email, COALESCE(name, full_name, username) as name FROM users WHERE id = ?',
-        [invitation.invitee_user_id]
-      );
-
-      await createNotification({
-        userId: invitation.inviter_user_id,
-        type: 'pair_invitation_accepted',
-        icon: '\u2764\uFE0F',
-        actionKey: null,
-        title: 'Connection Established!',
-        message: `Your connection request was accepted by ${inviteeInfo[0].name || inviteeInfo[0].email}. You can now access couple features!`,
-        metadata: {
-          pairId,
-          pairCode,
-          acceptedBy: inviteeInfo[0].email
-        }
-      });
-
-      await query('COMMIT');
-
-      // Emit real-time notification
-      if (global.io) {
-        global.io.to(`user_${invitation.inviter_user_id}`).emit('connection_established', {
-          pairId,
-          pairCode,
-          acceptedBy: inviteeInfo[0].name || inviteeInfo[0].email
-        });
-      }
-
-      res.json({ 
-        success: true, 
-        message: 'Connection established successfully!',
+    await createNotification({
+      userId: invitation.inviter_user_id,
+      type: 'pair_invitation_accepted',
+      icon: '\u2764\uFE0F',
+      actionKey: null,
+      title: 'Connection Established!',
+      message: `Your connection request was accepted by ${inviteeInfo[0].name || inviteeInfo[0].email}. You can now access couple features!`,
+      metadata: {
         pairId,
-        pairCode
-      });
+        pairCode,
+        acceptedBy: inviteeInfo[0].email
+      }
+    });
 
-    } catch (error) {
-      await query('ROLLBACK');
-      throw error;
+    if (global.io) {
+      global.io.to(`user_${invitation.inviter_user_id}`).emit('connection_established', {
+        pairId,
+        pairCode,
+        acceptedBy: inviteeInfo[0].name || inviteeInfo[0].email
+      });
     }
+
+    res.json({ 
+      success: true, 
+      message: 'Connection established successfully!',
+      pairId,
+      pairCode
+    });
 
   } catch (error) {
     console.error('Error accepting invitation:', error);
@@ -334,10 +364,10 @@ router.post('/:invitationId/accept', async (req, res) => {
 router.post('/:invitationId/reject', async (req, res) => {
   try {
     const invitationId = Number(req.params.invitationId);
-    const currentUserId = Number(req.header('x-auth-user-id'));
+    const currentUserId = getCurrentUserId(req);
 
     // Get invitation details
-    const [rows] = await query(
+    const rows = await query(
       `SELECT * FROM pair_invitations WHERE id = ? AND invitee_user_id = ?`,
       [invitationId, currentUserId]
     );
@@ -352,10 +382,10 @@ router.post('/:invitationId/reject', async (req, res) => {
       return res.status(400).json({ message: 'This invitation is no longer pending' });
     }
 
-    // Update status to REJECTED
-    await query(
+    // Update status to DECLINED to match the database enum
+    await execute(
       `UPDATE pair_invitations 
-       SET status = 'REJECTED', responded_at = NOW() 
+       SET status = 'DECLINED', responded_at = NOW() 
        WHERE id = ?`,
       [invitationId]
     );
@@ -394,7 +424,7 @@ router.post('/:invitationId/reject', async (req, res) => {
 // Get my invitations (sent and received)
 router.get('/my-invitations', async (req, res) => {
   try {
-    const currentUserId = Number(req.header('x-auth-user-id'));
+    const currentUserId = getCurrentUserId(req);
 
     // Get sent invitations
     const sent = await query(
