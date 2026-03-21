@@ -298,7 +298,7 @@ const Cart: React.FC = () => {
                     <div className="flex items-center border border-black dark:border-pink-60 rounded-full overflow-hidden">
                       <button 
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors text-slate-400"
+                        className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors text-pink-900"
                       >
                         −
                       </button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import HistoryModal from './HistoryModal';
 
 // Types
 interface Ring {
@@ -37,6 +38,7 @@ interface Filters {
   minPrice: string;
   maxPrice: string;
   sort: string;
+  search: string;
 }
 
 // 50 Beautiful Ring Images (fallback)
@@ -113,12 +115,14 @@ const CoupleShopView: React.FC = () => {
   const [cartCount, setCartCount] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
   
   const [filters, setFilters] = useState<Filters>({
     material: '',
     minPrice: '',
     maxPrice: '',
-    sort: 'featured'
+    sort: 'featured',
+    search: ''
   });
 
   // Load dark mode preference
@@ -206,6 +210,7 @@ const CoupleShopView: React.FC = () => {
       if (filters.material) queryParams.append('material', filters.material);
       if (filters.minPrice) queryParams.append('minPrice', filters.minPrice);
       if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice);
+      if (filters.search) queryParams.append('search', filters.search);
       
       const url = `${API_BASE_URL}/rings${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
       console.log('Fetching rings from:', url);
@@ -253,7 +258,7 @@ const CoupleShopView: React.FC = () => {
         setAllRings(mappedRings);
         
         // If we have fewer than 50 rings, generate additional ones
-        if (mappedRings.length < 50) {
+        if (mappedRings.length < 50 && !filters.search) {
           const additionalNeeded = 50 - mappedRings.length;
           console.log(`Generating ${additionalNeeded} additional rings to reach 50`);
           
@@ -304,7 +309,7 @@ const CoupleShopView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [filters.material, filters.minPrice, filters.maxPrice]);
+  }, [filters.material, filters.minPrice, filters.maxPrice, filters.search]);
 
   // Load filter options from API
   const loadFilterOptions = useCallback(async () => {
@@ -372,10 +377,22 @@ const CoupleShopView: React.FC = () => {
     return rings;
   };
 
-  // Apply sorting
-  const applySort = useCallback(() => {
+  // Apply sorting and search
+  const applySortAndSearch = useCallback(() => {
     let sorted = [...allRings];
     
+    // Apply search filter
+    if (filters.search.trim()) {
+      const searchTerm = filters.search.toLowerCase().trim();
+      sorted = sorted.filter(ring => 
+        ring.ring_name.toLowerCase().includes(searchTerm) ||
+        ring.ring_identifier.toLowerCase().includes(searchTerm) ||
+        ring.material.toLowerCase().includes(searchTerm) ||
+        ring.collection.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Apply sorting
     switch(filters.sort) {
       case 'low-high':
         sorted.sort((a, b) => a.price - b.price);
@@ -397,7 +414,7 @@ const CoupleShopView: React.FC = () => {
     
     setFilteredRings(sorted);
     setVisibleCount(18);
-  }, [allRings, filters.sort]);
+  }, [allRings, filters.sort, filters.search]);
 
   // Helper: Map material to type
   const mapMaterialToType = (material: string): string => {
@@ -428,8 +445,17 @@ const CoupleShopView: React.FC = () => {
     setFilters(prev => ({ ...prev, sort: e.target.value }));
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters(prev => ({ ...prev, search: e.target.value }));
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadRingsFromAPI();
+  };
+
   const handleApplyPriceFilter = () => {
-    setFilters(prev => ({ ...prev }));
+    loadRingsFromAPI();
   };
 
   const handleClearFilters = () => {
@@ -437,7 +463,8 @@ const CoupleShopView: React.FC = () => {
       material: '',
       minPrice: '',
       maxPrice: '',
-      sort: 'featured'
+      sort: 'featured',
+      search: ''
     });
   };
 
@@ -447,87 +474,87 @@ const CoupleShopView: React.FC = () => {
     }
   };
 
-// CORRECTED Add to cart function with backend API
-const addToCart = async (ring: Ring) => {
-  try {
-    console.log('Adding to cart:', ring);
-    
-    // Get existing session ID or null
-    let sessionId = localStorage.getItem('sessionId');
-    
-    const response = await fetch(`${API_BASE_URL}/cart/add`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(sessionId && { 'x-session-id': sessionId })
-      },
-      body: JSON.stringify({
-        ringId: ring.id,
-        quantity: 1,
-        size: ring.size || '7',
-        material: ring.material
-      })
-    });
-    
-    const data = await response.json();
-    console.log('Add to cart response:', data);
-    
-    if (response.ok) {
-      // Save the session ID from server if it's new
-      if (data.sessionId && !sessionId) {
-        localStorage.setItem('sessionId', data.sessionId);
-        console.log('Saved new session ID:', data.sessionId);
-      }
+  // Add to cart function with backend API
+  const addToCart = async (ring: Ring) => {
+    try {
+      console.log('Adding to cart:', ring);
       
-      // Update cart count
-      setCartCount(data.data.length);
+      // Get existing session ID or null
+      let sessionId = localStorage.getItem('sessionId');
       
-      // Show success notification
-      showBottomNotification(`${ring.ring_name} added to cart!`, 'success');
+      const response = await fetch(`${API_BASE_URL}/cart/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionId && { 'x-session-id': sessionId })
+        },
+        body: JSON.stringify({
+          ringId: ring.id,
+          quantity: 1,
+          size: ring.size || '7',
+          material: ring.material
+        })
+      });
       
-      // Dispatch event for header and cart page to update
-      window.dispatchEvent(new Event('cartUpdated'));
-    } else {
-      throw new Error(data.message || 'Failed to add to cart');
-    }
-  } catch (e) {
-    console.error('Error adding to cart:', e);
-    showBottomNotification('Error adding to cart', 'error');
-  }
-};
-
-// Small bottom notification function
-const showBottomNotification = (message: string, type: 'success' | 'error' = 'success') => {
-  const notification = document.createElement('div');
-  notification.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
-  
-  const bgColor = type === 'success' ? 'bg-[#ff2aa2]' : 'bg-red-500';
-  const icon = type === 'success' ? 'check_circle' : 'error';
-  
-  notification.innerHTML = `
-    <div class="${bgColor} text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md">
-      <span class="material-symbols-outlined text-sm">${icon}</span>
-      <p class="text-sm font-medium flex-1">${message}</p>
-      <button class="hover:bg-white/20 rounded-full p-1 transition-colors" onclick="this.closest('.fixed').remove()">
-        <span class="material-symbols-outlined text-sm">close</span>
-      </button>
-    </div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Auto remove after 2 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.style.animation = 'slide-down-bottom 0.2s ease-out forwards';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
+      const data = await response.json();
+      console.log('Add to cart response:', data);
+      
+      if (response.ok) {
+        // Save the session ID from server if it's new
+        if (data.sessionId && !sessionId) {
+          localStorage.setItem('sessionId', data.sessionId);
+          console.log('Saved new session ID:', data.sessionId);
         }
-      }, 200);
+        
+        // Update cart count
+        setCartCount(data.data.length);
+        
+        // Show success notification
+        showBottomNotification(`${ring.ring_name} added to cart!`, 'success');
+        
+        // Dispatch event for header and cart page to update
+        window.dispatchEvent(new Event('cartUpdated'));
+      } else {
+        throw new Error(data.message || 'Failed to add to cart');
+      }
+    } catch (e) {
+      console.error('Error adding to cart:', e);
+      showBottomNotification('Error adding to cart', 'error');
     }
-  }, 2000);
-};
+  };
+
+  // Small bottom notification function
+  const showBottomNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    const notificationDiv = document.createElement('div');
+    notificationDiv.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
+    
+    const bgColor = type === 'success' ? 'bg-[#ff2aa2]' : 'bg-red-500';
+    const icon = type === 'success' ? 'check_circle' : 'error';
+    
+    notificationDiv.innerHTML = `
+      <div class="${bgColor} text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md">
+        <span class="material-symbols-outlined text-sm">${icon}</span>
+        <p class="text-sm font-medium flex-1">${message}</p>
+        <button class="hover:bg-white/20 rounded-full p-1 transition-colors" onclick="this.closest('.fixed').remove()">
+          <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(notificationDiv);
+    
+    // Auto remove after 2 seconds
+    setTimeout(() => {
+      if (notificationDiv.parentNode) {
+        notificationDiv.style.animation = 'slide-down-bottom 0.2s ease-out forwards';
+        setTimeout(() => {
+          if (notificationDiv.parentNode) {
+            notificationDiv.remove();
+          }
+        }, 200);
+      }
+    }, 2000);
+  };
 
   // Toggle favorite
   const toggleFavorite = (ringId: number, event: React.MouseEvent) => {
@@ -564,8 +591,8 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
   }, [loadRingsFromAPI]);
 
   useEffect(() => {
-    applySort();
-  }, [allRings, filters.sort, applySort]);
+    applySortAndSearch();
+  }, [allRings, filters.sort, filters.search, applySortAndSearch]);
 
   // Calculate stats
   const totalRings = allRings.length;
@@ -575,12 +602,19 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
 
   // Active filters display
   const activeFilters = [];
+  if (filters.search) activeFilters.push(`Search: ${filters.search}`);
   if (filters.material) activeFilters.push(`Material: ${filters.material}`);
   if (filters.minPrice) activeFilters.push(`Min: $${filters.minPrice}`);
   if (filters.maxPrice) activeFilters.push(`Max: $${filters.maxPrice}`);
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
+      {/* History Modal */}
+      <HistoryModal 
+        isOpen={isHistoryModalOpen} 
+        onClose={() => setIsHistoryModalOpen(false)} 
+      />
+
       {/* STICKY HEADER - Full navbar with diamond logo */}
       <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
@@ -599,9 +633,21 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
           </div>
           {/* right icons & member */}
           <div className="flex items-center gap-6">
-            <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications_none</span>
+            {/* History Button */}
+            <button 
+              onClick={() => setIsHistoryModalOpen(true)} 
+              className="relative text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors group"
+            >
+              <span className="material-symbols-outlined">history</span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+              <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                Purchase History
+              </span>
             </button>
+            
+            {/* <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined">notifications_none</span>
+            </button> */}
             <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
               <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
             </button>
@@ -628,7 +674,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* HERO + FILTERS */}
+        {/* HERO + SEARCH + FILTERS */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="max-w-2xl">
             <nav className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-widest">
@@ -643,27 +689,53 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               Explore our curated selection of handcrafted rings, where timeless elegance meets modern ethical sourcing.
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <select 
-              value={filters.material}
-              onChange={handleMaterialChange}
-              className="px-6 py-3 bg-yellow  dark:bg-slate-300 border border-slate-500 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
-            >
-              <option value="">All Materials</option>
-              {materials.map(material => (
-                <option key={material} value={material}>{material}</option>
-              ))}
-            </select>
-            <select 
-              value={filters.sort}
-              onChange={handleSortChange}
-              className="px-6 py-3 bg-white dark:bg-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
-            >
-              <option value="featured">Sort by: Featured</option>
-              <option value="low-high">Price: Low to High</option>
-              <option value="high-low">Price: High to Low</option>
-              <option value="newest">Newest Arrivals</option>
-            </select>
+          <div className="flex flex-col gap-4">
+            {/* Search Bar */}
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <input
+                type="text"
+                value={filters.search}
+                onChange={handleSearchChange}
+                placeholder="Search by name, material, or collection..."
+                className="w-full md:w-80 px-5 py-3 pl-12 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-full text-sm focus:ring-2 focus:ring-primary focus:border-primary transition-all text-pink-600 dark:text-pink-400"
+              />
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-pink-900 text-lg">
+                search
+              </span>
+              {filters.search && (
+                <button
+                  type="button"
+                  onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              )}
+            </form>
+            
+            {/* Filter Controls */}
+            <div className="flex items-center gap-4">
+              <select 
+                value={filters.material}
+                onChange={handleMaterialChange}
+                className="px-6 py-3 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary text-pink-600 dark:text-pink-400"
+              >
+                <option value="">All Materials</option>
+                {materials.map(material => (
+                  <option key={material} value={material}>{material}</option>
+                ))}
+              </select>
+              <select 
+                value={filters.sort}
+                onChange={handleSortChange}
+                className="px-6 py-3 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary text-pink-600 dark:text-pink-400"
+              >
+                <option value="featured">Sort by: Featured</option>
+                <option value="low-high">Price: Low to High</option>
+                <option value="high-low">Price: High to Low</option>
+                <option value="newest">Newest Arrivals</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -676,7 +748,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               value={filters.minPrice}
               onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value }))}
               placeholder={`Min $${priceRange.min}`} 
-              className="w-24 px-3 py-2 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+              className="w-24 px-3 py-2 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
             />
             <span>-</span>
             <input 
@@ -684,7 +756,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               value={filters.maxPrice}
               onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
               placeholder={`Max $${priceRange.max}`} 
-              className="w-24 px-3 py-2 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+              className="w-24 px-3 py-2 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
             />
             <button 
               onClick={handleApplyPriceFilter}
@@ -696,7 +768,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               onClick={handleClearFilters}
               className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold hover:border-primary transition-colors"
             >
-              Clear
+              Clear All
             </button>
           </div>
         </div>
@@ -705,8 +777,19 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
         {activeFilters.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-6 min-h-[40px]">
             {activeFilters.map(filter => (
-              <span key={filter} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
+              <span key={filter} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm flex items-center gap-1">
                 {filter}
+                <button
+                  onClick={() => {
+                    if (filter.startsWith('Search:')) setFilters(prev => ({ ...prev, search: '' }));
+                    if (filter.startsWith('Material:')) setFilters(prev => ({ ...prev, material: '' }));
+                    if (filter.startsWith('Min:')) setFilters(prev => ({ ...prev, minPrice: '' }));
+                    if (filter.startsWith('Max:')) setFilters(prev => ({ ...prev, maxPrice: '' }));
+                  }}
+                  className="hover:bg-primary/20 rounded-full p-0.5"
+                >
+                  <span className="material-symbols-outlined text-xs">close</span>
+                </button>
               </span>
             ))}
           </div>
@@ -716,11 +799,11 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
         <div className="flex justify-between items-center mb-6 text-sm text-slate-500">
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-primary">database</span>
-            <span><span className="font-bold text-slate-900 dark:text-white">{totalRings}</span> rings in collection</span>
+            <span><span className="font-bold text-slate-900 dark:text-white">{filteredRings.length}</span> rings found</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">inventory</span>
-            <span><span className="font-bold text-slate-900 dark:text-white">{availableRings}</span> available now</span>
+            <span><span className="font-bold text-pink-900 dark:text-white">{availableRings}</span> available now</span>
           </div>
         </div>
 
@@ -742,22 +825,22 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-9 gap-y-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-9 gap-y-16 bg">
             {filteredRings.slice(0, limit).map((ring) => {
               const newBadge = ring.isNew ? (
-                <div className="absolute top-4 right-16 bg-primary text-white text-[8px] font-bold px-3 py-3.5 rounded-full uppercase tracking-widest z-5">
+                <div className="absolute top-4 right-16 bg-primary text-pink text-[8px] font-bold px-3 py-3.5 rounded-full uppercase tracking-widest z-5">
                   New
                 </div>
               ) : null;
               
-              const statusColor = ring.status === 'AVAILABLE' ? 'bg-green-500' : 
+              const statusColor = ring.status === 'AVAILABLE' ? 'bg-green-500 ' : 
                                  ring.status === 'RESERVED' ? 'bg-yellow-500' : 'bg-gray-500';
 
               const isFav = localStorage.getItem(`fav-${ring.id}`) === 'true';
 
               return (
-                <div key={ring.id} className="ring-card group flex flex-col">
-                  <div className="relative aspect-[4/5] bg-white dark:bg-slate-800 rounded-xl overflow-hidden mb-6 shadow-lg text-primary">
+                <div key={ring.id} className="ring-card group flex flex-col ">
+                  <div className="relative aspect-[4/5] bg-white dark:bg-pink-80 rounded-xl overflow-hidden mb-6 shadow-lg text-center">
                     <img 
                       alt={ring.ring_name} 
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 text-primary" 
@@ -772,7 +855,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                     <div className="absolute top-4 left-4">
                       <div className="relative group">
                         <span className={`w-3 h-3 rounded-full ${statusColor} inline-block`}></span>
-                        <span className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
+                        <span className="absolute left-6 top-1/2 -translate-y-1/2 bg-pink-500 text-pink text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
                           {ring.status}
                         </span>
                       </div>
@@ -795,7 +878,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                     
                     {/* Battery level (if exists) */}
                     {ring.battery_level && (
-                      <div className="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
+                      <div className="absolute bottom-4 right-4 bg-black/50 text-pink text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
                         <span className="material-symbols-outlined text-xs align-middle">battery_full</span> {ring.battery_level}%
                       </div>
                     )}
@@ -803,7 +886,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                   
                   <div className="flex flex-col gap-1 px-2">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold tracking-tight text-slate-900 text-pink-500">{ring.ring_name}</h3>
+                      <h3 className="text-lg font-bold tracking-tight text-pink-600 text-white">{ring.ring_name}</h3>
                       <span className="text-xs text-slate-400">#{ring.ring_identifier}</span>
                     </div>
                     
@@ -848,7 +931,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <p className="text-sm text-slate-500 uppercase tracking-[0.2em]">
               Showing {limit} of {filteredRings.length} pieces
             </p>
-            <div className="w-full max-w-xs h-1 bg-slate-20 dark:bg-slate-200 rounded-full overflow-hidden">
+            <div className="w-full max-w-xs h-1 bg-pink-100 dark:bg-slate-700 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-primary transition-all duration-500" 
                 style={{ width: `${percent}%` }}
@@ -856,10 +939,10 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             </div>
             <button 
               onClick={handleDiscoverMore}
-              className="px-12 py-4 bg-white dark:bg-pink-600 border border-slate-200 dark:border-white-700 rounded-lg text-sm font-bold tracking-widest uppercase hover:border-primary transition-all flex items-center gap-3 group"
+              className="px-12 py-4 bg-white dark:bg-pink-500 border border-slate-200 dark:border-pink-700 rounded-lg text-sm font-bold tracking-widest uppercase hover:border-primary transition-all flex items-center gap-3 group"
             >
-              <span style={{ color: 'white' }}>Discover More</span>
-              <span className="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform color: 'white'">
+              <span>Discover More</span>
+              <span className="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform">
                 expand_more
               </span>
             </button>
@@ -899,9 +982,9 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center gap-2 mb-6">
               <span className="material-symbols-outlined text-primary">diamond</span>
-              <h2 className="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
+              <h2 className="text-lg font-extrabold tracking-widest uppercase">BondKeeper</h2>
             </div>
-            <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical craftsmanship and timeless design. Every ring tells a story.</p>
+            <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
             <div className="flex gap-4">
               <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
                 <span className="material-symbols-outlined text-lg">share</span>
@@ -930,7 +1013,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
             <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
             <div className="flex gap-2">
-              <input className="flex-1 bg-pink-50 bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+              <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
               <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
             </div>
           </div>
