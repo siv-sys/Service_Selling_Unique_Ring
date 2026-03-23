@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Search, Plus, Download } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Bell, Download } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
   subtitle: string;
-  showProvisionButton?: boolean;
   showExportButton?: boolean;
   onExportExcel?: () => void;
   onExportPdf?: () => void;
@@ -20,7 +18,6 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ 
   title, 
   subtitle, 
-  showProvisionButton = false,
   showExportButton = false,
   onExportExcel,
   onExportPdf,
@@ -62,15 +59,6 @@ const Header: React.FC<HeaderProps> = ({
       </div>
       
       <div className="flex items-center gap-4">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <input 
-            type="text" 
-            placeholder="Search..." 
-            className="w-64 rounded-lg border border-pink-200 bg-pink-50 py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-pink-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          />
-        </div>
-        
         <div className="relative" ref={notificationRef}>
           <button
             type="button"
@@ -139,13 +127,6 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         )}
         
-        {showProvisionButton && (
-          <button className="bg-pink-700 hover:bg-pink-800 active:bg-pink-900 active:scale-[0.99] text-white px-5 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-pink-300/30 border border-pink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300">
-            <Plus className="w-4 h-4" />
-            Provision New Device
-          </button>
-        )}
-
         <button
           type="button"
           className="rounded-full border-2 border-pink-300 p-0.5 hover:border-pink-400 active:border-pink-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"

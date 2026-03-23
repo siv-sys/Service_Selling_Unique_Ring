@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
-import { api } from '../lib/api';
+import { api, resolveApiAssetUrl } from '../lib/api';
 
 interface SeedResult {
   message: string;
@@ -96,6 +96,20 @@ const AdminSeedView: React.FC = () => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        updateForm('imageUrl', reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
   const insertFromForm = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsInserting(true);
@@ -159,13 +173,22 @@ const AdminSeedView: React.FC = () => {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input className={inputClassName} placeholder="Model Name" value={form.modelName} onChange={(e) => updateForm('modelName', e.target.value)} />
-              <input className={inputClassName} placeholder="Collection Name" value={form.collectionName} onChange={(e) => updateForm('collectionName', e.target.value)} />
               <input className={inputClassName} placeholder="Material" value={form.material} onChange={(e) => updateForm('material', e.target.value)} />
-              <input className={inputClassName} placeholder="Image URL" value={form.imageUrl} onChange={(e) => updateForm('imageUrl', e.target.value)} />
-              <input className={inputClassName} placeholder="Base Price" type="number" value={form.basePrice} onChange={(e) => updateForm('basePrice', e.target.value)} />
-              <input className={inputClassName} placeholder="Currency (USD)" value={form.currencyCode} onChange={(e) => updateForm('currencyCode', e.target.value)} />
-              <input className={inputClassName} placeholder="Ring Name Prefix" value={form.ringNamePrefix} onChange={(e) => updateForm('ringNamePrefix', e.target.value)} />
-              <input className={inputClassName} placeholder="Ring Identifier Prefix" value={form.ringIdentifierPrefix} onChange={(e) => updateForm('ringIdentifierPrefix', e.target.value)} />
+              <div className="flex h-11 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/90 px-3 shadow-sm transition focus-within:border-pink-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-pink-300/40 dark:border-slate-700 dark:bg-slate-800">
+                <input
+                  className="h-full min-w-0 flex-1 border-0 bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-500"
+                  placeholder="Paste image URL"
+                  value={form.imageUrl}
+                  onChange={(e) => updateForm('imageUrl', e.target.value)}
+                />
+                <div className="shrink-0">
+                  <label className="inline-flex cursor-pointer items-center rounded-xl border border-pink-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-pink-700 transition hover:border-pink-300 hover:bg-pink-50 dark:border-pink-900/50 dark:bg-pink-950/30 dark:text-pink-300 dark:hover:bg-pink-950/50">
+                    Upload
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                </div>
+              </div>
+              <input className={inputClassName} placeholder="Base Price (USA)" type="number" value={form.basePrice} onChange={(e) => updateForm('basePrice', e.target.value)} />
               <input className={inputClassName} placeholder="Stock Count" type="number" value={form.stockCount} onChange={(e) => updateForm('stockCount', e.target.value)} />
               <input className={inputClassName} placeholder="Starting Number" type="number" value={form.startingNumber} onChange={(e) => updateForm('startingNumber', e.target.value)} />
               <input className={inputClassName} placeholder="Default Size" value={form.defaultSize} onChange={(e) => updateForm('defaultSize', e.target.value)} />
@@ -177,6 +200,24 @@ const AdminSeedView: React.FC = () => {
               value={form.description}
               onChange={(e) => updateForm('description', e.target.value)}
             />
+            {form.imageUrl ? (
+              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Preview</p>
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Seed image preview</p>
+                  </div>
+                  <span className="rounded-full bg-pink-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-pink-700 dark:bg-pink-950/40 dark:text-pink-300">
+                    Ready
+                  </span>
+                </div>
+                <img
+                  src={resolveApiAssetUrl(form.imageUrl)}
+                  alt="Seed preview"
+                  className="h-52 w-full object-cover"
+                />
+              </div>
+            ) : null}
             <button
               type="submit"
               disabled={isInserting}
@@ -238,7 +279,7 @@ const AdminSeedView: React.FC = () => {
                       className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950/50"
                     >
                       {item.image ? (
-                        <img src={item.image} alt={item.model} className="h-44 w-full object-cover" />
+                        <img src={resolveApiAssetUrl(item.image)} alt={item.model} className="h-44 w-full object-cover" />
                       ) : (
                         <div className="flex h-44 items-center justify-center bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                           No image

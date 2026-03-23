@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Header from '../components/Header';
-import { api } from '../lib/api';
+import { api, resolveApiAssetUrl } from '../lib/api';
 import {
   Download,
   Layers,
   RotateCcw,
+  Search,
   Edit3,
   Trash2,
   Package,
@@ -41,7 +42,6 @@ type InventoryResponse = {
 
 type InventoryFiltersResponse = {
   models: string[];
-  colors: string[];
   statuses: string[];
 };
 
@@ -50,7 +50,6 @@ const ITEMS_PER_PAGE = 15;
 
 const DEFAULT_FILTERS: InventoryFiltersResponse = {
   models: ['All Models'],
-  colors: ['All Colors'],
   statuses: ['Any Status']
 };
 
@@ -73,8 +72,8 @@ const RingInventory = () => {
   const [lastExport, setLastExport] = useState('');
   const [activeStatFilter, setActiveStatFilter] = useState<'all' | 'rows' | 'units' | 'low' | 'depleted'>('all');
   const [selectedModel, setSelectedModel] = useState('All Models');
-  const [selectedColor, setSelectedColor] = useState('All Colors');
   const [selectedStatus, setSelectedStatus] = useState('Any Status');
+  const [searchTerm, setSearchTerm] = useState('');
   const [editingSku, setEditingSku] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<InventoryDraft | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +94,6 @@ const RingInventory = () => {
       const response = await api.get<InventoryFiltersResponse>('/inventory/filters');
       setFilterOptions({
         models: Array.isArray(response.models) && response.models.length ? response.models : DEFAULT_FILTERS.models,
-        colors: Array.isArray(response.colors) && response.colors.length ? response.colors : DEFAULT_FILTERS.colors,
         statuses: Array.isArray(response.statuses) && response.statuses.length ? response.statuses : DEFAULT_FILTERS.statuses,
       });
     } catch {
@@ -109,7 +107,6 @@ const RingInventory = () => {
       const params = new URLSearchParams();
       params.set('limit', '200');
       if (selectedModel !== 'All Models') params.set('model', selectedModel);
-      if (selectedColor !== 'All Colors') params.set('color', selectedColor);
       if (selectedStatus !== 'Any Status') params.set('status', selectedStatus);
 
       const response = await api.get<InventoryResponse>(`/inventory?${params.toString()}`);
@@ -130,17 +127,12 @@ const RingInventory = () => {
 
   useEffect(() => {
     loadInventory();
-  }, [selectedModel, selectedColor, selectedStatus]);
+  }, [selectedModel, selectedStatus]);
 
   const availableModels = useMemo(() => {
     if (filterOptions.models.length) return filterOptions.models;
     return ['All Models', ...Array.from(new Set(inventoryData.map((item) => item.model)))];
   }, [filterOptions.models, inventoryData]);
-
-  const availableColors = useMemo(() => {
-    if (filterOptions.colors.length) return filterOptions.colors;
-    return ['All Colors', ...Array.from(new Set(inventoryData.map((item) => item.color).filter(Boolean) as string[]))];
-  }, [filterOptions.colors, inventoryData]);
 
   const availableStatuses = useMemo(() => {
     if (filterOptions.statuses.length) return filterOptions.statuses;
@@ -160,7 +152,7 @@ const RingInventory = () => {
   );
   const totalUnitsInStock = inventoryData.reduce((sum, item) => sum + Math.max(0, Number(item.stock || 0)), 0);
 
-  const tableData =
+  const baseTableData =
     activeStatFilter === 'rows'
       ? inventoryData
       : activeStatFilter === 'units'
@@ -170,6 +162,13 @@ const RingInventory = () => {
           : activeStatFilter === 'depleted'
             ? depletedData
             : inventoryData;
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const tableData = normalizedSearchTerm
+    ? baseTableData.filter((item) =>
+        [item.model, item.variant, item.sku, item.serial, item.color || '', item.status]
+          .some((value) => String(value || '').toLowerCase().includes(normalizedSearchTerm))
+      )
+    : baseTableData;
   const totalPages = Math.max(1, Math.ceil(tableData.length / ITEMS_PER_PAGE));
   const currentPageSafe = Math.min(currentPage, totalPages);
   const paginatedTableData = tableData.slice(
@@ -316,7 +315,7 @@ const RingInventory = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedModel, selectedColor, selectedStatus, activeStatFilter]);
+  }, [selectedModel, selectedStatus, activeStatFilter]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -437,6 +436,16 @@ const RingInventory = () => {
             <div className="flex items-center gap-2 mr-4 border-r border-slate-300 pr-6">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Filter:</span>
             </div>
+            <div className="relative min-w-[220px] flex-1 max-w-[340px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search ring, SKU, serial..."
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-700 focus:border-primary focus:ring-primary/20"
+              />
+            </div>
             <select
               value={selectedModel}
               onChange={(event) => setSelectedModel(event.target.value)}
@@ -444,15 +453,6 @@ const RingInventory = () => {
             >
               {availableModels.map((model) => (
                 <option key={model} value={model}>{model}</option>
-              ))}
-            </select>
-            <select
-              value={selectedColor}
-              onChange={(event) => setSelectedColor(event.target.value)}
-              className="bg-slate-50 border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-primary/20 min-w-[160px] py-2"
-            >
-              {availableColors.map((color) => (
-                <option key={color} value={color}>{color}</option>
               ))}
             </select>
             <select
@@ -468,8 +468,8 @@ const RingInventory = () => {
               type="button"
               onClick={() => {
                 setSelectedModel('All Models');
-                setSelectedColor('All Colors');
                 setSelectedStatus('Any Status');
+                setSearchTerm('');
                 setActiveStatFilter('all');
               }}
               className="ml-auto flex items-center gap-2 text-primary text-sm font-bold hover:underline"
@@ -627,6 +627,19 @@ const InventoryRow = ({
     rose: 'bg-rose-500'
   };
   const current = isEditing && editDraft ? editDraft : { image, model, color, variant, sku, serial, status, stock, stockPercent, statusColor };
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        onEditDraftChange('image', reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
 
   return (
     <tr className="hover:bg-primary/5 transition-colors group">
@@ -635,7 +648,7 @@ const InventoryRow = ({
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-300 overflow-hidden flex-shrink-0 shadow-sm">
             {current.image ? (
-              <img src={current.image} alt={current.model} className="w-full h-full object-cover" />
+              <img src={resolveApiAssetUrl(current.image)} alt={current.model} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-bold">IMG</div>
             )}
@@ -645,9 +658,25 @@ const InventoryRow = ({
               <>
                 <input
                   type="text"
+                  value={current.image || ''}
+                  onChange={(event) => onEditDraftChange('image', event.target.value)}
+                  placeholder="Image URL"
+                  className="border border-slate-300 rounded px-2 py-1 text-[11px] text-slate-700 w-full mb-1"
+                />
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-pink-200 bg-pink-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-pink-700 hover:bg-pink-100">
+                  Upload Image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                  />
+                </label>
+                <input
+                  type="text"
                   value={current.model}
                   onChange={(event) => onEditDraftChange('model', event.target.value)}
-                  className="border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-900 w-full mb-1"
+                  className="border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-900 w-full mt-2 mb-1"
                 />
                 <input
                   type="text"

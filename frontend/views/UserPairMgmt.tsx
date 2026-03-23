@@ -370,7 +370,6 @@ const UserPairMgmt = () => {
       <Header
         title="User & Pair Management Console"
         subtitle="Database-backed view of relationship pairs, linked rings, and account access"
-        showProvisionButton
       />
 
       <main className="userpair-page flex-1 overflow-y-auto bg-slate-50/50 p-8 dark:bg-slate-950">
