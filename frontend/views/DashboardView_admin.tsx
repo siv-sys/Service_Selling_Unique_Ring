@@ -546,11 +546,14 @@ const Dashboard_admin = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {systemUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-pink-50/30 transition-colors">
-                      <td className="px-6 py-3 text-sm font-semibold text-slate-900">{user.name}</td>
-                      <td className="px-6 py-3 text-sm text-slate-600">{user.email}</td>
-                      <td className="px-6 py-3">
+                  {systemUsers.map((user, index) => (
+                    <tr key={user.id} className={`${index % 2 === 0
+                        ? 'bg-gradient-to-r from-pink-50 via-rose-25 to-pink-50 border-l-4 border-l-[#ec1380] hover:from-pink-100 hover:via-rose-50 hover:to-pink-100'
+                        : 'bg-white hover:bg-pink-50/50'
+                      } transition-all duration-200`}>
+                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">{user.name}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
+                      <td className="px-6 py-4">
                         <button
                           type="button"
                           onClick={() => handleChangeUserRole(user.id)}
@@ -559,7 +562,7 @@ const Dashboard_admin = () => {
                           {user.role}
                         </button>
                       </td>
-                      <td className="px-6 py-3">
+                      <td className="px-6 py-4">
                         <span
                           className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${user.status === 'Active'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -569,12 +572,12 @@ const Dashboard_admin = () => {
                           {user.status}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-slate-500">{user.lastActive}</td>
-                      <td className="px-6 py-3 text-right">
+                      <td className="px-6 py-4 text-sm text-slate-500">{user.lastActive}</td>
+                      <td className="px-6 py-4 text-right">
                         <button
                           type="button"
                           onClick={() => handleToggleUserStatus(user.id)}
-                          className={`text-xs font-bold px-3 py-1.5 rounded border ${user.status === 'Active'
+                          className={`text-xs font-bold px-3 py-1.5 rounded border transition-colors ${user.status === 'Active'
                             ? 'border-rose-300 text-rose-700 hover:bg-rose-50'
                             : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
                             }`}
