@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { api, resolveApiAssetUrl } from '../lib/api';
 import { THEME_EVENT, isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
-import { getUserScopedLocalStorageItem } from '../lib/userStorage';
+import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
 
 type ProfilePayload = {
   title?: string;
@@ -122,11 +122,11 @@ const RelationshipView = ({
     };
 
     const formatDaysTogether = (value: string | null | undefined) => {
-      if (!value) return 'Not paired yet';
+      if (!value) return { label: 'Not paired yet', days: 0 };
       const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return 'Not paired yet';
+      if (Number.isNaN(date.getTime())) return { label: 'Not paired yet', days: 0 };
       const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)));
-      return `${days} day${days === 1 ? '' : 's'} together`;
+      return { label: `${days} day${days === 1 ? '' : 's'} together`, days };
     };
 
     if (!connection) return;
@@ -134,7 +134,9 @@ const RelationshipView = ({
     const establishedAt = connection.establishedAt || null;
     setPairCode(connection.pairCode || connection.pair_code || 'PAIR001');
     setEstablishedDate(formatDateLabel(establishedAt));
-    setDaysTogetherLabel(formatDaysTogether(establishedAt));
+    const daysTogether = formatDaysTogether(establishedAt);
+    setDaysTogetherLabel(daysTogether.label);
+    setUserScopedLocalStorageItem('relationship_days_together', String(daysTogether.days));
     setStatus('PAIRED');
 
     const partner = Array.isArray(connection.partners) ? connection.partners[0] : null;
@@ -265,6 +267,7 @@ const RelationshipView = ({
     setPairCode('UNPAIRED');
     setEstablishedDate('Not paired');
     setDaysTogetherLabel('Not paired yet');
+    setUserScopedLocalStorageItem('relationship_days_together', '0');
     setPartnerName('Partner');
     setPartnerHandle('partner');
     setLinkedRings([]);
@@ -408,6 +411,8 @@ const RelationshipView = ({
             #faf6f2;
           color: #1e1b1a;
           font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+          font-size: 0.9rem;
+          line-height: 1.45;
         }
         .dark .relationship-page {
           background:
@@ -452,11 +457,11 @@ const RelationshipView = ({
 
         .hero h1 {
           margin: 16px 0 10px;
-          font-size: clamp(38px, 5.2vw, 58px);
+          font-size: clamp(24px, 3.7vw, 32px);
           letter-spacing: -0.04em;
-          font-weight: 800;
+          font-weight: 700;
           color: #1e1b1a;
-          line-height: 1.06;
+          line-height: 1.1;
           text-wrap: balance;
         }
         .dark .hero h1 { color: rgba(250, 246, 242, 0.95); }
@@ -464,9 +469,9 @@ const RelationshipView = ({
         .hero p {
           margin: 0;
           color: #6b7280;
-          font-size: 18px;
+          font-size: 1rem;
           font-weight: 600;
-          line-height: 1.45;
+          line-height: 1.5;
         }
         .dark .hero p { color: rgba(250, 246, 242, 0.6); }
 
@@ -511,7 +516,7 @@ const RelationshipView = ({
         }
 
         .invite-kicker {
-          font-size: 11px;
+          font-size: 0.75rem;
           letter-spacing: 0.14em;
           text-transform: uppercase;
           color: #9ca3af;
@@ -729,7 +734,7 @@ const RelationshipView = ({
 
         .pending-empty h3 {
           margin: 0;
-          font-size: 22px;
+          font-size: 1.125rem;
           color: #0f172a;
           font-weight: 800;
         }
@@ -738,7 +743,7 @@ const RelationshipView = ({
         .pending-empty p {
           margin: 0;
           color: #64748b;
-          font-size: 13px;
+          font-size: 0.875rem;
           line-height: 1.6;
         }
         .dark .pending-empty p { color: rgba(250, 246, 242, 0.58); }
@@ -954,7 +959,7 @@ const RelationshipView = ({
 
         .user-name {
           margin: 0;
-          font-size: clamp(34px, 4vw, 50px);
+          font-size: 1.5rem;
           font-weight: 850;
           color: #1e1b1a;
           letter-spacing: -0.03em;
@@ -964,7 +969,7 @@ const RelationshipView = ({
 
         .user-handle {
           color: #5b6f86;
-          font-size: 16px;
+          font-size: 1rem;
           font-weight: 700;
           line-height: 1.2;
         }
@@ -973,7 +978,7 @@ const RelationshipView = ({
         .user-role {
           margin-top: 2px;
           color: #7f8fa5;
-          font-size: 12px;
+          font-size: 0.75rem;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           font-weight: 800;
@@ -1023,9 +1028,9 @@ const RelationshipView = ({
         .center-info .date {
           margin: 5px 0 0;
           color: #1e1b1a;
-          font-size: clamp(32px, 3.4vw, 44px);
-          font-weight: 900;
-          line-height: 1.05;
+          font-size: 1rem;
+          font-weight: 800;
+          line-height: 1.06;
           letter-spacing: -0.03em;
         }
         .dark .center-info .date { color: rgba(250, 246, 242, 0.95); }
@@ -1033,7 +1038,8 @@ const RelationshipView = ({
         .center-info .days {
           margin: 0;
           color: #6b7280;
-          font-size: 16px;
+          font-size: 0.75rem;
+          font-weight: 600;
         }
         .dark .center-info .days { color: rgba(250, 246, 242, 0.6); }
 
@@ -1067,7 +1073,7 @@ const RelationshipView = ({
 
         .card h4 {
           margin: 0;
-          font-size: 34px;
+          font-size: 1.25rem;
           font-weight: 900;
           color: #1e1b1a;
           margin-bottom: 10px;
@@ -1086,7 +1092,7 @@ const RelationshipView = ({
           justify-content: space-between;
           align-items: center;
           color: #6b7280;
-          font-size: 14px;
+          font-size: 0.875rem;
           gap: 14px;
         }
         .dark .row { color: rgba(250, 246, 242, 0.6); }
@@ -1137,7 +1143,7 @@ const RelationshipView = ({
           font-weight: 900;
           padding: 11px 22px;
           cursor: pointer;
-          font-size: 14px;
+          font-size: 0.875rem;
           font-family: inherit;
           transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
         }
@@ -1155,7 +1161,7 @@ const RelationshipView = ({
           color: #6b7280;
           text-transform: uppercase;
           letter-spacing: 0.08em;
-          font-size: 11px;
+          font-size: 0.75rem;
           font-weight: 800;
         }
         .dark .helper { color: rgba(250, 246, 242, 0.5); }
@@ -1177,7 +1183,7 @@ const RelationshipView = ({
           justify-content: space-between;
           padding: 0 12px 0 14px;
           color: #4b5563;
-          font-size: 14px;
+          font-size: 0.875rem;
           font-weight: 700;
           cursor: pointer;
           transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
@@ -1334,7 +1340,7 @@ const RelationshipView = ({
 
         .linked h5 {
           margin: 0 0 14px;
-          font-size: 30px;
+          font-size: 1.5rem;
           color: #1e1b1a;
           font-weight: 900;
         }
@@ -1428,22 +1434,22 @@ const RelationshipView = ({
           }
 
           .card h4 {
-            font-size: 28px;
+            font-size: 1.25rem;
             margin-bottom: 8px;
           }
 
-          .user-name { font-size: clamp(30px, 7vw, 44px); }
+          .user-name { font-size: 1.5rem; }
 
           .row {
-            font-size: 14px;
+            font-size: 0.875rem;
           }
 
           .helper {
-            font-size: 11px;
+            font-size: 0.75rem;
           }
 
           .option {
-            font-size: 14px;
+            font-size: 0.875rem;
             height: 44px;
             margin-bottom: 0;
           }
@@ -1451,12 +1457,12 @@ const RelationshipView = ({
           .outline-btn,
           .solid-btn {
             width: 100%;
-            font-size: 15px;
+            font-size: 0.875rem;
             margin-top: 14px;
           }
 
           .linked h5 {
-            font-size: 28px;
+            font-size: 1.5rem;
             margin-bottom: 10px;
           }
         }

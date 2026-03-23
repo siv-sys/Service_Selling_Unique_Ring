@@ -13,6 +13,42 @@ const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
 const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
 const DEFAULT_PROFILE_NAME = 'Member';
 
+type ProfileData = {
+  title: string;
+  togetherSince: string;
+  handle: string;
+  phone: string;
+  avatarUrl: string;
+  linkedPartnerLabel: string;
+  daysTogether: number;
+};
+
+type ProfileViewProps = {
+  onNavigateDashboard?: () => void;
+  onNavigateCoupleShop?: () => void;
+  onNavigateMyRing?: () => void;
+  onNavigateRelationship?: () => void;
+  onNavigateSettings?: () => void;
+  onNavigateCoupleProfile?: () => void;
+  onNavigateProfile?: () => void;
+};
+
+function normalizeProfileData(data: unknown, fallback: ProfileData): ProfileData {
+  const source = data && typeof data === 'object' ? (data as Partial<ProfileData>) : {};
+  const daysTogether = Number(source.daysTogether);
+
+  return {
+    title: String(source.title || fallback.title).trim() || fallback.title,
+    togetherSince: String(source.togetherSince || fallback.togetherSince).trim() || fallback.togetherSince,
+    handle: String(source.handle || fallback.handle).trim() || fallback.handle,
+    phone: String(source.phone || fallback.phone).trim() || fallback.phone,
+    avatarUrl: String(source.avatarUrl || '').trim(),
+    linkedPartnerLabel:
+      String(source.linkedPartnerLabel || fallback.linkedPartnerLabel).trim() || fallback.linkedPartnerLabel,
+    daysTogether: Number.isFinite(daysTogether) && daysTogether >= 0 ? daysTogether : fallback.daysTogether,
+  };
+}
+
 const ProfileView = ({
   onNavigateDashboard = () => {},
   onNavigateCoupleShop = () => {},
@@ -21,8 +57,8 @@ const ProfileView = ({
   onNavigateSettings = () => {},
   onNavigateCoupleProfile = () => {},
   onNavigateProfile = () => {}
-}) => {
-  const initialProfile = React.useMemo(() => ({
+}: ProfileViewProps) => {
+  const initialProfile = React.useMemo<ProfileData>(() => ({
     title: 'Alex & Sam',
     togetherSince: 'Celebrating love since October 12, 2021',
     handle: 'alex_and_sam',
@@ -34,25 +70,25 @@ const ProfileView = ({
 
   const [avatarUrl, setAvatarUrl] = React.useState('');
   const [isEditing, setIsEditing] = React.useState(false);
-  const [profile, setProfile] = React.useState(initialProfile);
-  const [draftProfile, setDraftProfile] = React.useState(initialProfile);
+  const [profile, setProfile] = React.useState<ProfileData>(initialProfile);
+  const [draftProfile, setDraftProfile] = React.useState<ProfileData>(initialProfile);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
-  const fileInputRef = React.useRef(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const readPersistedProfile = React.useCallback(() => {
     try {
       const raw = getUserScopedLocalStorageItem(PROFILE_STORAGE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === 'object' ? parsed : null;
+      return normalizeProfileData(parsed, initialProfile);
     } catch {
       return null;
     }
-  }, []);
+  }, [initialProfile]);
 
-  const persistProfile = React.useCallback((data) => {
+  const persistProfile = React.useCallback((data: ProfileData) => {
     try {
       setUserScopedLocalStorageItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
     } catch {
@@ -60,7 +96,7 @@ const ProfileView = ({
     }
   }, []);
 
-  const persistUserAvatar = React.useCallback((nextAvatarUrl) => {
+  const persistUserAvatar = React.useCallback((nextAvatarUrl: string) => {
     try {
       if (nextAvatarUrl) {
         setUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY, nextAvatarUrl);
@@ -73,17 +109,14 @@ const ProfileView = ({
     }
   }, []);
 
-  const syncProfileIdentity = React.useCallback((nextTitle) => {
+  const syncProfileIdentity = React.useCallback((nextTitle: string) => {
     const normalizedTitle = String(nextTitle || '').trim() || DEFAULT_PROFILE_NAME;
     sessionStorage.setItem('auth_name', normalizedTitle);
     window.dispatchEvent(new Event(USER_PROFILE_UPDATED_EVENT));
   }, []);
 
-  const applyProfile = React.useCallback((data) => {
-    const next = {
-      ...initialProfile,
-      ...data,
-    };
+  const applyProfile = React.useCallback((data: unknown) => {
+    const next = normalizeProfileData(data, initialProfile);
     setProfile(next);
     setDraftProfile(next);
     setAvatarUrl(next.avatarUrl || '');
@@ -105,9 +138,9 @@ const ProfileView = ({
         }
 
         const rawUserId = getStoredAuthValue('auth_user_id');
-        const profileData = await api.get('/profile/me/current');
+        const profileData = await api.get<Partial<ProfileData>>('/profile/me/current');
         const userData = rawUserId
-          ? await api.get(`/users/${rawUserId}`).catch(() => null)
+          ? await api.get<{ avatarUrl?: string | null }>(`/users/${rawUserId}`).catch(() => null)
           : null;
         if (!active) return;
         const nextAvatarUrl =
@@ -124,8 +157,10 @@ const ProfileView = ({
         const persisted = readPersistedProfile();
         if (persisted) {
           applyProfile(persisted);
+          setError('Live profile data could not be loaded, so saved local details are being shown.');
         } else {
-          setError('');
+          setError('Profile data could not be loaded. Default details are shown until the server is available.');
+          applyProfile(initialProfile);
         }
       } finally {
         if (active) setLoading(false);
@@ -145,7 +180,7 @@ const ProfileView = ({
     }
   };
 
-  const handleAvatarChange = (event) => {
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -178,12 +213,12 @@ const ProfileView = ({
       let persistedAvatarUrl = avatarUrl;
       const rawUserId = getStoredAuthValue('auth_user_id');
       if (rawUserId && avatarUrl && avatarUrl !== profile.avatarUrl) {
-        const avatarResponse = await api.patch(`/users/${rawUserId}/avatar`, { avatarUrl });
+        const avatarResponse = await api.patch<{ avatarUrl?: string }>(`/users/${rawUserId}/avatar`, { avatarUrl });
         persistedAvatarUrl = avatarResponse?.avatarUrl || avatarUrl;
         persistUserAvatar(persistedAvatarUrl);
       }
 
-      const savedProfile = await api.patch('/profile/me/current', {
+      const savedProfile = await api.patch<Partial<ProfileData>>('/profile/me/current', {
         ...payload,
         avatarUrl: persistedAvatarUrl,
       });
@@ -195,10 +230,10 @@ const ProfileView = ({
       setIsEditing(false);
     } catch (err) {
       // Keep local changes on the device, but be explicit when sync failed.
-      persistProfile(payload);
+      persistProfile(normalizeProfileData(payload, initialProfile));
       applyProfile(payload);
       setIsEditing(false);
-      setError('');
+      setError('Changes were saved on this device, but the server sync failed.');
     } finally {
       setSaving(false);
     }
@@ -250,6 +285,8 @@ const ProfileView = ({
           font-family: Manrope, 'Segoe UI', sans-serif;
           position: relative;
           overflow: hidden;
+          font-size: 0.82rem;
+          line-height: 1.45;
         }
 
         .dark .profile-page {
@@ -307,12 +344,12 @@ const ProfileView = ({
 
         .brand-logo {
           color: #f542a7;
-          font-size: 20px;
+          font-size: 1rem;
         }
 
         .brand-text {
           color: #f542a7;
-          font-size: 34px;
+          font-size: 1.32rem;
           font-weight: 600;
           font-family: 'Times New Roman', Georgia, serif;
         }
@@ -325,21 +362,21 @@ const ProfileView = ({
           margin-left: 28px;
         }
 
-        .main-nav a {
+        .main-nav button {
           border: 0;
-          font-size: 25px;
+          background: transparent;
+          font-size: 0.92rem;
           cursor: pointer;
           padding: 4px 0;
-          text-decoration: none;
           color: #27272a;
           font-weight: 500;
         }
 
-        .main-nav a:hover {
+        .main-nav button:hover {
           color: #f542a7;
         }
 
-        .main-nav a.active {
+        .main-nav button.active {
           color: #f542a7;
           font-weight: 700;
         }
@@ -364,7 +401,7 @@ const ProfileView = ({
         }
 
         .top-icon-btn .material-symbols-outlined {
-          font-size: 19px;
+          font-size: 0.92rem;
           font-variation-settings: 'wght' 250;
         }
 
@@ -375,7 +412,7 @@ const ProfileView = ({
         }
 
         .profile-name {
-          font-size: 24px;
+          font-size: 1rem;
           font-weight: 500;
           color: #1f1f23;
         }
@@ -390,7 +427,7 @@ const ProfileView = ({
 
         .profile-chevron {
           color: #9b96a2;
-          font-size: 15px;
+          font-size: 0.875rem;
           line-height: 1;
           margin-left: -6px;
           margin-right: 2px;
@@ -446,7 +483,7 @@ const ProfileView = ({
           border: 3px solid #fff;
           background: linear-gradient(160deg, #ff4f87, #ef2f5a);
           color: #fff;
-          font-size: 21px;
+          font-size: 1.25rem;
           display: grid;
           place-items: center;
           box-shadow: 0 16px 30px rgba(239, 47, 90, 0.35);
@@ -455,22 +492,22 @@ const ProfileView = ({
 
         .hero h1 {
           margin: 24px 0 8px;
-          font-size: clamp(34px, 4.2vw, 56px);
+          font-size: clamp(16px, 2.6vw, 20px);
           letter-spacing: -0.04em;
-          line-height: 0.98;
+          line-height: 1.08;
           color: #15233e;
           display: inline-flex;
           align-items: center;
           gap: 12px;
           justify-content: center;
-          font-weight: 800;
+          font-weight: 700;
           text-wrap: balance;
         }
 
         .hero p {
           margin: 0;
           color: #ef2f5a;
-          font-size: clamp(20px, 2.2vw, 40px);
+          font-size: clamp(15px, 1.8vw, 24px);
           font-weight: 700;
           line-height: 1.2;
           letter-spacing: -0.01em;
@@ -479,7 +516,7 @@ const ProfileView = ({
         .status-note {
           margin: 14px 0 0;
           color: #70829d;
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 700;
         }
 
@@ -501,7 +538,7 @@ const ProfileView = ({
           border-radius: 999px;
           height: 56px;
           padding: 0 34px;
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 800;
           cursor: pointer;
         }
@@ -526,7 +563,7 @@ const ProfileView = ({
           border: 1px solid #d8e0ec;
           background: #fff;
           color: #15233e;
-          font-size: 22px;
+          font-size: 18px;
           font-weight: 700;
           text-align: center;
           padding: 0 12px;
@@ -537,7 +574,7 @@ const ProfileView = ({
 
         .profile-input.sub {
           color: #ef2f5a;
-          font-size: 18px;
+          font-size: 15px;
           height: 44px;
         }
 
@@ -574,7 +611,7 @@ const ProfileView = ({
         .days-label {
           margin: 0;
           color: #627896;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 900;
           letter-spacing: 0.12em;
           text-transform: uppercase;
@@ -583,7 +620,7 @@ const ProfileView = ({
         .days-value {
           margin: 3px 0 0;
           color: #ef2f5a;
-          font-size: clamp(34px, 4.5vw, 52px);
+          font-size: clamp(22px, 3.2vw, 32px);
           line-height: 1;
           font-weight: 900;
           letter-spacing: -0.03em;
@@ -601,7 +638,7 @@ const ProfileView = ({
         .days-link {
           margin-top: 10px;
           color: #4c6280;
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 700;
         }
 
@@ -667,7 +704,7 @@ const ProfileView = ({
 
         .card h3 {
           margin: 0;
-          font-size: 30px;
+          font-size: 20px;
           letter-spacing: -0.03em;
           color: #16243e;
         }
@@ -675,7 +712,7 @@ const ProfileView = ({
         .card p {
           margin: 8px 0 18px;
           color: #6e819c;
-          font-size: 15px;
+          font-size: 13px;
           line-height: 1.4;
           font-weight: 600;
         }
@@ -690,7 +727,7 @@ const ProfileView = ({
           gap: 8px;
           padding: 0 16px;
           color: #8093a9;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 700;
           white-space: nowrap;
           overflow: hidden;
@@ -698,7 +735,7 @@ const ProfileView = ({
 
         .handle-box strong {
           color: #15233e;
-          font-size: 24px;
+          font-size: 17px;
           letter-spacing: -0.02em;
         }
 
@@ -706,7 +743,7 @@ const ProfileView = ({
           border: 0;
           background: transparent;
           color: #15233e;
-          font-size: 24px;
+          font-size: 17px;
           font-weight: 800;
           letter-spacing: -0.02em;
           width: 100%;
@@ -724,7 +761,7 @@ const ProfileView = ({
 
         .phone-value {
           color: #16243e;
-          font-size: 28px;
+          font-size: 20px;
           font-weight: 800;
           letter-spacing: -0.02em;
         }
@@ -734,7 +771,7 @@ const ProfileView = ({
           border-radius: 10px;
           background: #fff;
           color: #16243e;
-          font-size: 28px;
+          font-size: 20px;
           font-weight: 800;
           letter-spacing: -0.02em;
           height: 48px;
@@ -750,7 +787,7 @@ const ProfileView = ({
           padding: 0 16px;
           background: linear-gradient(180deg, #fff0f3, #ffe7ed);
           color: #ef2f5a;
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 800;
           cursor: pointer;
         }
@@ -790,12 +827,12 @@ const ProfileView = ({
           color: #ef2f5a;
           display: grid;
           place-items: center;
-          font-size: 22px;
+          font-size: 16px;
         }
 
         .signout h4 {
           margin: 0;
-          font-size: 28px;
+          font-size: 20px;
           letter-spacing: -0.02em;
           color: #111f39;
         }
@@ -803,13 +840,13 @@ const ProfileView = ({
         .signout p {
           margin: 3px 0 0;
           color: #6e819d;
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 600;
         }
 
         .signout-arrow {
           color: #c8d2de;
-          font-size: 34px;
+          font-size: 22px;
           line-height: 1;
         }
 
@@ -817,7 +854,7 @@ const ProfileView = ({
           margin-top: 120px;
           text-align: center;
           color: #9aaac0;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 600;
         }
 
@@ -832,7 +869,7 @@ const ProfileView = ({
           border: 0;
           background: transparent;
           color: #9aaac0;
-          font-size: 13px;
+          font-size: 12px;
           cursor: pointer;
         }
 
@@ -933,7 +970,7 @@ const ProfileView = ({
             margin-left: 0;
           }
 
-          .main-nav a {
+          .main-nav button {
             padding: 4px 0 8px;
           }
 
@@ -975,7 +1012,7 @@ const ProfileView = ({
           .avatar-camera {
             width: 52px;
             height: 52px;
-            font-size: 20px;
+            font-size: 18px;
           }
 
           .days-card {
@@ -990,11 +1027,11 @@ const ProfileView = ({
 
           .card h3,
           .signout h4 {
-            font-size: 28px;
+            font-size: 20px;
           }
 
           .phone-value {
-            font-size: 28px;
+            font-size: 20px;
           }
 
           .phone-row {
@@ -1003,11 +1040,11 @@ const ProfileView = ({
           }
 
           .handle-box strong {
-            font-size: 21px;
+            font-size: 16px;
           }
 
           .handle-input {
-            font-size: 21px;
+            font-size: 16px;
           }
 
           .footer {
@@ -1023,10 +1060,10 @@ const ProfileView = ({
         </div>
 
         <nav className="main-nav" aria-label="Main">
-          <a href="#dashboard" onClick={onNavigateDashboard}>Dashboard</a>
-          <a href="#coupleshop" className="active" onClick={onNavigateCoupleShop}>Couple Shop</a>
-          <a href="#myring" onClick={onNavigateMyRing}>My Ring</a>
-          <a href="#coupleprofile" onClick={onNavigateCoupleProfile}>Couple Profile</a>
+          <button type="button" onClick={onNavigateDashboard}>Dashboard</button>
+          <button type="button" className="active" onClick={onNavigateCoupleShop}>Couple Shop</button>
+          <button type="button" onClick={onNavigateMyRing}>My Ring</button>
+          <button type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
         </nav>
 
         <div className="top-actions">
@@ -1090,6 +1127,8 @@ const ProfileView = ({
               <p>{profile.togetherSince}</p>
             </>
           )}
+          {error ? <p className="status-note error">{error}</p> : null}
+          {!error && loading ? <p className="status-note">Loading profile...</p> : null}
           <div className="edit-actions">
             {isEditing ? (
               <>
@@ -1107,7 +1146,9 @@ const ProfileView = ({
             <div className="days-icon">{'\u2728'}</div>
             <div>
               <p className="days-label">Shared Journey</p>
-              <p className="days-value">{profile.daysTogether} Days</p>
+              <p className="days-value">
+                {profile.daysTogether} Day{profile.daysTogether === 1 ? '' : 's'}
+              </p>
             </div>
           </div>
           <div className="days-right">

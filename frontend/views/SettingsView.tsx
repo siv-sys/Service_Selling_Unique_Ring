@@ -916,6 +916,8 @@ const SettingsView = ({
               var(--bg);
             color: var(--text);
             font-family: 'Plus Jakarta Sans', Manrope, 'Segoe UI', sans-serif;
+            font-size: 0.9rem;
+            line-height: 1.45;
           }
 
           .settings-page.dark {
@@ -943,7 +945,7 @@ const SettingsView = ({
 
           .admin-settings-kicker {
             color: var(--accent);
-            font-size: 0.78rem;
+            font-size: 0.75rem;
             font-weight: 800;
             letter-spacing: 0.14em;
             text-transform: uppercase;
@@ -951,7 +953,7 @@ const SettingsView = ({
 
           .admin-settings-title {
             margin: 10px 0 6px;
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 800;
           }
 
@@ -975,7 +977,7 @@ const SettingsView = ({
           }
 
           .admin-settings-field label {
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             font-weight: 700;
           }
 
@@ -1238,7 +1240,8 @@ const SettingsView = ({
         .settings-page.dark .device,
         .settings-page.dark .info-box,
         .settings-page.dark .data-box,
-        .settings-page.dark .dnd-time {
+        .settings-page.dark .dnd-time,
+        .settings-page.dark .content-head {
           background: #253244;
           border-color: var(--line);
           color: var(--text);
@@ -1765,8 +1768,14 @@ const SettingsView = ({
           align-items: flex-start;
           justify-content: space-between;
           gap: 18px;
-          margin-bottom: 24px;
-          padding: 4px 2px;
+          margin-bottom: 28px;
+          padding: 18px 20px;
+          border: 1px solid rgba(220, 229, 240, 0.9);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at top right, rgba(236, 72, 153, 0.08), transparent 34%),
+            linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.96));
+          box-shadow: 0 16px 34px rgba(15, 23, 42, 0.06);
         }
 
         .head-actions {
@@ -1835,9 +1844,9 @@ const SettingsView = ({
 
         .heading {
           margin: 0;
-          font-size: clamp(42px, 4.1vw, 58px);
+          font-size: clamp(30px, 3.4vw, 42px);
           letter-spacing: -0.03em;
-          line-height: 1;
+          line-height: 1.1;
           font-weight: 800;
           color: #131f37;
         }
@@ -1846,25 +1855,27 @@ const SettingsView = ({
           margin: 10px 0 28px;
           max-width: 760px;
           color: #69809f;
-          font-size: 16px;
+          font-size: 14px;
           line-height: 1.42;
           font-weight: 600;
         }
 
         .general-heading {
           margin: 0;
-          font-size: clamp(34px, 3.2vw, 54px);
-          letter-spacing: -0.03em;
-          line-height: 1.04;
+          font-size: clamp(24px, 2.3vw, 34px);
+          letter-spacing: -0.04em;
+          line-height: 1.02;
           font-weight: 800;
           color: #131f37;
+          text-wrap: balance;
         }
 
         .general-subheading {
-          margin: 8px 0 0;
-          color: #7589a2;
-          font-size: 17px;
-          line-height: 1.4;
+          margin: 10px 0 0;
+          max-width: 560px;
+          color: #6b7f98;
+          font-size: 14px;
+          line-height: 1.55;
           font-weight: 600;
         }
 
@@ -2474,8 +2485,8 @@ const SettingsView = ({
         }
 
         .security-screen .heading {
-          font-size: clamp(36px, 3.3vw, 50px);
-          line-height: 1.03;
+          font-size: clamp(22px, 2.3vw, 30px);
+          line-height: 1.04;
           letter-spacing: -0.032em;
           margin-bottom: 8px;
           color: #10213f;
@@ -2485,7 +2496,7 @@ const SettingsView = ({
           margin: 0 0 24px;
           max-width: 860px;
           color: #5d7392;
-          font-size: 16px;
+          font-size: 14px;
         }
 
         .security-screen .main-grid {
@@ -2542,7 +2553,7 @@ const SettingsView = ({
         .security-screen .two-factor h3,
         .security-screen .sessions h3,
         .security-screen .side-panel h3 {
-          font-size: 22px;
+          font-size: 18px;
           color: #12213f;
           letter-spacing: -0.018em;
         }
@@ -2763,7 +2774,7 @@ const SettingsView = ({
 
         .help-title {
           margin: 0;
-          font-size: clamp(34px, 3.2vw, 50px);
+          font-size: clamp(22px, 2.3vw, 30px);
           line-height: 1.04;
           letter-spacing: -0.03em;
           color: #10213f;
@@ -2879,7 +2890,7 @@ const SettingsView = ({
           display: flex;
           align-items: center;
           gap: 11px;
-          font-size: clamp(26px, 2.6vw, 34px);
+          font-size: clamp(18px, 1.9vw, 24px);
           color: #17243f;
           font-weight: 800;
           letter-spacing: -0.025em;
@@ -2887,7 +2898,7 @@ const SettingsView = ({
 
         .help-section-title span {
           color: var(--accent);
-          font-size: 22px;
+          font-size: 18px;
         }
 
         .sound-list {
@@ -3007,7 +3018,7 @@ const SettingsView = ({
 
         .dnd-title {
           margin: 0;
-          font-size: clamp(24px, 2.7vw, 30px);
+          font-size: clamp(18px, 1.9vw, 22px);
           color: #17243f;
           font-weight: 800;
           letter-spacing: -0.025em;
