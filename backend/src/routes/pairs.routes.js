@@ -1,5 +1,5 @@
 ﻿const express = require('express');
-const { query } = require('../config/db');
+const { pool, query } = require('../config/db');
 
 const router = express.Router();
 
@@ -76,6 +76,75 @@ router.get('/my-connection', async (req, res) => {
       message: 'Failed to fetch connection data',
       error: error.message 
     });
+  }
+});
+
+router.delete('/my-connection', async (req, res) => {
+  const currentUserId = getCurrentUserId(req);
+  if (!currentUserId) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required',
+    });
+  }
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [membershipRows] = await connection.execute(
+      `
+        SELECT rp.id AS pair_id
+        FROM relationship_pairs rp
+        INNER JOIN pair_members pm ON pm.pair_id = rp.id
+        WHERE pm.user_id = ?
+          AND rp.status IN ('CONNECTED', 'SYNCING', 'PENDING', 'UNPAIRED', 'SUSPENDED')
+        ORDER BY rp.updated_at DESC, rp.id DESC
+        LIMIT 1
+      `,
+      [currentUserId],
+    );
+
+    const pairId = Number(membershipRows[0]?.pair_id || 0);
+    if (!pairId) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'No relationship found to unpair.',
+      });
+    }
+
+    await connection.execute(
+      `DELETE FROM ring_pair_links WHERE pair_id = ?`,
+      [pairId],
+    );
+    await connection.execute(
+      `DELETE FROM pair_members WHERE pair_id = ?`,
+      [pairId],
+    );
+    await connection.execute(
+      `DELETE FROM relationship_pairs WHERE id = ?`,
+      [pairId],
+    );
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      message: 'Relationship unpaired successfully.',
+      pairId,
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error unpairing relationship:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to unpair relationship',
+      error: error.message,
+    });
+  } finally {
+    connection.release();
   }
 });
 

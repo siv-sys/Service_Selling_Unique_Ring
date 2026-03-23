@@ -13,6 +13,7 @@ type ProfilePayload = {
 type ConnectionPayload = {
   success?: boolean;
   connection?: {
+    pairId?: number | null;
     establishedAt?: string | null;
     pairCode?: string | null;
     pair_code?: string | null;
@@ -97,6 +98,13 @@ const RelationshipView = ({
   });
   const [loadingInvitations, setLoadingInvitations] = React.useState(true);
   const [connectionLoaded, setConnectionLoaded] = React.useState(false);
+  const [isUnpairing, setIsUnpairing] = React.useState(false);
+  const [confirmDialog, setConfirmDialog] = React.useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const applyConnectionData = React.useCallback((connection: ConnectionPayload['connection']) => {
     const formatHandle = (value: string) =>
@@ -254,6 +262,34 @@ const RelationshipView = ({
   const handleUnpair = () => {
     setAccess('REVOKED');
     setStatus('UNPAIRED');
+    setPairCode('UNPAIRED');
+    setEstablishedDate('Not paired');
+    setDaysTogetherLabel('Not paired yet');
+    setPartnerName('Partner');
+    setPartnerHandle('partner');
+    setLinkedRings([]);
+  };
+
+  const handleConfirmUnpair = async () => {
+    setIsUnpairing(true);
+
+    try {
+      const result = await api.delete<{ success?: boolean; message?: string }>('/pairs/my-connection');
+      handleUnpair();
+      setInviteMessage(result?.message || 'Relationship unpaired successfully.');
+      setInviteMessageTone('success');
+      await refreshInvitations();
+      await refreshConnection();
+    } catch (error: any) {
+      setInviteMessage(error instanceof Error ? error.message : 'Failed to unpair relationship');
+      setInviteMessageTone('error');
+    } finally {
+      setIsUnpairing(false);
+    }
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void, confirmLabel = 'Confirm') => {
+    setConfirmDialog({ title, message, onConfirm, confirmLabel });
   };
 
   const handleSaveVisibility = () => {
@@ -1738,7 +1774,20 @@ const RelationshipView = ({
                       </select>
                     </label>
                   </div>
-                  <button className="outline-btn" type="button" onClick={handleUnpair}>
+                  <button
+                    className="outline-btn"
+                    type="button"
+                    onClick={() =>
+                      showConfirm(
+                        'Unpair Relationship',
+                        'Are you sure you want to unpair this relationship?',
+                        () => {
+                          void handleConfirmUnpair();
+                        },
+                        'Unpair'
+                      )
+                    }
+                  >
                     Unpair Relationship
                   </button>
                 </section>
@@ -1828,6 +1877,41 @@ const RelationshipView = ({
 
         <p className="footer">Built for two {'\u2022'} forever connected</p>
       </main>
+
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[rgba(16,24,40,0.18)] px-4 backdrop-blur-[6px]">
+          <div className="w-full max-w-[590px] rounded-[34px] bg-[linear-gradient(180deg,#ffffff_0%,#fffafc_100%)] px-7 py-8 shadow-[0_28px_80px_rgba(255,42,162,0.12)] ring-1 ring-[rgba(255,42,162,0.08)] dark:bg-[linear-gradient(180deg,#2a2426_0%,#211c1d_100%)] dark:ring-[rgba(255,255,255,0.08)]">
+            <div className="mb-7">
+              <h3 className="text-[28px] font-black tracking-[-0.04em] text-primary sm:text-[34px]">
+                {confirmDialog.title}
+              </h3>
+            </div>
+            <p className="max-w-[460px] text-[19px] font-medium leading-[1.55] text-slate-600 dark:text-[rgba(250,246,242,0.76)]">
+              {confirmDialog.message}
+            </p>
+            <div className="mt-10 flex flex-wrap justify-end gap-4">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="min-w-[122px] rounded-full border border-[#dbe3ef] bg-white px-7 py-3 text-[17px] font-bold text-slate-700 transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-[rgba(250,246,242,0.85)] dark:hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isUnpairing}
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  setConfirmDialog(null);
+                }}
+                className="min-w-[122px] rounded-full border-[3px] border-[#1f1f1f] bg-white px-7 py-3 text-[17px] font-extrabold text-[#1f1f1f] transition hover:bg-[#fff5fa] dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white/8"
+              >
+                {isUnpairing ? 'Unpairing...' : confirmDialog.confirmLabel || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
