@@ -10,7 +10,11 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         proxy: {
           '/api': {
-            target: env.VITE_API_TARGET || 'http://127.0.0.1:4000',
+            target: env.VITE_API_TARGET || 'http://127.0.0.1:4001',
+            changeOrigin: true,
+          },
+          '/uploads': {
+            target: env.VITE_API_TARGET || 'http://127.0.0.1:4001',
             changeOrigin: true,
           },
         },

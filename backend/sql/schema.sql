@@ -34,6 +34,92 @@ CREATE TABLE IF NOT EXISTS user_roles (
   CONSTRAINT fk_user_roles_role FOREIGN KEY (role_id) REFERENCES roles(id)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS notifications (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  type VARCHAR(40) NOT NULL,
+  icon VARCHAR(8) NULL,
+  icon_class VARCHAR(30) NOT NULL DEFAULT 'system',
+  action_key VARCHAR(40) NULL,
+  title VARCHAR(160) NOT NULL,
+  message VARCHAR(500) NOT NULL,
+  unread TINYINT(1) NOT NULL DEFAULT 1,
+  metadata JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  read_at DATETIME NULL,
+  clicked_at DATETIME NULL,
+  opened_count INT UNSIGNED NOT NULL DEFAULT 0,
+  CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id),
+  UNIQUE KEY uq_notifications_user_type_title (user_id, type, title),
+  KEY idx_notifications_user (user_id),
+  KEY idx_notifications_unread (user_id, unread, created_at)
+) ENGINE=InnoDB;
+
+ALTER TABLE notifications
+ADD COLUMN IF NOT EXISTS metadata JSON NULL AFTER unread;
+
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id BIGINT UNSIGNED PRIMARY KEY,
+  two_factor_enabled TINYINT(1) NOT NULL DEFAULT 0,
+  privacy_level ENUM('Public', 'Contacts', 'Private') NOT NULL DEFAULT 'Contacts',
+  theme_mode ENUM('Light', 'Dark', 'System') NOT NULL DEFAULT 'Light',
+  anniversary_reminders TINYINT(1) NOT NULL DEFAULT 1,
+  system_updates TINYINT(1) NOT NULL DEFAULT 0,
+  auto_sync TINYINT(1) NOT NULL DEFAULT 1,
+  language VARCHAR(40) NOT NULL DEFAULT 'English (US)',
+  global_mute TINYINT(1) NOT NULL DEFAULT 0,
+  dnd_enabled TINYINT(1) NOT NULL DEFAULT 1,
+  dnd_from_time TIME NULL,
+  dnd_until_time TIME NULL,
+  repeat_daily TINYINT(1) NOT NULL DEFAULT 1,
+  anniversary_sound VARCHAR(60) NOT NULL DEFAULT 'Bell Chime',
+  reminders_sound VARCHAR(60) NOT NULL DEFAULT 'Soft Hum',
+  messages_sound VARCHAR(60) NOT NULL DEFAULT 'Digital Pop',
+  email_weekly_wrap TINYINT(1) NOT NULL DEFAULT 1,
+  email_product_tips TINYINT(1) NOT NULL DEFAULT 0,
+  email_occasion_reminders TINYINT(1) NOT NULL DEFAULT 1,
+  email_partner_alerts TINYINT(1) NOT NULL DEFAULT 1,
+  last_export_at DATETIME NULL,
+  last_synced_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_settings_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  session_token VARCHAR(255) NOT NULL UNIQUE,
+  device_name VARCHAR(120) NULL,
+  location_label VARCHAR(160) NULL,
+  status_label VARCHAR(160) NULL,
+  badge VARCHAR(30) NULL,
+  icon VARCHAR(8) NULL,
+  last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  revoked_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id) REFERENCES users(id),
+  KEY idx_user_sessions_user (user_id),
+  KEY idx_user_sessions_revoked (user_id, revoked_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  user_id BIGINT UNSIGNED PRIMARY KEY,
+  plan_name VARCHAR(80) NOT NULL DEFAULT 'Premium Plan',
+  auto_renew_enabled TINYINT(1) NOT NULL DEFAULT 1,
+  renewing_on DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+
+-- Example reusable inserts for other features:
+-- INSERT INTO notifications (user_id, type, icon, icon_class, title, message)
+-- VALUES (1, 'memory', '🖼', 'image', 'New memory added', 'Your partner added a new photo to your timeline.');
+--
+-- INSERT INTO notifications (user_id, type, icon, icon_class, title, message)
+-- VALUES (1, 'security', '🔒', 'system', 'Security alert', 'A new device signed in to your account.');
+
 CREATE TABLE IF NOT EXISTS relationship_pairs (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   pair_code VARCHAR(30) NOT NULL UNIQUE,
@@ -231,7 +317,7 @@ ON DUPLICATE KEY UPDATE
   max_login_attempts = VALUES(max_login_attempts);
 
 
-____________________________________________
+-- Sample seed data
 
 INSERT INTO users 
 (username, full_name, email, password_hash, city)
@@ -244,6 +330,75 @@ INSERT INTO user_roles (user_id, role_id)
 VALUES
 (1, 1),
 (2, 1);
+
+
+INSERT INTO notifications
+(user_id, type, icon, icon_class, action_key, title, message, unread, created_at)
+VALUES
+(1, 'photo', '🖼', 'image', 'couple_profile', 'New photo added by partner', 'Anna just uploaded a new memory to your shared gallery.', 1, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(1, 'anniversary', '📅', 'calendar', 'help_support', 'Upcoming anniversary reminder', 'Your anniversary is in 3 days. Time to celebrate!', 1, DATE_SUB(NOW(), INTERVAL 1 HOUR)),
+(1, 'gift', '🎁', 'gift', 'general', 'Gift suggestion for you', 'Check out these personalized ring designs for your special day.', 0, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(1, 'system', '⚙', 'system', 'general', 'System update', 'Eternal Rings has new shared journey improvements.', 0, DATE_SUB(NOW(), INTERVAL 1 DAY))
+ON DUPLICATE KEY UPDATE
+  action_key = VALUES(action_key),
+  title = VALUES(title),
+  message = VALUES(message),
+  unread = VALUES(unread);
+
+
+INSERT INTO user_settings
+(user_id, two_factor_enabled, privacy_level, theme_mode, anniversary_reminders, system_updates, auto_sync, language, global_mute, dnd_enabled, dnd_from_time, dnd_until_time, repeat_daily, anniversary_sound, reminders_sound, messages_sound, email_weekly_wrap, email_product_tips, email_occasion_reminders, email_partner_alerts, last_export_at, last_synced_at)
+VALUES
+(1, 0, 'Contacts', 'Light', 1, 0, 1, 'English (US)', 0, 1, '22:00:00', '07:00:00', 1, 'Bell Chime', 'Soft Hum', 'Digital Pop', 1, 0, 1, 1, NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(2, 1, 'Private', 'System', 1, 1, 1, 'French (FR)', 0, 1, '23:00:00', '06:00:00', 1, 'Crystal Bell', 'Wind Bell', 'Pulse Beat', 1, 1, 1, 1, NULL, DATE_SUB(NOW(), INTERVAL 15 MINUTE))
+ON DUPLICATE KEY UPDATE
+  two_factor_enabled = VALUES(two_factor_enabled),
+  privacy_level = VALUES(privacy_level),
+  theme_mode = VALUES(theme_mode),
+  anniversary_reminders = VALUES(anniversary_reminders),
+  system_updates = VALUES(system_updates),
+  auto_sync = VALUES(auto_sync),
+  language = VALUES(language),
+  global_mute = VALUES(global_mute),
+  dnd_enabled = VALUES(dnd_enabled),
+  dnd_from_time = VALUES(dnd_from_time),
+  dnd_until_time = VALUES(dnd_until_time),
+  repeat_daily = VALUES(repeat_daily),
+  anniversary_sound = VALUES(anniversary_sound),
+  reminders_sound = VALUES(reminders_sound),
+  messages_sound = VALUES(messages_sound),
+  email_weekly_wrap = VALUES(email_weekly_wrap),
+  email_product_tips = VALUES(email_product_tips),
+  email_occasion_reminders = VALUES(email_occasion_reminders),
+  email_partner_alerts = VALUES(email_partner_alerts),
+  last_export_at = VALUES(last_export_at),
+  last_synced_at = VALUES(last_synced_at);
+
+
+INSERT INTO subscriptions
+(user_id, plan_name, auto_renew_enabled, renewing_on)
+VALUES
+(1, 'Premium Plan', 1, '2026-12-12 00:00:00'),
+(2, 'Premium Plan', 1, '2026-12-12 00:00:00')
+ON DUPLICATE KEY UPDATE
+  plan_name = VALUES(plan_name),
+  auto_renew_enabled = VALUES(auto_renew_enabled),
+  renewing_on = VALUES(renewing_on);
+
+
+INSERT INTO user_sessions
+(user_id, session_token, device_name, location_label, status_label, badge, icon, last_seen_at, revoked_at)
+VALUES
+(1, 'demo-session-macbook', 'MacBook Pro 16"', 'London, United Kingdom', 'Active now', 'CURRENT', '💻', NOW(), NULL),
+(1, 'demo-session-iphone', 'iPhone 15 Pro', 'Paris, France', 'Last active: 2 hours ago', '', '📱', DATE_SUB(NOW(), INTERVAL 2 HOUR), NULL),
+(1, 'demo-session-ipad', 'iPad Air', 'Berlin, Germany', 'Last active: Oct 12, 2023', '', '📲', '2023-10-12 10:00:00', NULL)
+ON DUPLICATE KEY UPDATE
+  location_label = VALUES(location_label),
+  status_label = VALUES(status_label),
+  badge = VALUES(badge),
+  icon = VALUES(icon),
+  last_seen_at = VALUES(last_seen_at),
+  revoked_at = VALUES(revoked_at);
 
 
 INSERT INTO relationship_pairs
