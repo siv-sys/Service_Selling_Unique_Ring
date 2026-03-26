@@ -5,7 +5,6 @@ import {
   Users,
   Link2Off,
   RefreshCw,
-  ShieldAlert,
   Search,
   Filter,
   FileText,
@@ -375,50 +374,41 @@ const UserPairMgmt = () => {
       <main className="userpair-page flex-1 overflow-y-auto bg-slate-50/50 p-8 dark:bg-slate-950">
         {error && <p className="mb-4 text-xs font-semibold text-rose-600">{error}</p>}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div style={entrance(40)}>
-            <SummaryCard
-              title="Total Pairs"
-              value={String(summary.totalPairs)}
-              status="Database Live"
-              icon={Users}
-              color="green"
-              active={summaryFilter === 'all'}
-              onClick={() => setSummaryFilter('all')}
-            />
-          </div>
-          <div style={entrance(90)}>
-            <SummaryCard
-              title="Connected Pairs"
-              value={String(summary.connectedPairs)}
-              status="Pair Status"
-              icon={Link2Off}
-              color="amber"
-              active={summaryFilter === 'connected'}
-              onClick={() => setSummaryFilter((prev) => (prev === 'connected' ? 'all' : 'connected'))}
-            />
-          </div>
-          <div style={entrance(140)}>
-            <SummaryCard
-              title="Revoked Access"
-              value={String(summary.revokedPairs)}
-              status="Access Level"
-              icon={RefreshCw}
-              color="primary"
-              active={summaryFilter === 'revoked'}
-              onClick={() => setSummaryFilter((prev) => (prev === 'revoked' ? 'all' : 'revoked'))}
-            />
-          </div>
-          <div style={entrance(190)}>
-            <SummaryCard
-              title="Suspended Members"
-              value={String(summary.suspendedAccounts)}
-              status="Account Status"
-              icon={ShieldAlert}
-              color="red"
-              active={summaryFilter === 'suspended'}
-              onClick={() => setSummaryFilter((prev) => (prev === 'suspended' ? 'all' : 'suspended'))}
-            />
+        <div className="mb-6 rounded-[24px] border border-primary/10 bg-white p-2.5 shadow-[0_22px_54px_-42px_rgba(15,23,42,0.32)]">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div style={entrance(40)}>
+              <SummaryCard
+                title="Total Pairs"
+                value={String(summary.totalPairs)}
+                status="Database Live"
+                icon={Users}
+                color="green"
+                active={summaryFilter === 'all'}
+                onClick={() => setSummaryFilter('all')}
+              />
+            </div>
+            <div style={entrance(90)}>
+              <SummaryCard
+                title="Connected Pairs"
+                value={String(summary.connectedPairs)}
+                status="Pair Status"
+                icon={Link2Off}
+                color="amber"
+                active={summaryFilter === 'connected'}
+                onClick={() => setSummaryFilter((prev) => (prev === 'connected' ? 'all' : 'connected'))}
+              />
+            </div>
+            <div style={entrance(140)}>
+              <SummaryCard
+                title="Revoked Access"
+                value={String(summary.revokedPairs)}
+                status="Access Level"
+                icon={RefreshCw}
+                color="primary"
+                active={summaryFilter === 'revoked'}
+                onClick={() => setSummaryFilter((prev) => (prev === 'revoked' ? 'all' : 'revoked'))}
+              />
+            </div>
           </div>
         </div>
 
@@ -604,42 +594,86 @@ const UserPairMgmt = () => {
 };
 
 const SummaryCard = ({ title, value, status, icon: Icon, color, onClick, active }: any) => {
-  const colorClasses: any = {
-    green: "bg-green-100 text-green-600",
-    amber: "bg-amber-100 text-amber-600",
-    primary: "bg-primary/10 text-primary",
-    red: "bg-red-100 text-red-600"
+  const palette: any = {
+    green: {
+      shell: 'border-emerald-200/80 hover:border-emerald-300/90',
+      glow: 'from-emerald-300/20 via-emerald-200/10 to-transparent',
+      icon: 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100',
+      badge: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+      dot: 'bg-emerald-500',
+      helper: 'text-emerald-700',
+      active: 'border-emerald-400 ring-2 ring-emerald-200 shadow-[0_18px_34px_-24px_rgba(16,185,129,0.4)]'
+    },
+    amber: {
+      shell: 'border-amber-200/80 hover:border-amber-300/90',
+      glow: 'from-amber-300/20 via-amber-200/10 to-transparent',
+      icon: 'bg-amber-50 text-amber-600 ring-1 ring-amber-100',
+      badge: 'border-amber-100 bg-amber-50 text-amber-700',
+      dot: 'bg-amber-500',
+      helper: 'text-amber-700',
+      active: 'border-amber-400 ring-2 ring-amber-200 shadow-[0_18px_34px_-24px_rgba(245,158,11,0.4)]'
+    },
+    primary: {
+      shell: 'border-rose-200/80 hover:border-rose-300/90',
+      glow: 'from-rose-300/20 via-pink-200/10 to-transparent',
+      icon: 'bg-rose-50 text-rose-600 ring-1 ring-rose-100',
+      badge: 'border-rose-100 bg-rose-50 text-rose-700',
+      dot: 'bg-rose-500',
+      helper: 'text-rose-700',
+      active: 'border-rose-400 ring-2 ring-rose-200 shadow-[0_18px_34px_-24px_rgba(225,29,72,0.34)]'
+    },
+    red: {
+      shell: 'border-red-200/80 hover:border-red-300/90',
+      glow: 'from-red-300/20 via-red-200/10 to-transparent',
+      icon: 'bg-red-50 text-red-600 ring-1 ring-red-100',
+      badge: 'border-red-100 bg-red-50 text-red-700',
+      dot: 'bg-red-500',
+      helper: 'text-red-700',
+      active: 'border-red-400 ring-2 ring-red-200 shadow-[0_18px_34px_-24px_rgba(239,68,68,0.4)]'
+    }
   };
-  const statusClasses: any = {
-    green: "text-green-500 bg-green-50",
-    amber: "text-amber-500 bg-amber-50",
-    primary: "text-primary bg-primary/5",
-    red: "text-red-500 bg-red-50"
-  };
-  const activeClasses: any = {
-    green: 'border-green-400 ring-2 ring-green-200',
-    amber: 'border-amber-400 ring-2 ring-amber-200',
-    primary: 'border-[#be0f66] ring-2 ring-[#ec1380]/30',
-    red: 'border-red-400 ring-2 ring-red-200'
-  };
+  const theme = palette[color] || palette.primary;
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`relative w-full text-left bg-white p-6 rounded-xl border ${
-        active ? activeClasses[color] : 'border-primary/5'
-      } shadow-sm group hover:border-primary/30 hover:-translate-y-1 hover:shadow-lg transition-all duration-300`}
+      className={`group relative isolate w-full overflow-hidden rounded-[20px] border bg-white px-4 py-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-32px_rgba(15,23,42,0.28)] ${
+        active ? theme.active : `${theme.shell} shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]`
+      }`}
     >
-      <div className="flex justify-between items-start mb-4">
+      <div className={`absolute inset-x-0 top-0 h-12 bg-gradient-to-br ${theme.glow}`} />
+      <div className="absolute -right-6 -top-8 h-20 w-20 rounded-full bg-white/70 blur-3xl" />
+
+      <div className="relative flex h-full flex-col">
         <div
-          className={`w-12 h-12 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300 ${colorClasses[color]}`}
+          className="mb-2.5 flex items-start justify-between gap-2.5"
         >
-          <Icon className="w-6 h-6" />
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-transform duration-300 group-hover:scale-105 ${theme.icon}`}
+          >
+            <Icon className="h-4.5 w-4.5" />
+          </div>
+          <span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.2em] ${theme.badge}`}>
+            {status}
+          </span>
         </div>
-        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${statusClasses[color]}`}>{status}</span>
+
+        <div className="space-y-0.5">
+          <h3 className="text-[14px] font-semibold tracking-tight text-slate-700">{title}</h3>
+          <p className="text-[1.85rem] font-semibold leading-none tracking-tight text-slate-900 sm:text-[1.95rem]">{value}</p>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+          <div className="flex items-center gap-2 text-[10px] font-medium text-slate-500">
+            <span className={`h-2 w-2 rounded-full ${active ? theme.dot : 'bg-slate-300'}`} />
+            <span className={active ? theme.helper : ''}>{active ? 'Currently applied' : 'Click to filter'}</span>
+          </div>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 transition-transform duration-300 group-hover:translate-x-0.5">
+            {active ? 'Live' : 'Focus'}
+          </span>
+        </div>
       </div>
-      <h3 className="text-slate-700 text-sm font-medium">{title}</h3>
-      <p className="text-2xl font-bold mt-1 text-slate-900">{value}</p>
     </button>
   );
 };
