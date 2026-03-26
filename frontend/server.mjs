@@ -1,13 +1,15 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.join(__dirname, 'dist');
 const host = 'localhost';
-const port = 5173;
+const defaultPort = Number.parseInt(process.env.PORT ?? '5173', 10);
+let currentPort = defaultPort;
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -59,6 +61,22 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(port, host, () => {
-  console.log(`Frontend running at http://${host}:${port}`);
+function listen(port) {
+  currentPort = port;
+  server.listen(port, host, () => {
+    console.log(`Frontend preview running at http://${host}:${port}`);
+  });
+}
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    const nextPort = currentPort + 1;
+    console.warn(`Port ${currentPort} is busy, retrying on ${nextPort}...`);
+    listen(nextPort);
+    return;
+  }
+
+  throw error;
 });
+
+listen(defaultPort);
