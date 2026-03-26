@@ -75,6 +75,67 @@ function mapSessionRow(row) {
   };
 }
 
+function formatSessionStatus(value, isCurrentSession = false) {
+  if (isCurrentSession) {
+    return 'Active now';
+  }
+
+  if (!value) {
+    return 'Last active recently';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Last active recently';
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 5) return 'Active now';
+  if (diffMinutes < 60) return `Last active ${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `Last active ${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+
+  return `Last active ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+function summarizeUserAgent(userAgent) {
+  const ua = String(userAgent || '').toLowerCase();
+  if (!ua) return 'Current device';
+
+  const browser =
+    ua.includes('edg/') ? 'Edge'
+      : ua.includes('chrome/') ? 'Chrome'
+        : ua.includes('firefox/') ? 'Firefox'
+          : ua.includes('safari/') && !ua.includes('chrome/') ? 'Safari'
+            : 'Browser';
+
+  const device =
+    ua.includes('iphone') ? 'iPhone'
+      : ua.includes('ipad') ? 'iPad'
+        : ua.includes('android') ? 'Android'
+          : ua.includes('windows') ? 'Windows'
+            : ua.includes('macintosh') || ua.includes('mac os x') ? 'Mac'
+              : ua.includes('linux') ? 'Linux'
+                : 'Device';
+
+  return `${browser} on ${device}`;
+}
+
+function mapAuthSessionRow(row, currentSessionId) {
+  const isCurrentSession = Number(currentSessionId) > 0 && Number(row.id) === Number(currentSessionId);
+  return {
+    id: `auth-${row.id}`,
+    name: summarizeUserAgent(row.user_agent),
+    location: row.ip_address || 'Unknown location',
+    status: formatSessionStatus(row.last_used_at || row.created_at, isCurrentSession),
+    badge: isCurrentSession ? 'CURRENT' : '',
+    icon: row.user_agent && /iphone|ipad|android/i.test(row.user_agent) ? '\u{1F4F1}' : '\u{1F4BB}',
+  };
+}
+
 async function ensureSettingsRow(userId) {
   await execute(
     `
@@ -97,7 +158,7 @@ async function ensureSubscriptionRow(userId) {
   );
 }
 
-async function loadSettingsBundle(userId) {
+async function loadSettingsBundle(userId, currentSessionId = null) {
   await ensureSettingsRow(userId);
   await ensureSubscriptionRow(userId);
 
@@ -131,17 +192,27 @@ async function loadSettingsBundle(userId) {
     [userId],
   ).catch(() => []);
 
+  const authSessionRows = await query(
+    `
+      SELECT id, last_used_at, user_agent, ip_address, created_at
+      FROM auth_sessions
+      WHERE user_id = ? AND revoked_at IS NULL
+      ORDER BY created_at DESC, id DESC
+    `,
+    [userId],
+  ).catch(() => []);
+
   return {
     ...mapSettingsRow(settingsRows[0]),
     subscription: mapSubscriptionRow(subscriptionRows[0]),
-    activeSessions: sessionRows.map(mapSessionRow),
+    activeSessions: [...sessionRows.map(mapSessionRow), ...authSessionRows.map((row) => mapAuthSessionRow(row, currentSessionId))],
   };
 }
 
 router.get('/me', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    const data = await loadSettingsBundle(userId);
+    const data = await loadSettingsBundle(userId, req.auth?.sessionId);
     return res.json(data);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -240,7 +311,7 @@ router.put('/me', async (req, res) => {
       ],
     );
 
-    const data = await loadSettingsBundle(userId);
+    const data = await loadSettingsBundle(userId, req.auth?.sessionId);
     return res.json(data);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -281,7 +352,7 @@ router.delete('/me', async (req, res) => {
       [userId],
     );
 
-    const data = await loadSettingsBundle(userId);
+    const data = await loadSettingsBundle(userId, req.auth?.sessionId);
     return res.json(data);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -337,16 +408,30 @@ router.patch('/me/subscription', async (req, res) => {
 router.delete('/me/sessions/:sessionId', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    await execute(
-      `
-        UPDATE user_sessions
-        SET revoked_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND user_id = ? AND revoked_at IS NULL
-      `,
-      [req.params.sessionId, userId],
-    );
+    const rawSessionId = String(req.params.sessionId || '').trim();
 
-    const data = await loadSettingsBundle(userId);
+    if (rawSessionId.startsWith('auth-')) {
+      const authSessionId = Number(rawSessionId.slice(5));
+      await execute(
+        `
+          UPDATE auth_sessions
+          SET revoked_at = UTC_TIMESTAMP()
+          WHERE id = ? AND user_id = ? AND revoked_at IS NULL
+        `,
+        [authSessionId, userId],
+      );
+    } else {
+      await execute(
+        `
+          UPDATE user_sessions
+          SET revoked_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND user_id = ? AND revoked_at IS NULL
+        `,
+        [rawSessionId, userId],
+      );
+    }
+
+    const data = await loadSettingsBundle(userId, req.auth?.sessionId);
     return res.json({ activeSessions: data.activeSessions });
   } catch (error) {
     return res.status(500).json({ message: error.message });
