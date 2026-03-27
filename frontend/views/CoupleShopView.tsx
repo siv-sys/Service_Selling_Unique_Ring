@@ -694,8 +694,8 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                       <button 
                         className={`flex-1 py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
                           ring.representative_ring_id
-                            ? 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
-                            : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none dark:bg-slate-800 dark:text-slate-400'
+                            ? 'bg-primary-dark text-white hover:bg-primary shadow-primary/25'
+                            : 'bg-slate-200 text-slate-700 cursor-not-allowed shadow-none dark:bg-slate-800 dark:text-slate-300'
                         }`}
                         onClick={() => addToCart(ring)}
                         disabled={!ring.representative_ring_id}
@@ -703,7 +703,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                         {ring.representative_ring_id ? 'Add to Cart' : 'Out of Stock'}
                       </button>
                       <button 
-                        className="flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all text-primary"
+                        className="flex-1 border border-slate-300 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all text-slate-900"
                         onClick={() => viewRingDetail(ring)}
                       >
                         See More
