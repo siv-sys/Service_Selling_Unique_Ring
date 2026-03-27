@@ -20,7 +20,7 @@ Development:
 Production:
 `npm start`
 
-Server default URL: `http://localhost:4000`
+Server default URL: `http://localhost:4001`
 
 ## 3) API Endpoints
 

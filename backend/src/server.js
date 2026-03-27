@@ -10,7 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const cartRoutes = require('./routes/cartRoutes'); // Make sure this line is present
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4001;
 
 // Middleware
 app.use(cors());
@@ -20,7 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 // Database connection
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
-  port: process.env.DB_PORT || 3307,
+  port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'ring_app',
@@ -40,6 +40,28 @@ app.use('/api/rings', ringRoutes);
 app.use('/api/couples', coupleRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes); // ADD THIS LINE
+
+// API root
+app.get('/api', (req, res) => {
+  res.json({
+    success: true,
+    message: 'BondKeeper API is running',
+    endpoints: [
+      'GET /api',
+      'GET /api/health',
+      'GET /api/rings',
+      'GET /api/rings/shop',
+      'GET /api/rings/filter-options',
+      'GET /api/rings/:id',
+      'GET /api/cart',
+      'POST /api/cart/add',
+      'PUT /api/cart/:id',
+      'DEL /api/cart/:id',
+      'POST /api/auth/register',
+      'POST /api/auth/login'
+    ]
+  });
+});
 
 // Health check
 app.get('/api/health', async (req, res) => {
