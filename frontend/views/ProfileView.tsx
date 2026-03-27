@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { api, resolveApiAssetUrl } from '../lib/api';
 import {
   getStoredAuthValue,

@@ -117,10 +117,10 @@ function AppRoutes() {
   const roleHomePath = isAuthenticated ? getRoleHomePath(role) : '/login';
 
   useEffect(() => {
-    syncStoredTheme();
+    syncStoredTheme(role);
 
     const handleThemeChange = () => {
-      syncStoredTheme();
+      syncStoredTheme(role);
     };
 
     window.addEventListener('storage', handleThemeChange);
@@ -130,7 +130,7 @@ function AppRoutes() {
       window.removeEventListener('storage', handleThemeChange);
       window.removeEventListener(THEME_EVENT, handleThemeChange);
     };
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     async function restoreAuth() {
