@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
-import { getUserScopedLocalStorageItem } from '../lib/userStorage';
+import { getUserScopedLocalStorageItem, setUserScopedSessionStorageItem } from '../lib/userStorage';
 
 // Types
 interface CartItem {
@@ -206,12 +206,16 @@ const Cart: React.FC = () => {
   const tax = Math.round(subtotal * 0.05);
   const total = subtotal + shipping + tax;
 
-  // Handle continue to checkout
-  const handleCheckout = () => {
-    if (cartItems.length === 0) {
-      showNotification('Your cart is empty. Add some rings before checkout.', 'error');
-      return;
-    }
+  const handleBuyRing = (item: CartItem) => {
+    setUserScopedSessionStorageItem('purchaseRing', JSON.stringify({
+      id: item.ringId,
+      ring_name: item.ring_name,
+      ring_identifier: item.ring_identifier,
+      material: item.material,
+      size: item.size,
+      price: item.price,
+      image_url: item.image_url
+    }));
     navigate('/purchase');
   };
 
@@ -269,9 +273,9 @@ const Cart: React.FC = () => {
             cartItems.map((item) => (
               <div 
                 key={item.id}
-                className="cart-item bg-white dark:bg-surface-dark/80 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-5 transition-all hover:shadow-md"
+                className="cart-item flex flex-col gap-5 sm:flex-row rounded-[2rem] border border-primary/10 bg-white/95 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(236,19,128,0.10)] dark:bg-surface-dark/80 dark:border-slate-700"
               >
-                <div className="sm:w-28 sm:h-28 rounded-xl bg-slate-100 overflow-hidden">
+                <div className="sm:w-32 sm:h-32 rounded-2xl bg-slate-100 overflow-hidden ring-1 ring-primary/10">
                   <img 
                     src={item.image_url} 
                     className="w-full h-full object-cover" 
@@ -281,41 +285,55 @@ const Cart: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-bold text-lg">{item.ring_name}</h3>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
+                <div className="flex-1 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                  <div className="min-w-0">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Reserved in cart</span>
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">In stock</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-950">{item.ring_name}</h3>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-2">
                       <span>SKU: {item.ring_identifier}</span>
                       <span>Type: {item.material}</span>
                       <span>Size: {item.size}</span>
                     </div>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-sm font-semibold text-primary">$ {item.price}</span>
-                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">in stock</span>
+                    <div className="mt-4 flex items-end gap-3">
+                      <span className="text-3xl font-bold text-primary">$ {item.price}</span>
+                      <span className="pb-1 text-sm text-slate-400">per ring</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center border border-slate-200 dark:border-slate-600 rounded-full">
-                      <button 
+                  <div className="w-full rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-white to-primary/[0.04] p-4 shadow-sm lg:max-w-[280px]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Ready to purchase</p>
+                    <button
+                      onClick={() => handleBuyRing(item)}
+                      className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-dark px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 hover:bg-primary"
+                    >
+                      <span>Buy this ring</span>
+                      <span className="material-symbols-outlined text-base">arrow_forward</span>
+                    </button>
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center border border-slate-200 dark:border-slate-600 rounded-full bg-white">
+                        <button 
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
+                        className="flex h-10 w-10 items-center justify-center text-lg hover:text-primary transition-colors"
                       >
                         −
                       </button>
-                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                      <button 
+                        <span className="w-10 text-center text-sm font-semibold">{item.quantity}</span>
+                        <button 
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center hover:text-primary transition-colors"
+                        className="flex h-10 w-10 items-center justify-center text-lg hover:text-primary transition-colors"
                       >
                         +
                       </button>
                     </div>
-                    <button 
-                      onClick={() => removeItem(item.id)}
-                      className="text-slate-400 hover:text-primary transition-colors"
-                    >
-                      <span className="material-symbols-outlined">delete</span>
-                    </button>
+                      <button 
+                        onClick={() => removeItem(item.id)}
+                        className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:border-primary/30 hover:text-primary transition-colors"
+                      >
+                        <span className="material-symbols-outlined">delete</span>
+                        </button>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -359,13 +377,9 @@ const Cart: React.FC = () => {
               <p className="text-xs text-slate-400 mb-5 flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">info</span> Includes lifetime warranty & certificate
               </p>
-              <button 
-                onClick={handleCheckout}
-                className="w-full bg-primary text-white text-center py-4 rounded-2xl font-bold text-lg hover:bg-primary/80 transition-all shadow-lg flex items-center justify-center gap-2"
-              >
-                <span>Checkout</span>
-                <span className="material-symbols-outlined">lock</span>
-              </button>
+              <div className="rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3 text-sm text-slate-600">
+                Choose <span className="font-semibold text-primary">Buy this ring</span> inside any ring card to continue with that piece.
+              </div>
             </div>
           </div>
         )}

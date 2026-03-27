@@ -14,7 +14,7 @@ interface RecentlyViewedRing {
 }
 
 const Dashboard: React.FC = () => {
-  const [memberName, setMemberName] = useState<string>('Alexander');
+  const [memberName, setMemberName] = useState<string>('Member');
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   const cartCount = 0;
   const isDarkMode = false;
@@ -50,6 +50,22 @@ const Dashboard: React.FC = () => {
   ];
 
   // Auto-hide notification
+  useEffect(() => {
+    const authEmail = sessionStorage.getItem('auth_email')?.trim() || '';
+    const emailFirstPart = authEmail.split('@')[0]?.trim() || '';
+
+    if (emailFirstPart) {
+      const formattedName = emailFirstPart
+        .split(/[._-]+/)
+        .map((part) => part.replace(/\d+/g, '').trim())
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(' ');
+
+      setMemberName(formattedName || 'Member');
+    }
+  }, []);
+
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => {
@@ -130,68 +146,108 @@ const Dashboard: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-6 md:px-8 py-12">
         {/* PREMIUM WELCOME SECTION with user name & elegant touch */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-xs uppercase tracking-[0.3em] text-primary/70 font-semibold">Eternal membership</span>
-              <span className="w-10 h-px bg-primary/30"></span>
+        <section className="relative mb-16 overflow-hidden rounded-[2rem] border border-primary/10 bg-[radial-gradient(circle_at_top_left,_rgba(236,19,128,0.12),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(255,255,255,0.96),_transparent_38%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(252,244,248,0.96)_45%,_rgba(255,255,255,0.98))] px-8 py-10 shadow-[0_30px_80px_rgba(17,24,39,0.07)]">
+          <div className="pointer-events-none absolute -left-16 top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+          <div className="pointer-events-none absolute right-10 top-6 h-28 w-28 rounded-full border border-primary/15 bg-white/50 backdrop-blur-xl" />
+          <div className="relative flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="rounded-full bg-white/80 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.38em] text-primary/80 shadow-sm ring-1 ring-primary/10">Eternal membership</span>
+              <span className="h-px w-14 bg-gradient-to-r from-primary/50 to-primary/0"></span>
             </div>
-            <h1 className="heading-serif text-5xl md:text-6xl font-light tracking-tight">
-              Welcome back, <span className="font-bold text-primary">{memberName}</span>
+            <h1 className="heading-serif text-5xl font-light tracking-tight leading-[0.95] md:text-6xl lg:text-7xl">
+              Welcome back, <span className="font-bold text-primary drop-shadow-[0_8px_24px_rgba(236,19,128,0.18)]">{memberName}</span>
             </h1>
-            <p className="text-lg text-charcoal/60 dark:text-cream/60 mt-4 max-w-2xl">
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-charcoal/65 dark:text-cream/60">
               Your bond, your rings, your story — curated with timeless elegance.
             </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <div className="rounded-2xl border border-primary/10 bg-white/85 px-4 py-3 shadow-sm backdrop-blur-sm">
+                <p className="text-[11px] uppercase tracking-[0.28em] text-charcoal/40">Signature status</p>
+                <p className="mt-1 text-sm font-semibold text-charcoal/80">Premium member access</p>
+              </div>
+              <div className="rounded-2xl border border-primary/10 bg-white/85 px-4 py-3 shadow-sm backdrop-blur-sm">
+                <p className="text-[11px] uppercase tracking-[0.28em] text-charcoal/40">Curated for you</p>
+                <p className="mt-1 text-sm font-semibold text-charcoal/80">Shop, profile, and ring tools in one place</p>
+              </div>
+            </div>
           </div>
           {/* quick settings with refined style */}
-          <a 
-            href="#" 
-            onClick={(e) => handleNavClick(e, 'Account preferences')}
-            className="flex items-center gap-3 text-sm bg-white/70 dark:bg-charcoal/50 backdrop-blur-sm border border-primary/20 px-6 py-4 rounded-full hover:border-primary/70 transition-all shadow-premium group"
-          >
-            <span className="material-symbols-outlined text-primary group-hover:rotate-45 transition-transform duration-300">tune</span>
-            <span className="font-medium">Account preferences</span>
-          </a>
-        </div>
+          <div className="flex flex-col gap-4 lg:items-end">
+            <a 
+              href="#" 
+              onClick={(e) => handleNavClick(e, 'Account preferences')}
+              className="group flex items-center gap-3 rounded-full border border-primary/15 bg-white/80 px-6 py-4 text-sm shadow-lg shadow-primary/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-xl"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-white">
+                <span className="material-symbols-outlined">tune</span>
+              </span>
+              <span>
+                <span className="block text-[11px] uppercase tracking-[0.25em] text-charcoal/35">Dashboard control</span>
+                <span className="block text-base font-semibold text-charcoal/85">Account preferences</span>
+              </span>
+            </a>
+            <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-[26rem]">
+              <div className="rounded-3xl border border-primary/10 bg-white/75 p-4 shadow-sm backdrop-blur-sm">
+                <p className="text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Mood</p>
+                <p className="mt-2 heading-serif text-2xl text-charcoal">Romantic minimal</p>
+              </div>
+              <div className="rounded-3xl border border-primary/10 bg-primary/[0.06] p-4 shadow-sm backdrop-blur-sm">
+                <p className="text-[11px] uppercase tracking-[0.28em] text-primary/60">Next step</p>
+                <p className="mt-2 text-sm font-semibold text-charcoal/80">Explore your couple space</p>
+              </div>
+            </div>
+          </div>
+          </div>
+        </section>
 
         {/* ACCESS GRID: elevated cards linking to shop/ring/profile/settings (premium style) */}
-        <h2 className="heading-serif text-3xl font-light mb-8 flex items-center gap-4">
-          <span className="w-12 h-px bg-primary/40"></span>Quick access
-        </h2>
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <h2 className="heading-serif text-3xl font-light flex items-center gap-4">
+            <span className="w-12 h-px bg-primary/40"></span>Quick access
+          </h2>
+          <p className="hidden md:block text-sm uppercase tracking-[0.24em] text-charcoal/35">Choose your next moment</p>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
           {/* couple shop card */}
-          <Link to="/shop" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
-            <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
+          <Link to="/shop" className="group relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_60px_rgba(236,19,128,0.12)]">
+            <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
+            <div className="relative w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">storefront</span>
             </div>
-            <h3 className="heading-serif text-2xl font-semibold mb-2">Couple shop</h3>
-            <p className="text-sm text-charcoal/60 dark:text-cream/60 mb-4">Discover matching bands, gifts &amp; certificates</p>
-            <span className="text-primary flex items-center gap-1 text-sm font-medium">
+            <p className="relative mb-3 text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Curated boutique</p>
+            <h3 className="relative heading-serif text-2xl font-semibold mb-2">Couple shop</h3>
+            <p className="relative text-sm text-charcoal/60 dark:text-cream/60 mb-6">Discover matching bands, gifts &amp; certificates with a softer luxury flow.</p>
+            <span className="relative text-primary flex items-center gap-1 text-sm font-medium">
               enter boutique <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </span>
           </Link>
           
           {hasPurchasedRing ? (
-            <Link to="/myring" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
-              <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
+            <Link to="/myring" className="group relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_60px_rgba(236,19,128,0.12)]">
+              <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
+              <div className="relative w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
                 <span className="material-symbols-outlined text-3xl">diamond</span>
               </div>
-              <h3 className="heading-serif text-2xl font-semibold mb-2">My Ring</h3>
-              <p className="text-sm text-charcoal/60 dark:text-cream/60 mb-4">View certification, resizing, story</p>
-              <span className="text-primary flex items-center gap-1 text-sm font-medium">
+              <p className="relative mb-3 text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Private vault</p>
+              <h3 className="relative heading-serif text-2xl font-semibold mb-2">My Ring</h3>
+              <p className="relative text-sm text-charcoal/60 dark:text-cream/60 mb-6">Open your certification, resizing details, and the story behind your piece.</p>
+              <span className="relative text-primary flex items-center gap-1 text-sm font-medium">
                 inspect <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
               </span>
             </Link>
           ) : null}
           
           {/* couple profile card */}
-          <Link to="/couple-profile" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium">
-            <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
+          <Link to="/couple-profile" className="group relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_60px_rgba(236,19,128,0.12)]">
+            <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
+            <div className="relative w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">people</span>
             </div>
-            <h3 className="heading-serif text-2xl font-semibold mb-2">Couple profile</h3>
-            <p className="text-sm text-charcoal/60 dark:text-cream/60 mb-4">Anniversary, story, partner details</p>
-            <span className="text-primary flex items-center gap-1 text-sm font-medium">
+            <p className="relative mb-3 text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Shared story</p>
+            <h3 className="relative heading-serif text-2xl font-semibold mb-2">Couple profile</h3>
+            <p className="relative text-sm text-charcoal/60 dark:text-cream/60 mb-6">Shape your anniversary timeline, story, and partner details in one elegant space.</p>
+            <span className="relative text-primary flex items-center gap-1 text-sm font-medium">
               manage <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </span>
           </Link>
@@ -200,14 +256,16 @@ const Dashboard: React.FC = () => {
           <a 
             href="#" 
             onClick={(e) => handleNavClick(e, 'Settings')}
-            className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-transparent hover:border-primary/20 transition-all shadow-premium"
+            className="group relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_60px_rgba(236,19,128,0.12)]"
           >
-            <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
+            <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
+            <div className="relative w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">settings</span>
             </div>
-            <h3 className="heading-serif text-2xl font-semibold mb-2">Settings</h3>
-            <p className="text-sm text-charcoal/60 dark:text-cream/60 mb-4">Notifications, privacy, linked accounts</p>
-            <span className="text-primary flex items-center gap-1 text-sm font-medium">
+            <p className="relative mb-3 text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Fine tuning</p>
+            <h3 className="relative heading-serif text-2xl font-semibold mb-2">Settings</h3>
+            <p className="relative text-sm text-charcoal/60 dark:text-cream/60 mb-6">Refine notifications, privacy, and linked accounts with a calmer control center.</p>
+            <span className="relative text-primary flex items-center gap-1 text-sm font-medium">
               configure <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </span>
           </a>
