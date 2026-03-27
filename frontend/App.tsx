@@ -24,11 +24,9 @@ import RingInformationView from './views/RingInformation';
 import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
-import { getUserScopedLocalStorageItem } from './lib/userStorage';
 
 const USER_HOME_PATH = '/dashboard';
 const ADMIN_HOME_PATH = '/admindashboard';
-const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
 function normalizeRole(role: string | null | undefined): AuthUser['role'] {
   return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
@@ -61,11 +59,6 @@ function normalizeUser(user: AuthUser): AuthUser {
 
 function getStoredAccessToken(): string | null {
   return sessionStorage.getItem('auth_access_token') || localStorage.getItem('auth_access_token');
-}
-
-function hasPurchasedRing() {
-  if (typeof window === 'undefined') return false;
-  return Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY));
 }
 
 function persistAuth(user: AuthUser, accessToken: string, remember: boolean, rememberToken?: string | null) {
@@ -342,10 +335,7 @@ function AppRoutes() {
       <Route path="/shop" element={userLayout(<CoupleShopView />)} />
       <Route path="/shop/rings/:ringId" element={userLayout(<RingInformationView />)} />
       <Route path="/couple-shop" element={<Navigate to="/shop" replace />} />
-      <Route
-        path="/myring"
-        element={hasPurchasedRing() ? userLayout(<MyRingView />) : <Navigate to="/shop" replace />}
-      />
+      <Route path="/myring" element={userLayout(<MyRingView />)} />
       <Route path="/ring-view" element={userLayout(<RingInformationView />)} />
       <Route path="/ring-view/:ringId" element={userLayout(<RingInformationView />)} />
       <Route path="/profile" element={userLayout(<ProfileView />)} />

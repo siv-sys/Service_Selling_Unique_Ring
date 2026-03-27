@@ -183,6 +183,40 @@ type AdminSystemSettings = {
   updatedAt: string | null;
 };
 
+type AdminProfileSettings = {
+  title: string;
+  handle: string;
+  avatarUrl: string;
+  email: string;
+  role: string;
+  togetherSince: string;
+  phone: string;
+};
+
+type AdminNotificationPreferences = {
+  systemUpdates: boolean;
+  securityAlerts: boolean;
+  orderPlacement: boolean;
+  pushNotifications: boolean;
+};
+
+const DEFAULT_ADMIN_PROFILE_SETTINGS: AdminProfileSettings = {
+  title: DEFAULT_PROFILE_NAME,
+  handle: 'admin',
+  avatarUrl: '',
+  email: '',
+  role: 'admin',
+  togetherSince: 'Your personal profile.',
+  phone: '',
+};
+
+const DEFAULT_ADMIN_NOTIFICATION_PREFERENCES: AdminNotificationPreferences = {
+  systemUpdates: false,
+  securityAlerts: false,
+  orderPlacement: false,
+  pushNotifications: false,
+};
+
 const SettingsView = ({
   onNavigateRelationship = () => {},
   onNavigateCoupleProfile = () => {},
@@ -262,6 +296,29 @@ const SettingsView = ({
   });
   const [adminSettingsLoading, setAdminSettingsLoading] = React.useState(false);
   const [adminSettingsError, setAdminSettingsError] = React.useState('');
+  const [isAdminSaving, setIsAdminSaving] = React.useState(false);
+  const [adminProfileSettings, setAdminProfileSettings] = React.useState<AdminProfileSettings>({
+    ...DEFAULT_ADMIN_PROFILE_SETTINGS,
+    email: typeof window === 'undefined' ? '' : sessionStorage.getItem('auth_email')?.trim() || '',
+    role: typeof window === 'undefined' ? 'admin' : sessionStorage.getItem('auth_roles')?.trim() || 'admin',
+  });
+  const [savedAdminProfileSettings, setSavedAdminProfileSettings] = React.useState<AdminProfileSettings>({
+    ...DEFAULT_ADMIN_PROFILE_SETTINGS,
+    email: typeof window === 'undefined' ? '' : sessionStorage.getItem('auth_email')?.trim() || '',
+    role: typeof window === 'undefined' ? 'admin' : sessionStorage.getItem('auth_roles')?.trim() || 'admin',
+  });
+  const [adminNotificationPreferences, setAdminNotificationPreferences] = React.useState<AdminNotificationPreferences>(
+    DEFAULT_ADMIN_NOTIFICATION_PREFERENCES,
+  );
+  const [savedAdminNotificationPreferences, setSavedAdminNotificationPreferences] =
+    React.useState<AdminNotificationPreferences>(DEFAULT_ADMIN_NOTIFICATION_PREFERENCES);
+  const [savedAdminSystemSettings, setSavedAdminSystemSettings] = React.useState<AdminSystemSettings>({
+    shopName: '',
+    supportEmail: '',
+    currency: 'USD',
+    updatedAt: null,
+  });
+  const adminAvatarInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     let active = true;
@@ -435,22 +492,15 @@ const SettingsView = ({
       setAdminSettingsError('');
 
       try {
-        const data: any = await api.get('/settings/system');
-        const settings = data?.settings ?? data;
         if (!active) return;
-
-        setAdminSystemSettings({
-          shopName: typeof settings?.shop_name === 'string' ? settings.shop_name : '',
-          supportEmail: typeof settings?.support_email === 'string' ? settings.support_email : '',
-          currency: typeof settings?.currency === 'string' ? settings.currency : 'USD',
-          updatedAt:
-            typeof settings?.updated_at === 'string' || settings?.updated_at === null
-              ? settings.updated_at
-              : null,
-        });
+        await Promise.all([
+          loadAdminProfileSettings(),
+          loadAdminNotificationPreferences(),
+          loadAdminSystemSettings({ silent: true }),
+        ]);
       } catch (error) {
         if (!active) return;
-        setAdminSettingsError(error instanceof Error ? error.message : 'Failed to load system settings.');
+        setAdminSettingsError(error instanceof Error ? error.message : 'Failed to load admin settings.');
       } finally {
         if (active) {
           setAdminSettingsLoading(false);
@@ -483,14 +533,79 @@ const SettingsView = ({
     setPlayingSoundId(null);
   }, []);
 
-  const loadAdminSystemSettings = async () => {
-    setAdminSettingsLoading(true);
-    setAdminSettingsError('');
+  const loadAdminProfileSettings = async () => {
+    const fallbackEmail = sessionStorage.getItem('auth_email')?.trim() || '';
+    const fallbackRole = sessionStorage.getItem('auth_roles')?.trim() || 'admin';
+    const fallbackName = sessionStorage.getItem('auth_name')?.trim() || DEFAULT_PROFILE_NAME;
+    const rawUserId = getStoredAuthValue('auth_user_id');
 
+    try {
+      const profile: any = await api.get('/profile/me/current');
+      const nextProfile: AdminProfileSettings = {
+        title: typeof profile?.title === 'string' && profile.title.trim() ? profile.title : fallbackName,
+        handle: typeof profile?.handle === 'string' && profile.handle.trim()
+          ? profile.handle
+          : `admin_${rawUserId || 'member'}`,
+        avatarUrl: typeof profile?.avatarUrl === 'string' ? profile.avatarUrl : '',
+        email: fallbackEmail,
+        role: fallbackRole,
+        togetherSince:
+          typeof profile?.togetherSince === 'string' && profile.togetherSince.trim()
+            ? profile.togetherSince
+            : 'Your personal profile.',
+        phone: typeof profile?.phone === 'string' ? profile.phone : '',
+      };
+      setAdminProfileSettings(nextProfile);
+      setSavedAdminProfileSettings(nextProfile);
+    } catch (error) {
+      const fallbackProfile: AdminProfileSettings = {
+        ...DEFAULT_ADMIN_PROFILE_SETTINGS,
+        title: fallbackName,
+        handle: `admin_${rawUserId || 'member'}`,
+        email: fallbackEmail,
+        role: fallbackRole,
+      };
+      setAdminProfileSettings(fallbackProfile);
+      setSavedAdminProfileSettings(fallbackProfile);
+      throw error;
+    }
+  };
+
+  const loadAdminNotificationPreferences = async () => {
+    const rawUserId = Number(getStoredAuthValue('auth_user_id'));
+    if (!Number.isInteger(rawUserId) || rawUserId <= 0) {
+      setAdminNotificationPreferences(DEFAULT_ADMIN_NOTIFICATION_PREFERENCES);
+      setSavedAdminNotificationPreferences(DEFAULT_ADMIN_NOTIFICATION_PREFERENCES);
+      return;
+    }
+
+    try {
+      const data: any = await api.get(`/settings/notifications/${rawUserId}`);
+      const preferences = data?.preferences ?? data;
+      const nextPreferences: AdminNotificationPreferences = {
+        systemUpdates: Boolean(preferences?.system_updates),
+        securityAlerts: Boolean(preferences?.security_alerts),
+        orderPlacement: Boolean(preferences?.order_placement),
+        pushNotifications: Boolean(preferences?.push_notifications),
+      };
+      setAdminNotificationPreferences(nextPreferences);
+      setSavedAdminNotificationPreferences(nextPreferences);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message.toLowerCase().includes('not found')) {
+        setAdminNotificationPreferences(DEFAULT_ADMIN_NOTIFICATION_PREFERENCES);
+        setSavedAdminNotificationPreferences(DEFAULT_ADMIN_NOTIFICATION_PREFERENCES);
+        return;
+      }
+      throw error;
+    }
+  };
+
+  const loadAdminSystemSettings = async ({ silent = false }: { silent?: boolean } = {}) => {
     try {
       const data: any = await api.get('/settings/system');
       const settings = data?.settings ?? data;
-      setAdminSystemSettings({
+      const nextSystemSettings: AdminSystemSettings = {
         shopName: typeof settings?.shop_name === 'string' ? settings.shop_name : '',
         supportEmail: typeof settings?.support_email === 'string' ? settings.support_email : '',
         currency: typeof settings?.currency === 'string' ? settings.currency : 'USD',
@@ -498,25 +613,114 @@ const SettingsView = ({
           typeof settings?.updated_at === 'string' || settings?.updated_at === null
             ? settings.updated_at
             : null,
-      });
-      showSaveMessage('Loaded');
+      };
+      setAdminSystemSettings(nextSystemSettings);
+      setSavedAdminSystemSettings(nextSystemSettings);
+      if (!silent) {
+        showSaveMessage('Loaded');
+      }
     } catch (error) {
-      setAdminSettingsError(error instanceof Error ? error.message : 'Failed to load system settings.');
-      showSaveMessage('Load failed');
-    } finally {
-      setAdminSettingsLoading(false);
+      if (!silent) {
+        setAdminSettingsError(error instanceof Error ? error.message : 'Failed to load system settings.');
+        showSaveMessage('Load failed');
+      }
+      throw error;
     }
   };
 
-  const handleSaveAdminSettings = async () => {
+  const handleAdminAvatarSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
     try {
-      const data: any = await api.put('/settings/system', {
-        shop_name: adminSystemSettings.shopName.trim(),
-        support_email: adminSystemSettings.supportEmail.trim(),
-        currency: adminSystemSettings.currency.trim().toUpperCase(),
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Failed to read the selected image.'));
+        reader.readAsDataURL(file);
       });
-      const settings = data?.settings ?? data;
-      setAdminSystemSettings({
+      setAdminProfileSettings((current) => ({
+        ...current,
+        avatarUrl: dataUrl,
+      }));
+      setAdminSettingsError('');
+    } catch (error) {
+      setAdminSettingsError(error instanceof Error ? error.message : 'Failed to read image.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const handleDiscardAdminChanges = () => {
+    setAdminProfileSettings(savedAdminProfileSettings);
+    setAdminNotificationPreferences(savedAdminNotificationPreferences);
+    setAdminSystemSettings(savedAdminSystemSettings);
+    setAdminSettingsError('');
+    showSaveMessage('Discarded');
+  };
+
+  const handleSaveAdminSettings = async () => {
+    const rawUserId = Number(getStoredAuthValue('auth_user_id'));
+    if (!Number.isInteger(rawUserId) || rawUserId <= 0) {
+      setAdminSettingsError('Admin session is missing a valid user id.');
+      return;
+    }
+
+    try {
+      setIsAdminSaving(true);
+      setAdminSettingsError('');
+      const profilePayload = {
+        title: adminProfileSettings.title.trim() || DEFAULT_PROFILE_NAME,
+        handle: adminProfileSettings.handle,
+        avatarUrl: adminProfileSettings.avatarUrl || null,
+        togetherSince: adminProfileSettings.togetherSince,
+        phone: adminProfileSettings.phone,
+      };
+
+      const [profileData, notificationData, systemData]: any = await Promise.all([
+        api.patch('/profile/me/current', profilePayload),
+        api.put(`/settings/notifications/${rawUserId}`, {
+          system_updates: adminNotificationPreferences.systemUpdates,
+          security_alerts: adminNotificationPreferences.securityAlerts,
+          order_placement: adminNotificationPreferences.orderPlacement,
+          push_notifications: adminNotificationPreferences.pushNotifications,
+        }),
+        api.put('/settings/system', {
+          shop_name: adminSystemSettings.shopName.trim(),
+          support_email: adminSystemSettings.supportEmail.trim(),
+          currency: adminSystemSettings.currency.trim().toUpperCase(),
+        }),
+      ]);
+
+      const nextProfile: AdminProfileSettings = {
+        title:
+          typeof profileData?.title === 'string' && profileData.title.trim()
+            ? profileData.title
+            : profilePayload.title,
+        handle:
+          typeof profileData?.handle === 'string' && profileData.handle.trim()
+            ? profileData.handle
+            : profilePayload.handle,
+        avatarUrl: typeof profileData?.avatarUrl === 'string' ? profileData.avatarUrl : adminProfileSettings.avatarUrl,
+        email: adminProfileSettings.email,
+        role: adminProfileSettings.role,
+        togetherSince:
+          typeof profileData?.togetherSince === 'string'
+            ? profileData.togetherSince
+            : adminProfileSettings.togetherSince,
+        phone: typeof profileData?.phone === 'string' ? profileData.phone : adminProfileSettings.phone,
+      };
+
+      const preferences = notificationData?.preferences ?? notificationData;
+      const nextPreferences: AdminNotificationPreferences = {
+        systemUpdates: Boolean(preferences?.system_updates),
+        securityAlerts: Boolean(preferences?.security_alerts),
+        orderPlacement: Boolean(preferences?.order_placement),
+        pushNotifications: Boolean(preferences?.push_notifications),
+      };
+
+      const settings = systemData?.settings ?? systemData;
+      const nextSystemSettings: AdminSystemSettings = {
         shopName: typeof settings?.shop_name === 'string' ? settings.shop_name : adminSystemSettings.shopName,
         supportEmail:
           typeof settings?.support_email === 'string'
@@ -527,12 +731,26 @@ const SettingsView = ({
           typeof settings?.updated_at === 'string' || settings?.updated_at === null
             ? settings.updated_at
             : adminSystemSettings.updatedAt,
-      });
+      };
+
+      setAdminProfileSettings(nextProfile);
+      setSavedAdminProfileSettings(nextProfile);
+      setAdminNotificationPreferences(nextPreferences);
+      setSavedAdminNotificationPreferences(nextPreferences);
+      setAdminSystemSettings(nextSystemSettings);
+      setSavedAdminSystemSettings(nextSystemSettings);
       setAdminSettingsError('');
+      sessionStorage.setItem('auth_name', nextProfile.title);
+      setNavDisplayName(nextProfile.title);
+      setNavAvatar(nextProfile.avatarUrl || DEFAULT_AVATAR);
+      window.dispatchEvent(new Event(USER_PROFILE_UPDATED_EVENT));
+      window.dispatchEvent(new Event(USER_AVATAR_UPDATED_EVENT));
       showSaveMessage('Saved');
     } catch (error) {
-      setAdminSettingsError(error instanceof Error ? error.message : 'Failed to save system settings.');
+      setAdminSettingsError(error instanceof Error ? error.message : 'Failed to save admin settings.');
       showSaveMessage('Save failed');
+    } finally {
+      setIsAdminSaving(false);
     }
   };
 
@@ -1068,163 +1286,548 @@ const SettingsView = ({
   const filteredLanguages = languageOptions.filter((item) =>
     item.toLowerCase().includes(languageSearch.trim().toLowerCase())
   );
+  const adminHasUnsavedChanges =
+    adminProfileSettings.title !== savedAdminProfileSettings.title ||
+    adminProfileSettings.avatarUrl !== savedAdminProfileSettings.avatarUrl ||
+    adminNotificationPreferences.systemUpdates !== savedAdminNotificationPreferences.systemUpdates ||
+    adminNotificationPreferences.securityAlerts !== savedAdminNotificationPreferences.securityAlerts ||
+    adminNotificationPreferences.orderPlacement !== savedAdminNotificationPreferences.orderPlacement ||
+    adminNotificationPreferences.pushNotifications !== savedAdminNotificationPreferences.pushNotifications ||
+    adminSystemSettings.shopName !== savedAdminSystemSettings.shopName ||
+    adminSystemSettings.supportEmail !== savedAdminSystemSettings.supportEmail ||
+    adminSystemSettings.currency !== savedAdminSystemSettings.currency;
+  const adminNotificationRows = [
+    {
+      key: 'systemUpdates',
+      title: 'System Updates',
+      description: 'Maintenance and feature alerts.',
+    },
+    {
+      key: 'securityAlerts',
+      title: 'Security Alerts',
+      description: 'Critical account safety notices.',
+    },
+    {
+      key: 'orderPlacement',
+      title: 'Order Placement',
+      description: 'Email alerts for new orders.',
+    },
+    {
+      key: 'pushNotifications',
+      title: 'Push Notifications',
+      description: 'Desktop alerts for urgent messages.',
+    },
+  ] as const;
 
   if (isAdminView) {
     return (
-      <div className={`settings-page ${isDarkTheme ? 'dark' : ''}`}>
+      <div className="settings-page admin-settings-screen">
         <style>{`
           :root {
-            --bg: #f4f7fb;
+            --bg: #f5f7fb;
             --panel: #ffffff;
-            --line: #dfe6f0;
-            --muted: #6e7f98;
-            --text: #14213d;
-            --accent: #e93f66;
-            --accent-strong: #d93359;
-            --shadow-soft: 0 8px 28px rgba(15, 23, 42, 0.07);
+            --line: #d6dfec;
+            --muted: #72829b;
+            --text: #18253d;
+            --accent: #f48eb6;
+            --accent-strong: #ef7aa8;
+            --shadow-soft: 0 18px 46px rgba(148, 163, 184, 0.12);
           }
 
           .settings-page {
             min-height: 100vh;
             margin: 0;
             background:
-              radial-gradient(circle at 100% -10%, rgba(233, 63, 102, 0.08), transparent 38%),
-              radial-gradient(circle at -8% 8%, rgba(80, 124, 232, 0.08), transparent 33%),
+              radial-gradient(circle at 100% 0%, rgba(244, 142, 182, 0.14), transparent 30%),
+              radial-gradient(circle at 0% 12%, rgba(148, 197, 255, 0.2), transparent 28%),
               var(--bg);
             color: var(--text);
             font-family: 'Plus Jakarta Sans', Manrope, 'Segoe UI', sans-serif;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             line-height: 1.45;
           }
 
-          .settings-page.dark {
-            --bg: #111827;
-            --panel: #1f2937;
-            --line: #374151;
-            --muted: #94a3b8;
-            --text: #f3f4f6;
-            --shadow-soft: 0 16px 40px rgba(2, 6, 23, 0.45);
-          }
-
           .admin-settings-shell {
-            max-width: 980px;
+            max-width: 1240px;
             margin: 0 auto;
-            padding: 40px 24px 64px;
+            padding: 32px 24px 72px;
           }
 
-          .admin-settings-card {
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: 28px;
-            box-shadow: var(--shadow-soft);
-            padding: 28px;
+          .admin-page-head {
+            margin-bottom: 18px;
           }
 
-          .admin-settings-kicker {
-            color: var(--accent);
-            font-size: 0.75rem;
+          .admin-page-kicker {
+            margin: 0 0 8px;
+            color: #6d7f9a;
+            font-size: 0.78rem;
             font-weight: 800;
-            letter-spacing: 0.14em;
+            letter-spacing: 0.18em;
             text-transform: uppercase;
           }
 
-          .admin-settings-title {
-            margin: 10px 0 6px;
-            font-size: 1.5rem;
+          .admin-page-title {
+            margin: 0;
+            font-size: 2rem;
             font-weight: 800;
+            letter-spacing: -0.03em;
           }
 
-          .admin-settings-subtitle,
-          .admin-settings-note,
-          .admin-settings-meta {
+          .admin-page-subtitle {
+            margin: 10px 0 0;
             color: var(--muted);
+            max-width: 740px;
           }
 
-          .admin-settings-grid {
+          .admin-panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 26px;
+            box-shadow: var(--shadow-soft);
+            padding: 28px 30px;
+            margin-bottom: 18px;
+          }
+
+          .admin-section-title {
+            margin: 0 0 22px;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+          }
+
+          .admin-profile-layout {
+            display: grid;
+            grid-template-columns: 170px minmax(0, 1fr);
+            gap: 28px;
+            align-items: start;
+          }
+
+          .admin-avatar-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+          }
+
+          .admin-avatar-frame {
+            width: 154px;
+            height: 154px;
+            border-radius: 999px;
+            border: 4px solid #fff;
+            overflow: hidden;
+            box-shadow: 0 14px 34px rgba(148, 163, 184, 0.2);
+            background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+          }
+
+          .admin-avatar-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+          }
+
+          .admin-avatar-btn,
+          .admin-ghost-btn,
+          .admin-outline-btn,
+          .admin-primary-btn {
+            height: 52px;
+            border-radius: 18px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+          }
+
+          .admin-avatar-btn,
+          .admin-ghost-btn,
+          .admin-outline-btn {
+            border: 1px solid var(--line);
+            background: #fff;
+            color: var(--text);
+            padding: 0 18px;
+          }
+
+          .admin-avatar-btn:hover,
+          .admin-ghost-btn:hover,
+          .admin-outline-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(148, 163, 184, 0.14);
+          }
+
+          .admin-hidden-input {
+            display: none;
+          }
+
+          .admin-profile-grid,
+          .admin-system-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 18px;
-            margin-top: 24px;
           }
 
-          .admin-settings-field {
+          .admin-system-grid {
+            margin-top: 12px;
+          }
+
+          .admin-field {
             display: flex;
             flex-direction: column;
             gap: 8px;
           }
 
-          .admin-settings-field label {
-            font-size: 0.875rem;
+          .admin-field label {
+            font-size: 0.72rem;
             font-weight: 700;
+            color: #607089;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
           }
 
-          .admin-settings-input {
-            height: 48px;
-            padding: 0 14px;
-            border-radius: 14px;
+          .admin-input {
+            height: 52px;
+            padding: 0 16px;
+            border-radius: 18px;
             border: 1px solid var(--line);
-            background: rgba(248, 250, 252, 0.9);
+            background: rgba(248, 250, 252, 0.92);
             color: var(--text);
             font: inherit;
           }
 
-          .settings-page.dark .admin-settings-input {
-            background: #111827;
+          .admin-input.read-only {
+            color: #5f6f88;
+            background: rgba(241, 245, 249, 0.92);
           }
 
-          .admin-settings-actions {
+          .admin-input:focus {
+            outline: none;
+            border-color: rgba(239, 122, 168, 0.7);
+            box-shadow: 0 0 0 4px rgba(244, 142, 182, 0.18);
+          }
+
+          .admin-preferences-list {
+            display: grid;
+            gap: 18px;
+          }
+
+          .admin-pref-row {
             display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 24px;
-          }
-
-          .admin-settings-btn {
-            height: 46px;
-            padding: 0 20px;
-            border: none;
-            border-radius: 14px;
-            font: inherit;
-            font-weight: 700;
-            cursor: pointer;
-          }
-
-          .admin-settings-btn.primary {
-            background: linear-gradient(180deg, #ef4d73, #d8345a);
-            color: white;
-          }
-
-          .admin-settings-btn.secondary {
-            background: transparent;
-            color: var(--text);
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 20px 18px;
             border: 1px solid var(--line);
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
           }
 
-          .admin-settings-status {
-            margin-top: 18px;
-            font-size: 0.95rem;
+          .admin-pref-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+          }
+
+          .admin-pref-copy {
+            margin: 6px 0 0;
+            color: var(--muted);
+          }
+
+          .admin-toggle {
+            position: relative;
+            width: 58px;
+            height: 32px;
+            border: none;
+            border-radius: 999px;
+            background: #cfdae9;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.2s ease;
+          }
+
+          .admin-toggle::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+            transition: transform 0.2s ease;
+          }
+
+          .admin-toggle.on {
+            background: linear-gradient(90deg, #f8b4d0, #ef7aa8);
+          }
+
+          .admin-toggle.on::after {
+            transform: translateX(26px);
+          }
+
+          .admin-system-head {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 8px;
+          }
+
+          .admin-system-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+          }
+
+          .admin-system-copy,
+          .admin-system-meta,
+          .admin-inline-status.muted {
+            color: var(--muted);
+          }
+
+          .admin-system-copy {
+            margin: 6px 0 0;
+          }
+
+          .admin-system-meta {
+            margin-top: 14px;
+            font-size: 0.9rem;
+          }
+
+          .admin-action-bar {
+            position: sticky;
+            bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            box-shadow: 0 18px 42px rgba(148, 163, 184, 0.18);
+            backdrop-filter: blur(16px);
+          }
+
+          .admin-action-copy {
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+          }
+
+          .admin-action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+
+          .admin-primary-btn {
+            padding: 0 28px;
+            border: none;
+            background: linear-gradient(180deg, #f9a6ca, #ef7aa8);
+            color: #fff;
+            box-shadow: 0 18px 28px rgba(239, 122, 168, 0.28);
+          }
+
+          .admin-primary-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 32px rgba(239, 122, 168, 0.34);
+          }
+
+          .admin-inline-status {
             font-weight: 600;
           }
 
-          .admin-settings-status.error {
+          .admin-inline-status.error {
             color: #e11d48;
+          }
+
+          .admin-avatar-btn:disabled,
+          .admin-ghost-btn:disabled,
+          .admin-outline-btn:disabled,
+          .admin-primary-btn:disabled,
+          .admin-toggle:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+            box-shadow: none;
+          }
+
+          @media (max-width: 900px) {
+            .admin-profile-layout {
+              grid-template-columns: 1fr;
+            }
+
+            .admin-avatar-column {
+              align-items: flex-start;
+            }
+
+            .admin-action-bar,
+            .admin-system-head,
+            .admin-pref-row {
+              flex-direction: column;
+              align-items: stretch;
+            }
+
+            .admin-action-buttons {
+              width: 100%;
+              justify-content: stretch;
+            }
+
+            .admin-outline-btn,
+            .admin-primary-btn {
+              flex: 1;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .admin-settings-shell {
+              padding: 20px 16px 40px;
+            }
+
+            .admin-panel {
+              padding: 22px 18px;
+              border-radius: 22px;
+            }
+
+            .admin-page-title {
+              font-size: 1.6rem;
+            }
           }
         `}</style>
 
         <div className="admin-settings-shell">
-          <section className="admin-settings-card">
-            <div className="admin-settings-kicker">Admin Settings</div>
-            <h1 className="admin-settings-title">System Settings From Database</h1>
-            <p className="admin-settings-subtitle">
-              This page now reads and saves admin configuration directly from the `system_settings` table.
+          <header className="admin-page-head">
+            <p className="admin-page-kicker">Admin Settings</p>
+            <h1 className="admin-page-title">Profile & Notification Center</h1>
+            <p className="admin-page-subtitle">
+              Manage your admin identity, alert preferences, and BondKeeper store configuration from one place.
             </p>
+          </header>
 
-            <div className="admin-settings-grid">
-              <div className="admin-settings-field">
-                <label htmlFor="shop-name">Shop Name</label>
+          <section className="admin-panel">
+            <h2 className="admin-section-title">Profile</h2>
+            <div className="admin-profile-layout">
+              <div className="admin-avatar-column">
+                <div className="admin-avatar-frame">
+                  <img
+                    src={resolveApiAssetUrl(adminProfileSettings.avatarUrl || DEFAULT_AVATAR)}
+                    alt={adminProfileSettings.title || DEFAULT_PROFILE_NAME}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="admin-avatar-btn"
+                  onClick={() => adminAvatarInputRef.current?.click()}
+                  disabled={adminSettingsLoading || isAdminSaving}
+                >
+                  Edit photo
+                </button>
+                <input
+                  ref={adminAvatarInputRef}
+                  className="admin-hidden-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                  onChange={handleAdminAvatarSelected}
+                />
+              </div>
+
+              <div className="admin-profile-grid">
+                <label className="admin-field" htmlFor="admin-full-name">
+                  <span>Full Name</span>
+                  <input
+                    id="admin-full-name"
+                    className="admin-input"
+                    value={adminProfileSettings.title}
+                    onChange={(event) =>
+                      setAdminProfileSettings((current) => ({
+                        ...current,
+                        title: event.target.value,
+                      }))
+                    }
+                    placeholder="Admin name"
+                  />
+                </label>
+
+                <label className="admin-field" htmlFor="admin-role">
+                  <span>Role</span>
+                  <input
+                    id="admin-role"
+                    className="admin-input read-only"
+                    value={adminProfileSettings.role}
+                    readOnly
+                  />
+                </label>
+
+                <label className="admin-field" htmlFor="admin-email" style={{ gridColumn: '1 / -1' }}>
+                  <span>Email</span>
+                  <input
+                    id="admin-email"
+                    className="admin-input read-only"
+                    type="email"
+                    value={adminProfileSettings.email}
+                    readOnly
+                  />
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section className="admin-panel">
+            <h2 className="admin-section-title">Notification Preferences</h2>
+            <div className="admin-preferences-list">
+              {adminNotificationRows.map((item) => (
+                <article key={item.key} className="admin-pref-row">
+                  <div>
+                    <h3 className="admin-pref-title">{item.title}</h3>
+                    <p className="admin-pref-copy">{item.description}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`admin-toggle ${adminNotificationPreferences[item.key] ? 'on' : ''}`}
+                    aria-label={`Toggle ${item.title}`}
+                    aria-pressed={adminNotificationPreferences[item.key]}
+                    disabled={adminSettingsLoading || isAdminSaving}
+                    onClick={() =>
+                      setAdminNotificationPreferences((current) => ({
+                        ...current,
+                        [item.key]: !current[item.key],
+                      }))
+                    }
+                  />
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="admin-panel">
+            <div className="admin-system-head">
+              <div>
+                <h2 className="admin-system-title">Store Configuration</h2>
+                <p className="admin-system-copy">
+                  Keep the existing backend-powered `system_settings` values editable here.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="admin-ghost-btn"
+                onClick={() => {
+                  setAdminSettingsLoading(true);
+                  void loadAdminSystemSettings().finally(() => {
+                    setAdminSettingsLoading(false);
+                  });
+                }}
+                disabled={adminSettingsLoading || isAdminSaving}
+              >
+                {adminSettingsLoading ? 'Loading...' : 'Reload From DB'}
+              </button>
+            </div>
+
+            <div className="admin-system-grid">
+              <label className="admin-field" htmlFor="shop-name">
+                <span>Shop Name</span>
                 <input
                   id="shop-name"
-                  className="admin-settings-input"
+                  className="admin-input"
                   value={adminSystemSettings.shopName}
                   onChange={(event) =>
                     setAdminSystemSettings((current) => ({
@@ -1234,13 +1837,13 @@ const SettingsView = ({
                   }
                   placeholder="BondKeeper"
                 />
-              </div>
+              </label>
 
-              <div className="admin-settings-field">
-                <label htmlFor="support-email">Support Email</label>
+              <label className="admin-field" htmlFor="support-email">
+                <span>Support Email</span>
                 <input
                   id="support-email"
-                  className="admin-settings-input"
+                  className="admin-input"
                   type="email"
                   value={adminSystemSettings.supportEmail}
                   onChange={(event) =>
@@ -1251,13 +1854,13 @@ const SettingsView = ({
                   }
                   placeholder="support@example.com"
                 />
-              </div>
+              </label>
 
-              <div className="admin-settings-field">
-                <label htmlFor="currency">Currency</label>
+              <label className="admin-field" htmlFor="currency">
+                <span>Currency</span>
                 <input
                   id="currency"
-                  className="admin-settings-input"
+                  className="admin-input"
                   value={adminSystemSettings.currency}
                   onChange={(event) =>
                     setAdminSystemSettings((current) => ({
@@ -1268,45 +1871,50 @@ const SettingsView = ({
                   placeholder="USD"
                   maxLength={10}
                 />
-              </div>
+              </label>
             </div>
 
-            <div className="admin-settings-actions">
-              <button
-                type="button"
-                className="admin-settings-btn secondary"
-                onClick={() => {
-                  void loadAdminSystemSettings();
-                }}
-                disabled={adminSettingsLoading}
-              >
-                {adminSettingsLoading ? 'Loading...' : 'Reload From DB'}
-              </button>
-              <button
-                type="button"
-                className="admin-settings-btn primary"
-                onClick={() => {
-                  void handleSaveAdminSettings();
-                }}
-                disabled={adminSettingsLoading}
-              >
-                Save System Settings
-              </button>
-            </div>
-
-            <p className="admin-settings-meta">
+            <p className="admin-system-meta">
               {adminSystemSettings.updatedAt
                 ? `Last updated: ${formatNotificationDate(adminSystemSettings.updatedAt)}`
                 : 'No saved system settings timestamp yet.'}
             </p>
-            {saveMessage ? <p className="admin-settings-status">{saveMessage}</p> : null}
-            {adminSettingsError ? <p className="admin-settings-status error">{adminSettingsError}</p> : null}
-            {!adminSettingsLoading && !adminSettingsError ? (
-              <p className="admin-settings-note">
-                Admin dashboard, inventory, user management, catalog seed, and settings are all reading from the backend now.
-              </p>
-            ) : null}
           </section>
+
+          <div className="admin-action-bar">
+            <div className="admin-action-copy">
+              {adminSettingsError ? (
+                <span className="admin-inline-status error">{adminSettingsError}</span>
+              ) : saveMessage ? (
+                <span className="admin-inline-status">{saveMessage}</span>
+              ) : (
+                <span className="admin-inline-status muted">
+                  {adminHasUnsavedChanges ? 'Unsaved changes ready to save.' : 'All changes are saved.'}
+                </span>
+              )}
+            </div>
+
+            <div className="admin-action-buttons">
+              <button
+                type="button"
+                className="admin-outline-btn"
+                onClick={handleDiscardAdminChanges}
+                disabled={!adminHasUnsavedChanges || adminSettingsLoading || isAdminSaving}
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                className="admin-primary-btn"
+                onClick={() => {
+                  void handleSaveAdminSettings();
+                }}
+                disabled={adminSettingsLoading || isAdminSaving}
+              >
+                {isAdminSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -4355,11 +4963,11 @@ const SettingsView = ({
         </div>
 
         <nav className="main-nav" aria-label="Main">
-          <button type="button">Dashboard</button>
-          <button type="button">Couple Shop</button>
-          <button type="button">My Ring</button>
-          <button type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
-          <button type="button" onClick={onNavigateRelationship}>Relationship</button>
+          <button type="button" onClick={() => navigate('/dashboard')}>Dashboard</button>
+          <button type="button" onClick={() => navigate('/shop')}>Couple Shop</button>
+          <button type="button" onClick={() => navigate('/myring')}>My Ring</button>
+          <button type="button" onClick={() => { onNavigateCoupleProfile(); navigate('/couple-profile'); }}>Couple Profile</button>
+          <button type="button" onClick={() => { onNavigateRelationship(); navigate('/relationship'); }}>Relationship</button>
           <button type="button" className="active">Settings</button>
         </nav>
 

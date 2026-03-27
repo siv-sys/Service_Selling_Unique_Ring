@@ -574,7 +574,7 @@ router.get('/notifications/:userId', async (req, res, next) => {
     }
 
     const rows = await query(
-      `SELECT id, user_id, system_updates, created_at
+      `SELECT id, user_id, system_updates, security_alerts, order_placement, push_notifications, created_at
        FROM notification_preferences
        WHERE user_id = ?
        ORDER BY id DESC
@@ -606,21 +606,38 @@ router.put('/notifications/:userId', async (req, res, next) => {
       return res.status(403).json({ message: 'You can only update your own notification preferences.' });
     }
 
-    const systemUpdates = Boolean(req.body?.system_updates);
+    const nextSystemUpdates = req.body?.system_updates;
+    const nextSecurityAlerts = req.body?.security_alerts;
+    const nextOrderPlacement = req.body?.order_placement;
+    const nextPushNotifications = req.body?.push_notifications;
 
     const existing = await query(
-      'SELECT id FROM notification_preferences WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+      `SELECT id, system_updates, security_alerts, order_placement, push_notifications
+       FROM notification_preferences
+       WHERE user_id = ?
+       ORDER BY id DESC
+       LIMIT 1`,
       [userId],
     );
 
     if (!existing.length) {
+      const systemUpdates = typeof nextSystemUpdates === 'undefined' ? false : Boolean(nextSystemUpdates);
+      const securityAlerts = typeof nextSecurityAlerts === 'undefined' ? false : Boolean(nextSecurityAlerts);
+      const orderPlacement = typeof nextOrderPlacement === 'undefined' ? false : Boolean(nextOrderPlacement);
+      const pushNotifications = typeof nextPushNotifications === 'undefined' ? false : Boolean(nextPushNotifications);
       const created = await execute(
-        'INSERT INTO notification_preferences (user_id, system_updates) VALUES (?, ?)',
-        [userId, systemUpdates],
+        `INSERT INTO notification_preferences (
+          user_id,
+          system_updates,
+          security_alerts,
+          order_placement,
+          push_notifications
+        ) VALUES (?, ?, ?, ?, ?)`,
+        [userId, systemUpdates, securityAlerts, orderPlacement, pushNotifications],
       );
 
       const createdRow = await query(
-        `SELECT id, user_id, system_updates, created_at
+        `SELECT id, user_id, system_updates, security_alerts, order_placement, push_notifications, created_at
          FROM notification_preferences
          WHERE id = ?
          LIMIT 1`,
@@ -633,13 +650,24 @@ router.put('/notifications/:userId', async (req, res, next) => {
       });
     }
 
-    await execute('UPDATE notification_preferences SET system_updates = ? WHERE id = ?', [
-      systemUpdates,
-      existing[0].id,
-    ]);
+    const systemUpdates =
+      typeof nextSystemUpdates === 'undefined' ? Boolean(existing[0].system_updates) : Boolean(nextSystemUpdates);
+    const securityAlerts =
+      typeof nextSecurityAlerts === 'undefined' ? Boolean(existing[0].security_alerts) : Boolean(nextSecurityAlerts);
+    const orderPlacement =
+      typeof nextOrderPlacement === 'undefined' ? Boolean(existing[0].order_placement) : Boolean(nextOrderPlacement);
+    const pushNotifications =
+      typeof nextPushNotifications === 'undefined' ? Boolean(existing[0].push_notifications) : Boolean(nextPushNotifications);
+
+    await execute(
+      `UPDATE notification_preferences
+       SET system_updates = ?, security_alerts = ?, order_placement = ?, push_notifications = ?
+       WHERE id = ?`,
+      [systemUpdates, securityAlerts, orderPlacement, pushNotifications, existing[0].id],
+    );
 
     const updated = await query(
-      `SELECT id, user_id, system_updates, created_at
+      `SELECT id, user_id, system_updates, security_alerts, order_placement, push_notifications, created_at
        FROM notification_preferences
        WHERE id = ?
        LIMIT 1`,
