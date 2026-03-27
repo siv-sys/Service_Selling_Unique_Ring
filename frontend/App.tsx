@@ -17,6 +17,7 @@ import { LoginScreen } from './views/LoginView';
 import MemoriesView from './views/MemoriesView';
 import MyRingView from './views/MyRingView';
 import ProfileView from './views/ProfileView';
+import PublicProfileView from './views/PublicProfileView';
 import { RegisterScreen } from './views/RegisterView';
 import RelationshipView from './views/RelationshipView';
 import RingInformationView from './views/RingInformation';
@@ -115,6 +116,7 @@ function AppRoutes() {
   const isUser = role === 'user';
   const isAuthenticated = role !== null;
   const roleHomePath = isAuthenticated ? getRoleHomePath(role) : '/login';
+  const isPublicProfileRoute = /^\/u\/[^/]+\/?$/.test(location.pathname);
 
   useEffect(() => {
     syncStoredTheme(role);
@@ -260,13 +262,14 @@ function AppRoutes() {
     [isAuthenticated, isUser, roleHomePath],
   );
 
-  if (isHydratingAuth) {
+  if (isHydratingAuth && !isPublicProfileRoute) {
     return null;
   }
 
   return (
     <Routes>
       <Route path="/" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
+      <Route path="/u/:handle" element={<PublicProfileView />} />
 
       <Route
         path="/login"
