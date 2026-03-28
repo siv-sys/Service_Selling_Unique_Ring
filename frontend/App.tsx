@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import ConfirmDialog from './components/ConfirmDialog';
 import Layout from './components/Layout';
 import UserShell from './components/UserShell';
 import { GoogleAccountSelector } from './components/GoogleAccountSelector';
@@ -103,6 +104,7 @@ function AppRoutes() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isHydratingAuth, setIsHydratingAuth] = useState(true);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   const role = authUser?.role || null;
   const isAdmin = role === 'admin';
@@ -230,7 +232,16 @@ function AppRoutes() {
     }
   };
 
-  const handleLogout = async () => {
+  const requestLogout = useCallback(() => {
+    setIsLogoutConfirmOpen(true);
+  }, []);
+
+  const closeLogoutConfirm = useCallback(() => {
+    setIsLogoutConfirmOpen(false);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    setIsLogoutConfirmOpen(false);
     try {
       await api.logout();
     } catch {
@@ -240,13 +251,13 @@ function AppRoutes() {
     clearAuth();
     setAuthUser(null);
     navigate('/login', { replace: true });
-  };
+  }, [navigate]);
 
   const adminLayout = useMemo(
     () =>
       (view: ReactElement) =>
-        isAdmin ? <Layout onLogout={handleLogout}>{view}</Layout> : <Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />,
-    [handleLogout, isAdmin, isAuthenticated, roleHomePath],
+        isAdmin ? <Layout onLogout={requestLogout}>{view}</Layout> : <Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />,
+    [requestLogout, isAdmin, isAuthenticated, roleHomePath],
   );
   const userLayout = useMemo(
     () =>
@@ -260,9 +271,10 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
-      <Route path="/u/:handle" element={<PublicProfileView />} />
+    <>
+      <Routes>
+        <Route path="/" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
+        <Route path="/u/:handle" element={<PublicProfileView />} />
 
       <Route
         path="/login"
@@ -357,8 +369,21 @@ function AppRoutes() {
       />
       <Route path="/memories" element={userLayout(<MemoriesView />)} />
 
-      <Route path="*" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
+      </Routes>
+
+      <ConfirmDialog
+        isOpen={isLogoutConfirmOpen}
+        title="Log Out?"
+        message="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Stay Here"
+        onConfirm={() => {
+          void handleLogout();
+        }}
+        onClose={closeLogoutConfirm}
+      />
+    </>
   );
 }
 

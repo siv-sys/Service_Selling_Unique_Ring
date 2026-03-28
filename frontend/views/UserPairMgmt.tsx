@@ -322,20 +322,72 @@ const UserPairMgmt = () => {
           background: #b91c1c;
         }
         .toggle-contrast {
-          border: 1px solid rgba(15, 23, 42, 0.28);
-          box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+          border: 1px solid rgba(15, 23, 42, 0.2);
+          box-shadow:
+            inset 0 1px 1px rgba(255, 255, 255, 0.35),
+            0 8px 18px rgba(15, 23, 42, 0.08);
           outline: none;
+          transition:
+            background 320ms cubic-bezier(0.22, 1, 0.36, 1),
+            border-color 320ms cubic-bezier(0.22, 1, 0.36, 1),
+            box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1),
+            transform 220ms ease;
         }
         .toggle-contrast:focus-visible {
           box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.2), 0 0 0 6px rgba(236, 19, 128, 0.35);
         }
+        .toggle-contrast:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow:
+            inset 0 1px 1px rgba(255, 255, 255, 0.45),
+            0 14px 24px rgba(15, 23, 42, 0.12);
+        }
+        .toggle-contrast:active:not(:disabled) {
+          transform: translateY(0) scale(0.98);
+        }
         .toggle-on {
-          background: #15803d;
-          border-color: #14532d;
+          background: linear-gradient(135deg, #15803d 0%, #1f9d4e 100%);
+          border-color: #166534;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            0 14px 24px rgba(34, 197, 94, 0.24);
         }
         .toggle-off {
-          background: #1e293b;
-          border-color: #0f172a;
+          background: linear-gradient(135deg, #475569 0%, #334155 100%);
+          border-color: #334155;
+        }
+        .toggle-thumb {
+          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+          box-shadow:
+            0 8px 18px rgba(15, 23, 42, 0.18),
+            0 1px 2px rgba(15, 23, 42, 0.12);
+          transition:
+            transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+            box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1),
+            width 220ms ease;
+          will-change: transform;
+        }
+        .toggle-contrast:hover:not(:disabled) .toggle-thumb {
+          box-shadow:
+            0 12px 22px rgba(15, 23, 42, 0.2),
+            0 1px 2px rgba(15, 23, 42, 0.12);
+        }
+        .toggle-contrast:active:not(:disabled) .toggle-thumb {
+          width: 22px;
+        }
+        .toggle-chip {
+          transition:
+            background-color 240ms ease,
+            border-color 240ms ease,
+            color 240ms ease,
+            transform 220ms ease,
+            box-shadow 240ms ease;
+        }
+        .toggle-chip.on {
+          box-shadow: 0 10px 20px rgba(34, 197, 94, 0.14);
+        }
+        .toggle-chip.off {
+          box-shadow: 0 8px 14px rgba(100, 116, 139, 0.12);
         }
       `}</style>
       <style>{`
@@ -721,15 +773,17 @@ const UserRow = ({ pair, busy, onToggle, onDelete }: any) => {
             role="switch"
             aria-checked={pair.enabled}
             aria-label={`${pair.names} ${pair.enabled ? 'on' : 'off'}`}
-            className={`toggle-contrast relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out ${pair.enabled ? 'toggle-on' : 'toggle-off'} ${busy ? 'opacity-60' : ''}`}
+            className={`toggle-contrast relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border ${pair.enabled ? 'toggle-on' : 'toggle-off'} ${busy ? 'opacity-60' : ''}`}
           >
-            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${pair.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span
+              className={`toggle-thumb pointer-events-none inline-block h-5 w-5 rounded-full ${pair.enabled ? 'translate-x-6' : 'translate-x-1'}`}
+            />
           </button>
           <span
-            className={`min-w-[2.75rem] text-center text-[10px] font-bold uppercase px-2 py-1 rounded border ${
+            className={`toggle-chip min-w-[3rem] text-center text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg border ${
               pair.enabled
-                ? 'bg-green-100 text-green-800 border-green-300'
-                : 'bg-slate-200 text-slate-800 border-slate-400'
+                ? 'on bg-green-100 text-green-800 border-green-300'
+                : 'off bg-slate-200 text-slate-700 border-slate-300'
             }`}
           >
             {pair.enabled ? 'ON' : 'OFF'}

@@ -1,8 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { api, resolveApiAssetUrl } from '../lib/api';
 import { applyTheme, isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
-import { getStoredAuthValue, getUserScopedLocalStorageItem } from '../lib/userStorage';
+import {
+  getStoredAuthValue,
+  getUserScopedLocalStorageItem,
+  removeUserScopedLocalStorageItem,
+  setUserScopedLocalStorageItem,
+} from '../lib/userStorage';
 
 const PROFILE_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
 const LAST_EXPORT_STORAGE_KEY = 'eternal_rings_last_export';
@@ -268,6 +274,7 @@ const SettingsView = ({
   const soundPreviewContextRef = React.useRef<AudioContext | null>(null);
   const [isDeleteAccountConfirmOpen, setIsDeleteAccountConfirmOpen] = React.useState(false);
   const [isLogoutAllConfirmOpen, setIsLogoutAllConfirmOpen] = React.useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = React.useState(false);
   const [isTwoFactorWizardOpen, setIsTwoFactorWizardOpen] = React.useState(false);
   const [isUpdatingTwoFactor, setIsUpdatingTwoFactor] = React.useState(false);
   const [isSubscriptionDialogOpen, setIsSubscriptionDialogOpen] = React.useState(false);
@@ -540,13 +547,22 @@ const SettingsView = ({
     const rawUserId = getStoredAuthValue('auth_user_id');
 
     try {
-      const profile: any = await api.get('/profile/me/current');
+      const [profile, user]: any = await Promise.all([
+        api.get('/profile/me/current'),
+        rawUserId ? api.get(`/users/${rawUserId}`).catch(() => null) : Promise.resolve(null),
+      ]);
+      const resolvedAvatarUrl =
+        user && typeof user === 'object' && 'avatarUrl' in user
+          ? user.avatarUrl || profile?.avatarUrl || ''
+          : typeof profile?.avatarUrl === 'string'
+            ? profile.avatarUrl
+            : '';
       const nextProfile: AdminProfileSettings = {
         title: typeof profile?.title === 'string' && profile.title.trim() ? profile.title : fallbackName,
         handle: typeof profile?.handle === 'string' && profile.handle.trim()
           ? profile.handle
           : `admin_${rawUserId || 'member'}`,
-        avatarUrl: typeof profile?.avatarUrl === 'string' ? profile.avatarUrl : '',
+        avatarUrl: typeof resolvedAvatarUrl === 'string' ? resolvedAvatarUrl : '',
         email: fallbackEmail,
         role: fallbackRole,
         togetherSince:
@@ -643,6 +659,7 @@ const SettingsView = ({
         ...current,
         avatarUrl: dataUrl,
       }));
+      setNavAvatar(dataUrl || DEFAULT_AVATAR);
       setAdminSettingsError('');
     } catch (error) {
       setAdminSettingsError(error instanceof Error ? error.message : 'Failed to read image.');
@@ -655,6 +672,7 @@ const SettingsView = ({
     setAdminProfileSettings(savedAdminProfileSettings);
     setAdminNotificationPreferences(savedAdminNotificationPreferences);
     setAdminSystemSettings(savedAdminSystemSettings);
+    setNavAvatar(savedAdminProfileSettings.avatarUrl || DEFAULT_AVATAR);
     setAdminSettingsError('');
     showSaveMessage('Discarded');
   };
@@ -676,9 +694,20 @@ const SettingsView = ({
         togetherSince: adminProfileSettings.togetherSince,
         phone: adminProfileSettings.phone,
       };
+      let persistedAvatarUrl = adminProfileSettings.avatarUrl || '';
+
+      if (adminProfileSettings.avatarUrl !== savedAdminProfileSettings.avatarUrl) {
+        const avatarResponse = await api.patch<{ avatarUrl?: string }>(`/users/${rawUserId}/avatar`, {
+          avatarUrl: adminProfileSettings.avatarUrl || null,
+        });
+        persistedAvatarUrl = avatarResponse?.avatarUrl || adminProfileSettings.avatarUrl || '';
+      }
 
       const [profileData, notificationData, systemData]: any = await Promise.all([
-        api.patch('/profile/me/current', profilePayload),
+        api.patch('/profile/me/current', {
+          ...profilePayload,
+          avatarUrl: persistedAvatarUrl || null,
+        }),
         api.put(`/settings/notifications/${rawUserId}`, {
           system_updates: adminNotificationPreferences.systemUpdates,
           security_alerts: adminNotificationPreferences.securityAlerts,
@@ -701,7 +730,10 @@ const SettingsView = ({
           typeof profileData?.handle === 'string' && profileData.handle.trim()
             ? profileData.handle
             : profilePayload.handle,
-        avatarUrl: typeof profileData?.avatarUrl === 'string' ? profileData.avatarUrl : adminProfileSettings.avatarUrl,
+        avatarUrl:
+          typeof profileData?.avatarUrl === 'string' && profileData.avatarUrl.trim()
+            ? profileData.avatarUrl
+            : persistedAvatarUrl,
         email: adminProfileSettings.email,
         role: adminProfileSettings.role,
         togetherSince:
@@ -740,6 +772,11 @@ const SettingsView = ({
       setAdminSystemSettings(nextSystemSettings);
       setSavedAdminSystemSettings(nextSystemSettings);
       setAdminSettingsError('');
+      if (nextProfile.avatarUrl) {
+        setUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY, nextProfile.avatarUrl);
+      } else {
+        removeUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY);
+      }
       sessionStorage.setItem('auth_name', nextProfile.title);
       setNavDisplayName(nextProfile.title);
       setNavAvatar(nextProfile.avatarUrl || DEFAULT_AVATAR);
@@ -1131,7 +1168,12 @@ const SettingsView = ({
     navigate('/profile');
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setIsLogoutConfirmOpen(true);
+  };
+
+  const confirmLogout = async () => {
+    setIsLogoutConfirmOpen(false);
     try {
       await api.logout();
     } catch {
@@ -1417,6 +1459,26 @@ const SettingsView = ({
             overflow: hidden;
             box-shadow: 0 14px 34px rgba(148, 163, 184, 0.2);
             background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+            padding: 0;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+          }
+
+          .admin-avatar-frame:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 40px rgba(148, 163, 184, 0.26);
+          }
+
+          .admin-avatar-frame:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.3);
+            outline-offset: 3px;
+          }
+
+          .admin-avatar-frame:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+            transform: none;
           }
 
           .admin-avatar-frame img {
@@ -1424,6 +1486,29 @@ const SettingsView = ({
             height: 100%;
             object-fit: cover;
             display: block;
+          }
+
+          .admin-avatar-frame::after {
+            content: 'Change photo';
+            position: absolute;
+            inset: auto 10px 10px;
+            border-radius: 999px;
+            padding: 7px 10px;
+            background: rgba(15, 23, 42, 0.72);
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            pointer-events: none;
+          }
+
+          .admin-avatar-frame:hover::after,
+          .admin-avatar-frame:focus-visible::after {
+            opacity: 1;
+            transform: translateY(0);
           }
 
           .admin-avatar-btn,
@@ -1533,14 +1618,30 @@ const SettingsView = ({
 
           .admin-toggle {
             position: relative;
-            width: 58px;
-            height: 32px;
-            border: none;
+            width: 74px;
+            height: 38px;
+            border: 1px solid #d3deea;
             border-radius: 999px;
-            background: #cfdae9;
+            background: linear-gradient(180deg, #f8fbff 0%, #e6eef7 100%);
             cursor: pointer;
             flex-shrink: 0;
-            transition: background 0.2s ease;
+            box-shadow:
+              inset 0 1px 0 rgba(255, 255, 255, 0.92),
+              0 10px 24px rgba(148, 163, 184, 0.16);
+            transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+          }
+
+          .admin-toggle::before {
+            content: 'OFF';
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            transform: translateY(-50%);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            color: #7b8ea8;
+            transition: color 0.22s ease, transform 0.22s ease;
           }
 
           .admin-toggle::after {
@@ -1548,20 +1649,47 @@ const SettingsView = ({
             position: absolute;
             top: 4px;
             left: 4px;
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
-            background: #fff;
-            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
-            transition: transform 0.2s ease;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+            box-shadow:
+              0 10px 18px rgba(15, 23, 42, 0.18),
+              0 1px 2px rgba(15, 23, 42, 0.08);
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
           }
 
           .admin-toggle.on {
-            background: linear-gradient(90deg, #f8b4d0, #ef7aa8);
+            border-color: #0f9f6e;
+            background: linear-gradient(135deg, #0d9d69 0%, #16b97f 100%);
+            box-shadow:
+              0 14px 28px rgba(22, 185, 127, 0.24),
+              inset 0 1px 0 rgba(255, 255, 255, 0.18);
+          }
+
+          .admin-toggle.on::before {
+            content: 'ON';
+            right: auto;
+            left: 14px;
+            color: rgba(255, 255, 255, 0.95);
           }
 
           .admin-toggle.on::after {
-            transform: translateX(26px);
+            transform: translateX(36px);
+            box-shadow:
+              0 12px 22px rgba(5, 73, 52, 0.22),
+              0 1px 2px rgba(15, 23, 42, 0.08);
+          }
+
+          .admin-toggle:hover:not(:disabled) {
+            transform: translateY(-1px);
+          }
+
+          .admin-toggle:focus-visible {
+            outline: none;
+            box-shadow:
+              0 0 0 4px rgba(45, 212, 191, 0.2),
+              0 14px 28px rgba(148, 163, 184, 0.18);
           }
 
           .admin-system-head {
@@ -1708,12 +1836,19 @@ const SettingsView = ({
             <h2 className="admin-section-title">Profile</h2>
             <div className="admin-profile-layout">
               <div className="admin-avatar-column">
-                <div className="admin-avatar-frame">
+                <button
+                  type="button"
+                  className="admin-avatar-frame"
+                  onClick={() => adminAvatarInputRef.current?.click()}
+                  disabled={adminSettingsLoading || isAdminSaving}
+                  aria-label="Change admin profile photo"
+                  title="Change admin profile photo"
+                >
                   <img
                     src={resolveApiAssetUrl(adminProfileSettings.avatarUrl || DEFAULT_AVATAR)}
                     alt={adminProfileSettings.title || DEFAULT_PROFILE_NAME}
                   />
-                </div>
+                </button>
                 <button
                   type="button"
                   className="admin-avatar-btn"
@@ -3253,46 +3388,66 @@ const SettingsView = ({
         }
 
         .toggle {
-          width: 56px;
-          height: 32px;
-          border: 1px solid #d7dfeb;
+          width: 76px;
+          height: 38px;
+          border: 1px solid #d7e3ed;
           border-radius: 999px;
-          background: linear-gradient(180deg, #edf2f8, #e3eaf4);
+          background: linear-gradient(180deg, #f8fbff 0%, #e8eff7 100%);
           position: relative;
           cursor: pointer;
           box-shadow:
-            inset 0 1px 1px rgba(255, 255, 255, 0.92),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+            inset 0 1px 0 rgba(255, 255, 255, 0.96),
+            0 10px 24px rgba(148, 163, 184, 0.16);
           transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .toggle::before {
+          content: 'OFF';
+          position: absolute;
+          top: 50%;
+          right: 12px;
+          transform: translateY(-50%);
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.16em;
+          color: #8194ad;
+          transition: color 0.2s ease, transform 0.2s ease;
         }
 
         .toggle::after {
           content: '';
           position: absolute;
-          top: 3px;
-          left: 3px;
-          width: 24px;
-          height: 24px;
+          top: 4px;
+          left: 4px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
           background: linear-gradient(180deg, #ffffff, #f8fbff);
           box-shadow:
-            0 8px 16px rgba(20, 32, 54, 0.14),
+            0 10px 18px rgba(20, 32, 54, 0.14),
             0 1px 2px rgba(20, 32, 54, 0.1);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .toggle.on {
-          background: linear-gradient(135deg, #ef426d, #e63373 55%, #d92f7a);
-          border-color: #e53e69;
+          background: linear-gradient(135deg, #0d9d69 0%, #15b77d 55%, #19c08a 100%);
+          border-color: #0f9f6e;
           box-shadow:
-            0 12px 22px rgba(233, 63, 102, 0.18),
+            0 14px 28px rgba(22, 185, 127, 0.24),
             inset 0 1px 1px rgba(255, 255, 255, 0.18);
         }
 
+        .toggle.on::before {
+          content: 'ON';
+          right: auto;
+          left: 14px;
+          color: rgba(255, 255, 255, 0.95);
+        }
+
         .toggle.on::after {
-          transform: translateX(24px);
+          transform: translateX(40px);
           box-shadow:
-            0 10px 18px rgba(20, 32, 54, 0.16),
+            0 12px 20px rgba(7, 86, 61, 0.2),
             0 1px 2px rgba(20, 32, 54, 0.1);
         }
 
@@ -3305,16 +3460,16 @@ const SettingsView = ({
         }
 
         .toggle.on:hover:not(:disabled) {
-          border-color: #dc2f63;
+          border-color: #119868;
           box-shadow:
-            0 14px 24px rgba(233, 63, 102, 0.24),
+            0 16px 28px rgba(22, 185, 127, 0.28),
             inset 0 1px 1px rgba(255, 255, 255, 0.2);
         }
 
         .toggle:focus-visible {
           outline: none;
           box-shadow:
-            0 0 0 4px rgba(244, 114, 182, 0.18),
+            0 0 0 4px rgba(45, 212, 191, 0.2),
             inset 0 1px 1px rgba(255, 255, 255, 0.92);
         }
 
@@ -5733,6 +5888,18 @@ const SettingsView = ({
           </section>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        isOpen={isLogoutConfirmOpen}
+        title="Log Out?"
+        message="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Stay Here"
+        onConfirm={() => {
+          void confirmLogout();
+        }}
+        onClose={() => setIsLogoutConfirmOpen(false)}
+      />
 
       <footer className="footer">
         <span>{'\u00A9'} 2024 Eternal Rings App. Designed for forever.</span>

@@ -1,5 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Download } from 'lucide-react';
+import { api, resolveApiAssetUrl } from '../lib/api';
+import { getStoredAuthValue, getUserScopedLocalStorageItem } from '../lib/userStorage';
+
+const PROFILE_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
+const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
+const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
+const DEFAULT_PROFILE_NAME = 'Admin';
 
 interface HeaderProps {
   title: string;
@@ -23,18 +31,56 @@ const Header: React.FC<HeaderProps> = ({
   onExportPdf,
   notifications = []
 }) => {
+  const navigate = useNavigate();
   const defaultProfilePhoto =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuCmqQASMOLSpK9bGM0-CgmKl9sKhEN6GVoUAzpwuV_qazu6yD8oWPjCj2CgVE-fyl5QOGCpNgh0AALDLKkdOHjRa-3p55FWqeWN2IEP7WRWdYnm7HXTQcVmjLgTru9rytSOijqqbXBENwG2h6eS5rbKl-DJofpCy0tEpZyPfoMv5AsJPZDZqpkkANt9xz8DD1AV_Bn_rHCYdbeLal-7ErCbx9aXUtuDHNY3zLpAGd8hn2VbYSXD_hlpXuc3K9cKXLeY3qGkLCYJB5Sw';
   const [profilePhoto, setProfilePhoto] = useState(defaultProfilePhoto);
+  const [profileName, setProfileName] = useState(DEFAULT_PROFILE_NAME);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
+  const syncAdminProfile = useCallback(async () => {
+    const storedName = sessionStorage.getItem('auth_name')?.trim() || DEFAULT_PROFILE_NAME;
+    const storedAvatar = getUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY) || '';
+    const fallbackPhoto = resolveApiAssetUrl(storedAvatar) || defaultProfilePhoto;
+
+    setProfileName(storedName);
+    setProfilePhoto(fallbackPhoto);
+
+    const rawUserId = getStoredAuthValue('auth_user_id');
+    if (!rawUserId) {
+      return;
+    }
+
+    try {
+      const user = await api.get<{ fullName?: string; avatarUrl?: string | null }>(`/users/${rawUserId}`);
+      const nextPhoto = resolveApiAssetUrl(storedAvatar || user.avatarUrl || '') || defaultProfilePhoto;
+      setProfileName(sessionStorage.getItem('auth_name')?.trim() || user.fullName || DEFAULT_PROFILE_NAME);
+      setProfilePhoto(nextPhoto);
+    } catch {
+      // Keep the stored profile identity when the backend profile request is unavailable.
+    }
+  }, [defaultProfilePhoto]);
+
   useEffect(() => {
-    const saved = localStorage.getItem('admin_profile_photo');
-    if (saved) setProfilePhoto(saved);
-  }, []);
+    void syncAdminProfile();
+
+    const handleProfileSync = () => {
+      void syncAdminProfile();
+    };
+
+    window.addEventListener(USER_AVATAR_UPDATED_EVENT, handleProfileSync);
+    window.addEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileSync);
+    window.addEventListener('focus', handleProfileSync);
+
+    return () => {
+      window.removeEventListener(USER_AVATAR_UPDATED_EVENT, handleProfileSync);
+      window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileSync);
+      window.removeEventListener('focus', handleProfileSync);
+    };
+  }, [syncAdminProfile]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -129,12 +175,14 @@ const Header: React.FC<HeaderProps> = ({
         
         <button
           type="button"
+          onClick={() => navigate('/settings')}
           className="rounded-full border-2 border-pink-300 p-0.5 hover:border-pink-400 active:border-pink-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
-          title="Admin profile"
+          title="Open admin profile settings"
+          aria-label="Open admin profile settings"
         >
           <img
             src={profilePhoto}
-            alt="Admin profile"
+            alt={profileName}
             className="w-10 h-10 rounded-full object-cover"
           />
         </button>

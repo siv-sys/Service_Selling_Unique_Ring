@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { api, resolveApiAssetUrl } from '../lib/api';
+import ConfirmDialog from '../components/ConfirmDialog';
 import {
   getStoredAuthValue,
   getUserScopedLocalStorageItem,
@@ -148,6 +149,7 @@ const ProfileView = ({
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [isUpdatingPhone, setIsUpdatingPhone] = React.useState(false);
+  const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = React.useState(false);
   const [error, setError] = React.useState('');
   const [shareMessage, setShareMessage] = React.useState('');
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -460,10 +462,12 @@ const ProfileView = ({
     }
   };
 
-  const handleSignOut = async () => {
-    const confirmed = window.confirm('Are you sure you want to sign out from this device?');
-    if (!confirmed) return;
+  const handleSignOut = () => {
+    setIsSignOutConfirmOpen(true);
+  };
 
+  const confirmSignOut = async () => {
+    setIsSignOutConfirmOpen(false);
     try {
       await api.post('/auth/logout', {});
     } catch {
@@ -1795,6 +1799,18 @@ const ProfileView = ({
           </div>
           <p>{'\u00A9'} 2025 Eternal Rings. Crafted for couples who stay connected.</p>
         </footer>
+
+        <ConfirmDialog
+          isOpen={isSignOutConfirmOpen}
+          title="Sign Out?"
+          message="Are you sure you want to sign out from this device?"
+          confirmLabel="Sign Out"
+          cancelLabel="Stay Here"
+          onConfirm={() => {
+            void confirmSignOut();
+          }}
+          onClose={() => setIsSignOutConfirmOpen(false)}
+        />
       </main>
     </div>
   );
