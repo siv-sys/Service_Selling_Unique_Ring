@@ -1,7 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { api, resolveApiAssetUrl } from '../lib/api';
-import { getStoredAuthValue } from '../lib/userStorage';
+import {
+  getStoredAuthValue,
+  getUserScopedLocalStorageItem,
+  setUserScopedLocalStorageItem,
+} from '../lib/userStorage';
 import {
   LayoutDashboard,
   Users,
@@ -18,6 +22,11 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const PROFILE_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
+const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
+const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
+const DEFAULT_PROFILE_NAME = 'Admin';
+
 interface SidebarProps {
   onLogout?: () => void;
 }
@@ -30,30 +39,44 @@ const Sidebar = ({ onLogout }: SidebarProps) => {
   const [roleLabel, setRoleLabel] = useState('System Admin');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('admin_profile_photo');
-    if (saved) setProfilePhoto(saved);
-
+  const syncAdminProfile = useCallback(async () => {
     const authRole = String(getStoredAuthValue('auth_roles') || '').toLowerCase();
     setRoleLabel(authRole === 'admin' ? 'System Admin' : 'Member');
+    const storedName = sessionStorage.getItem('auth_name')?.trim() || DEFAULT_PROFILE_NAME;
+    const storedAvatar = getUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY) || '';
+    const fallbackPhoto = resolveApiAssetUrl(storedAvatar) || defaultProfilePhoto;
+    setProfileName(storedName);
+    setProfilePhoto(fallbackPhoto);
 
-    const loadAdminProfile = async () => {
-      const rawUserId = getStoredAuthValue('auth_user_id');
-      if (!rawUserId) return;
+    const rawUserId = getStoredAuthValue('auth_user_id');
+    if (!rawUserId) return;
 
-      try {
-        const user = await api.get<{ fullName: string; avatarUrl: string | null }>(`/users/${rawUserId}`);
-        setProfileName(user.fullName || 'Admin');
-        if (user.avatarUrl) {
-          setProfilePhoto(resolveApiAssetUrl(user.avatarUrl));
-        }
-      } catch {
-        // Keep fallback display values when profile query is unavailable.
-      }
+    try {
+      const user = await api.get<{ fullName?: string; avatarUrl?: string | null }>(`/users/${rawUserId}`);
+      setProfileName(sessionStorage.getItem('auth_name')?.trim() || user.fullName || DEFAULT_PROFILE_NAME);
+      setProfilePhoto(resolveApiAssetUrl(storedAvatar || user.avatarUrl || '') || defaultProfilePhoto);
+    } catch {
+      // Keep fallback display values when profile query is unavailable.
+    }
+  }, [defaultProfilePhoto]);
+
+  useEffect(() => {
+    void syncAdminProfile();
+
+    const handleProfileSync = () => {
+      void syncAdminProfile();
     };
 
-    void loadAdminProfile();
-  }, []);
+    window.addEventListener(USER_AVATAR_UPDATED_EVENT, handleProfileSync);
+    window.addEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileSync);
+    window.addEventListener('focus', handleProfileSync);
+
+    return () => {
+      window.removeEventListener(USER_AVATAR_UPDATED_EVENT, handleProfileSync);
+      window.removeEventListener(USER_PROFILE_UPDATED_EVENT, handleProfileSync);
+      window.removeEventListener('focus', handleProfileSync);
+    };
+  }, [syncAdminProfile]);
 
   const openPhotoPicker = () => fileInputRef.current?.click();
 
@@ -71,7 +94,8 @@ const Sidebar = ({ onLogout }: SidebarProps) => {
             const updated = await api.patch<{ avatarUrl: string }>(`/users/${rawUserId}/avatar`, { avatarUrl: reader.result });
             const resolvedAvatar = resolveApiAssetUrl(updated.avatarUrl);
             setProfilePhoto(resolvedAvatar);
-            localStorage.setItem('admin_profile_photo', resolvedAvatar);
+            setUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY, updated.avatarUrl || reader.result);
+            window.dispatchEvent(new Event(USER_AVATAR_UPDATED_EVENT));
             return;
           } catch {
             // Fallback to local-only save if backend sync fails.
@@ -79,7 +103,8 @@ const Sidebar = ({ onLogout }: SidebarProps) => {
         }
 
         setProfilePhoto(reader.result);
-        localStorage.setItem('admin_profile_photo', reader.result);
+        setUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY, reader.result);
+        window.dispatchEvent(new Event(USER_AVATAR_UPDATED_EVENT));
       }
     };
     reader.readAsDataURL(file);

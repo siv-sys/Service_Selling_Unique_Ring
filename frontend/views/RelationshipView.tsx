@@ -60,6 +60,9 @@ type SearchPayload = {
   users?: SearchResult[];
 };
 
+const RELATIONSHIP_DAYS_STORAGE_KEY = 'relationship_days_together';
+const RELATIONSHIP_DAYS_UPDATED_EVENT = 'bondkeeper:relationship-days-updated';
+
 const RelationshipView = ({
   onNavigateSettings = () => {},
   onNavigateCoupleProfile = () => {},
@@ -106,6 +109,12 @@ const RelationshipView = ({
     onConfirm: () => void;
   } | null>(null);
 
+  const persistRelationshipDays = React.useCallback((days: number) => {
+    const normalizedDays = Number.isFinite(days) && days >= 0 ? Math.floor(days) : 0;
+    setUserScopedLocalStorageItem(RELATIONSHIP_DAYS_STORAGE_KEY, String(normalizedDays));
+    window.dispatchEvent(new Event(RELATIONSHIP_DAYS_UPDATED_EVENT));
+  }, []);
+
   const applyConnectionData = React.useCallback((connection: ConnectionPayload['connection']) => {
     const formatHandle = (value: string) =>
       String(value || '')
@@ -136,7 +145,7 @@ const RelationshipView = ({
     setEstablishedDate(formatDateLabel(establishedAt));
     const daysTogether = formatDaysTogether(establishedAt);
     setDaysTogetherLabel(daysTogether.label);
-    setUserScopedLocalStorageItem('relationship_days_together', String(daysTogether.days));
+    persistRelationshipDays(daysTogether.days);
     setStatus('PAIRED');
 
     const partner = Array.isArray(connection.partners) ? connection.partners[0] : null;
@@ -148,7 +157,7 @@ const RelationshipView = ({
         setPartnerAvatar(resolveApiAssetUrl(partner.avatar));
       }
     }
-  }, []);
+  }, [persistRelationshipDays]);
 
   const refreshConnection = React.useCallback(async () => {
     try {
@@ -267,7 +276,7 @@ const RelationshipView = ({
     setPairCode('UNPAIRED');
     setEstablishedDate('Not paired');
     setDaysTogetherLabel('Not paired yet');
-    setUserScopedLocalStorageItem('relationship_days_together', '0');
+    persistRelationshipDays(0);
     setPartnerName('Partner');
     setPartnerHandle('partner');
     setLinkedRings([]);

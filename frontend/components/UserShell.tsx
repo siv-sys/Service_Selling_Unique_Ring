@@ -8,7 +8,6 @@ import {
   setUserScopedLocalStorageItem,
   removeUserScopedLocalStorageItem,
 } from '../lib/userStorage';
-const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 const USER_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
 const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
 const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
@@ -34,26 +33,11 @@ function readStoredUserAvatar() {
 export default function UserShell({ children }: PropsWithChildren) {
   const [cartCount, setCartCount] = useState(0);
   const [displayName, setDisplayName] = useState('Alex & Jamie');
-  const [hasPurchasedRing, setHasPurchasedRing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => readStoredUserAvatar());
 
   useEffect(() => {
     const authName = sessionStorage.getItem('auth_name')?.trim();
     setDisplayName(authName || 'Member');
-    setHasPurchasedRing(Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY)));
-  }, []);
-
-  useEffect(() => {
-    const syncPurchasedRingState = () => {
-      setHasPurchasedRing(Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY)));
-    };
-
-    window.addEventListener('storage', syncPurchasedRingState);
-    window.addEventListener('focus', syncPurchasedRingState);
-    return () => {
-      window.removeEventListener('storage', syncPurchasedRingState);
-      window.removeEventListener('focus', syncPurchasedRingState);
-    };
   }, []);
 
   useEffect(() => {
@@ -143,10 +127,7 @@ export default function UserShell({ children }: PropsWithChildren) {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
-  const navItems = useMemo(
-    () => NAV_ITEMS.filter((item) => item.to !== '/myring' || hasPurchasedRing),
-    [hasPurchasedRing],
-  );
+  const navItems = useMemo(() => NAV_ITEMS, []);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-charcoal dark:text-white">
