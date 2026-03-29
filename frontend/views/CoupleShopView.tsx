@@ -622,12 +622,12 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               const isFav = getUserScopedLocalStorageItem(`favorite_ring_${ring.id}`) === 'true';
 
               return (
-                <div key={ring.id} className="ring-card group flex flex-col">
-                  <div className="relative aspect-[4/5] bg-white dark:bg-slate-800 rounded-xl overflow-hidden mb-6 shadow-lg">
+                <div key={ring.id} className="ring-card group flex flex-col bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-2xl transition-shadow">
+                  <button onClick={() => viewRingDetail(ring)} className="relative block w-full aspect-[4/5] overflow-hidden bg-slate-50 dark:bg-slate-900">
                     {ring.image_url || ring.img ? (
                       <img 
                         alt={ring.ring_name} 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                         src={ring.image_url || ring.img || undefined} 
                         loading="lazy"
                       />
@@ -636,24 +636,27 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                         No image in database
                       </div>
                     )}
-                    
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
                     {/* Status Badge */}
-                    <div className="absolute top-4 left-4">
-                      <div className="relative group">
-                        <span className={`w-3 h-3 rounded-full ${statusColor} inline-block`}></span>
+                    <div className="absolute top-3 left-3">
+                      <div className="relative">
+                        <span className={`w-3 h-3 rounded-full ${statusColor} inline-block`} />
                         <span className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
                           {ring.status}
                         </span>
                       </div>
                     </div>
                     
-                    <div className="absolute top-4 right-4">
+                    <div className="absolute top-3 right-3">
                       <button 
-                        className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-slate-900 hover:text-primary transition-colors favorite-btn z-10"
-                        onClick={(e) => toggleFavorite(ring.id, e)}
+                        className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-900 hover:text-primary transition-colors favorite-btn z-10"
+                        onClick={(e) => { e.stopPropagation(); toggleFavorite(ring.id, e); }}
+                        aria-label={isFav ? 'Remove favorite' : 'Add favorite'}
                       >
                         <span 
-                          className={`material-symbols-outlined text-xl ${isFav ? 'text-primary' : ''}`}
+                          className={`material-symbols-outlined text-lg ${isFav ? 'text-primary' : ''}`}
                           style={{ fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0" }}
                         >
                           favorite
@@ -664,46 +667,42 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                     
                     {/* Battery level (if exists) */}
                     {ring.battery_level && (
-                      <div className="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
+                      <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
                         <span className="material-symbols-outlined text-xs align-middle">battery_full</span> {ring.battery_level}%
                       </div>
                     )}
-                  </div>
+                  </button>
                   
-                  <div className="flex flex-col gap-1 px-2">
+                  <div className="p-4 flex flex-col gap-2">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">{ring.ring_name}</h3>
+                      <h3 className="text-sm md:text-base font-semibold tracking-tight text-slate-900 dark:text-white truncate">{ring.ring_name}</h3>
                       <span className="text-xs text-slate-400">#{ring.ring_identifier}</span>
                     </div>
                     
-                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium truncate">
                       {[ring.material, ring.size ? `Size ${ring.size}` : ''].filter(Boolean).join(' • ')}
                     </p>
                     
-                    <p className="text-xl font-bold text-primary mt-2">${ring.price.toLocaleString()}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-lg md:text-xl font-extrabold text-primary">${ring.price.toLocaleString()}</p>
+                      {ring.collection && <span className="text-xs text-slate-400">{ring.collection}</span>}
+                    </div>
                     
-                    {/* Location info (if exists) */}
-                    {ring.location_label && (
-                      <p className="text-xs text-slate-400 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">location_on</span>
-                        {ring.location_label}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center gap-2 mt-4">
+                    <div className="mt-4 grid grid-cols-2 gap-3">
                       <button 
-                        className={`flex-1 py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
+                        className={`w-full py-2 rounded-lg text-sm font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 focus:outline-none ${
                           ring.representative_ring_id
-                            ? 'bg-primary-dark text-white hover:bg-primary shadow-primary/25'
-                            : 'bg-slate-200 text-slate-700 cursor-not-allowed shadow-none dark:bg-slate-800 dark:text-slate-300'
+                            ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-lg hover:from-primary/95'
+                            : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none dark:bg-slate-800 dark:text-slate-500'
                         }`}
                         onClick={() => addToCart(ring)}
                         disabled={!ring.representative_ring_id}
                       >
-                        {ring.representative_ring_id ? 'Add to Cart' : 'Out of Stock'}
+                        <span className="material-symbols-outlined text-base">shopping_cart</span>
+                        <span className="hidden sm:inline">{ring.representative_ring_id ? 'Add to Cart' : 'Out of Stock'}</span>
                       </button>
                       <button 
-                        className="flex-1 border border-slate-300 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all text-slate-900"
+                        className="w-full border border-slate-200 hover:border-primary py-2 rounded-lg text-sm font-bold tracking-widest uppercase transition-colors text-slate-900 dark:text-white flex items-center justify-center"
                         onClick={() => viewRingDetail(ring)}
                       >
                         See More

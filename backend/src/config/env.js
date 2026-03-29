@@ -1,7 +1,6 @@
-const path = require('path');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config(); // ✅ FIXED (no custom path)
 
 function toNumber(value, fallback) {
   const parsed = Number(value);
@@ -10,18 +9,23 @@ function toNumber(value, fallback) {
 
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: toNumber(process.env.PORT, 4001),
-  frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+
+  // ✅ MUST support Railway PORT
+  port: toNumber(process.env.PORT, 3000),
+
+  frontendOrigin: process.env.FRONTEND_ORIGIN || '*',
+
   auth: {
-    jwtSecret: process.env.JWT_SECRET || 'dev-jwt-secret-change-me',
-    accessTokenTtl: process.env.ACCESS_TOKEN_TTL || process.env.JWT_EXPIRE || '12h',
+    jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-me',
+    accessTokenTtl: process.env.JWT_EXPIRE || '12h',
   },
+
   db: {
-    host: process.env.DB_HOST || '127.0.0.1',
+    host: process.env.DB_HOST,
     port: toNumber(process.env.DB_PORT, 3306),
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'ring_app',
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     connectionLimit: toNumber(process.env.DB_CONNECTION_LIMIT, 10),
   },
 };

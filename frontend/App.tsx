@@ -26,7 +26,7 @@ import UserPairMgmt from './views/UserPairMgmt';
 import { getUserScopedLocalStorageItem } from './lib/userStorage';
 
 const USER_HOME_PATH = '/dashboard';
-const ADMIN_HOME_PATH = '/admindashboard';
+const ADMIN_HOME_PATH = '/AdminDashboard';
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
 function normalizeRole(role: string | null | undefined): AuthUser['role'] {
