@@ -111,6 +111,8 @@ curl https://your-backend-api.vercel.app/api/health
 - **Dashboard**: [vercel.com/dashboard](https://vercel.com/dashboard)
 - **Docs**: [vercel.com/docs](https://vercel.com/docs)
 - **Status**: [status.vercel.com](https://status.vercel.com)
+- **Your Frontend**: [service-selling-unique-ring.vercel.app](https://service-selling-unique-ring.vercel.app)
+- **Your Backend**: [service-selling-unique-ring-8bmk.vercel.app](https://service-selling-unique-ring-8bmk.vercel.app)
 
 ---
 
