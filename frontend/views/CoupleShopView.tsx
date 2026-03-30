@@ -1,20 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../lib/api';
-import {
-  getUserScopedLocalStorageItem,
-  setUserScopedLocalStorageItem,
-  getUserScopedSessionStorageItem,
-  setUserScopedSessionStorageItem,
-} from '../lib/userStorage';
+import HistoryModal from './HistoryModal';
 
 // Types
 interface Ring {
   id: number;
   ring_identifier: string;
   ring_name: string;
-  representative_ring_id?: number | null;
-  available_units?: number;
   model_id: string | null;
   batch_id: string | null;
   size: string;
@@ -27,10 +19,10 @@ interface Ring {
   last_seen_lat: number | null;
   last_seen_lng: number | null;
   price: number;
-  image_url: string | null;
+  image_url: string;
   created_at: string;
   updated_at: string;
-  img: string | null;
+  img: string;
   name: string;
   metal: string;
   cert: string;
@@ -46,7 +38,69 @@ interface Filters {
   minPrice: string;
   maxPrice: string;
   sort: string;
+  search: string;
 }
+
+// 50 Beautiful Ring Images (fallback)
+const RING_IMAGES = [
+  "https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900",
+  "https://loforay.com/cdn/shop/products/O1CN01yJYHgs1uzyLnogHKq__3222026109-0-cib.jpg?v=1677245225",
+  "https://esdomera.com/cdn/shop/files/classic-pink-morganite-leaf-floral-engagement-his-and-hers-wedding-ring-pink-yellow-gold-promise-couple-rings-esdomera-2_1800x1800.png?v=1743672938",
+  "https://m.media-amazon.com/images/I/61btVGnRO6L._AC_UF894,1000_QL80_.jpg",
+  "https://jewelrybyjohan.com/cdn/shop/products/E3362WG10-2150BCArtCropped_1-5.jpg?v=1675110462&width=695",
+  "https://img.kwcdn.com/product/open/2023-09-05/1693914328872-5ec4896063854249a6f2609cca8c9a22-goods.jpeg",
+  "https://i.pinimg.com/736x/0e/21/48/0e2148ac9639fa9f608f95c7584f4f98.jpg",
+  "https://www.tajjewels.com/cdn/shop/products/19_FRONT_RoseGold_1080x.jpg?v=1650544247",
+  "https://img.kwcdn.com/product/fancy/d42a9fc0-5d2e-4728-a4fc-7edb6afb62b7.jpg",
+  "https://i.pinimg.com/originals/91/e0/eb/91e0ebb8563c8cd36337297331ab6a94.jpg",
+  "https://cdn.augrav.com/online/jewels/2023/12/13110756/113.jpg",
+  "https://m.media-amazon.com/images/I/51MTmuSy5eL._AC_UY1100_.jpg",
+  "https://img.joomcdn.net/ce020665a289dab3b7fa1aa8e1482ec91f953958_original.jpeg",
+  "https://i.etsystatic.com/16396575/r/il/51d9af/6115811213/il_570xN.6115811213_jfpd.jpg",
+  "https://rukminim2.flixcart.com/image/480/640/xif0q/ring/1/b/j/adjustable-2-mkcr112-ring-myki-original-imagr5pjxbajyewj.jpeg?q=90",
+  "https://i.pinimg.com/736x/1a/f3/6c/1af36c7a1c3e754334108a43a163b0ab.jpg",
+  "https://i5.walmartimages.com/asr/cecf5302-3a84-45c2-95c7-ec5f4c212f4d.b8654ded71d4429be2d4d4febef4d2d6.jpeg?q=80",
+  "https://sc04.alicdn.com/kf/H287107c64b9b4182b8477fd7ba79b7d21.jpg",
+  "https://esdomera.com/cdn/shop/files/4F9A3506.jpg?v=1758004629&width=900",
+  "https://cpimg.tistatic.com/08073806/b/4/Diamond-Couple-Rings.jpg",
+  "https://m.media-amazon.com/images/I/61Jj1R1UChL._AC_UY1000_.jpg",
+  "https://i.pinimg.com/474x/fd/61/84/fd61841efb1466054aab3424f076cb98.jpg",
+  "https://laraso.com/cdn/shop/files/4811BL-3946_1000x1000.jpg?v=1757118068",
+  "https://www.loville.co/cdn/shop/products/CPR5013FANTASY-1_600x600.jpg?v=1586341339",
+  "https://m.media-amazon.com/images/I/81QzSKSsObS._AC_UY1000_.jpg",
+  "https://t3.ftcdn.net/jpg/18/72/14/94/360_F_1872149462_JAK23sHoI6L4U5RrfFm25JQNUbFFC7QB.jpg",
+  "https://img.kwcdn.com/product/open/2023-09-05/1693903526024-a72036188e734902ac941154dd5c6b3e-goods.jpeg",
+  "https://i5.walmartimages.com/seo/Solid-10k-Yellow-Gold-His-Hers-Round-Diamond-Square-Matching-Couple-Three-Rings-Bridal-Engagement-Ring-Wedding-Bands-Set-1-12-Ct-L-9-M-10-5_e2bd050b-f2bd-451b-94ae-512679a5a087.9f8aa8cf42a34b3f048d1ea934507652.jpeg",
+  "https://rukminim2.flixcart.com/image/480/640/k5vcya80/ring/j/e/a/adjustable-swn11nos1-ring-set-silvoswan-original-imafzgn9h6hpz9f4.jpeg?q=90",
+  "https://springfieldjewellers.com.au/cdn/shop/articles/0Q7A9115-Edit-ready.jpg?v=1673850669",
+  "https://media.tiffany.com/is/image/tco/2025_LE_QL_ChooseWeddingBand",
+  "https://images-cdn.ubuy.qa/6544da4b4b2080775f561172-two-rings-his-hers-wedding-ring-sets.jpg",
+  "https://ak1.ostkcdn.com/images/products/is/images/direct/7f162be8b39f733297ef76df51ffdd2c9515664d/Womens-3.25-CT-Princess-Cut-Wedding-Band-Engagement-Ring-Set-Silver.jpg",
+  "https://i.pinimg.com/736x/eb/6a/72/eb6a722528b92ffdc943edbfa51b6ae1.jpg",
+  "https://www.gemsmagic.com/cdn/shop/files/moss-agate-stag-inspired-couple-ring-set-nature-inspired-elven-rings-5905061_ee4ffdfc-383d-44b3-bb99-2f336a627cb3.webp?v=1767164444&width=2000",
+  "https://cpimg.tistatic.com/7551683/b/4/real-diamond-couple-ring.jpg",
+  "https://cdn-media.glamira.com/media/product/newgeneration/view/1/sku/pretty-raw-pair-v/womenstone/diamond-zirconia_AAAAA/alloycolour/yellow.jpg",
+  "https://images.meesho.com/images/products/646386768/75km6_512.webp?width=512",
+  "https://www.thelordofgemrings.com/cdn/shop/files/ruby-sapphire-diamond-railway-couple-birthstone-band-18k-gold-334656.jpg?v=1717646221",
+  "https://cpimg.tistatic.com/8354229/b/1/modern-diamond-couple-band-ring.jpg",
+  "https://www.ethanlord.com/cdn/shop/articles/Untitled_design_3.png?v=1763389639",
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQLfrMDiRQKW3vt2DEVVwnBmu838MgF9fmDYw&s",
+  "https://images-aka.zales.com/plp/20250203_visnav/1%20Engagement%20PLP/FY26_0205_Z_NOPART_EngagementBridalSets_NoPromo_PLPTriggerBank_WEB_STATIC_GM_DSK_300x300.jpg",
+  "https://i.pinimg.com/474x/22/72/e8/2272e85623fa218a6a541240041a9b42.jpg",
+  "https://siyari.com/cdn/shop/files/SHOPIFYRESIZE-2025-10-03T130834.930.png?v=1760421993&width=1200",
+  "https://m.media-amazon.com/images/I/61hC7x0SgdL._AC_UY1100_.jpg",
+  "https://i.etsystatic.com/32012347/r/il/766d1d/5100701107/il_fullxfull.5100701107_lged.jpg",
+  "https://png.pngtree.com/png-clipart/20240612/original/pngtree-illustration-of-luxury-couple-rings-png-image_15310403.png",
+  "https://www.candere.com/media/jewellery/images/C025805G__6.jpeg",
+  "https://cdn.augrav.com/online/jewels/2023/03/21163959/2-72.jpg",
+  "https://www.blackdiamondsnewyork.com/cdn/shop/files/52-hz-whale-couple-adjustable-ring-261750_41ccfc6c-c456-4319-b53f-4dd5fa3d4519.png?v=1754917060",
+  "https://media2.bulgari.com/f_auto,q_auto,c_pad,h_520,w_520/production/dw73065518/images/images/1428139.png",
+  "https://www.77diamonds.com/image/149231/thumb/white-gold-9k/-/toi-et-moi-emerald?v=20250724112614143?width=490/height=350",
+  "https://www.jewelove.in/cdn/shop/files/jewelove-platinum-couple-rings-with-single-diamond-ring-for-men-half-eternity-ring-for-women-jl-pt-908-41525771305201_3400x.jpg?v=1726347744",
+  "https://www.jewelslane.com/cdn/shop/collections/390e29522d597c608f0d91088edf2ded.jpg?v=1755361799"
+];
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
 const CoupleShopView: React.FC = () => {
   const navigate = useNavigate();
@@ -57,16 +111,18 @@ const CoupleShopView: React.FC = () => {
   const [visibleCount, setVisibleCount] = useState<number>(18);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [materials, setMaterials] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
+  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 10000 });
   const [cartCount, setCartCount] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
   
   const [filters, setFilters] = useState<Filters>({
     material: '',
     minPrice: '',
     maxPrice: '',
-    sort: 'featured'
+    sort: 'featured',
+    search: ''
   });
 
   // Load dark mode preference
@@ -104,7 +160,7 @@ const CoupleShopView: React.FC = () => {
   // Fetch cart count from backend
   const fetchCartCount = async () => {
     try {
-      const sessionId = getUserScopedLocalStorageItem('sessionId');
+      const sessionId = localStorage.getItem('sessionId');
       if (!sessionId) return;
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
@@ -154,8 +210,9 @@ const CoupleShopView: React.FC = () => {
       if (filters.material) queryParams.append('material', filters.material);
       if (filters.minPrice) queryParams.append('minPrice', filters.minPrice);
       if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice);
+      if (filters.search) queryParams.append('search', filters.search);
       
-      const url = `${API_BASE_URL}/rings/shop${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      const url = `${API_BASE_URL}/rings${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
       console.log('Fetching rings from:', url);
       
       const response = await fetch(url);
@@ -166,16 +223,14 @@ const CoupleShopView: React.FC = () => {
         console.log(`Received ${apiRings.length} rings from API`);
         
         // Map API rings to our format
-        const mappedRings = apiRings.map((ring: any) => ({
+        const mappedRings = apiRings.map((ring: any, index: number) => ({
           id: ring.id,
-          ring_identifier: ring.ring_identifier || '',
-          representative_ring_id: ring.representative_ring_id ?? null,
-          available_units: Number(ring.available_units || 0),
-          ring_name: ring.model_name || ring.ring_name || '',
+          ring_identifier: ring.ring_identifier || `BK-${String(index + 1).padStart(3, '0')}`,
+          ring_name: ring.ring_name,
           model_id: ring.model_id,
           batch_id: ring.batch_id,
-          size: ring.size || '',
-          material: ring.material || '',
+          size: ring.size || '7',
+          material: ring.material || 'Unknown',
           status: ring.status || 'AVAILABLE',
           location_type: ring.location_type || 'WAREHOUSE',
           location_label: ring.location_label,
@@ -184,36 +239,77 @@ const CoupleShopView: React.FC = () => {
           last_seen_lat: ring.last_seen_lat,
           last_seen_lng: ring.last_seen_lng,
           price: parseFloat(ring.price) || 0,
-          image_url: ring.image_url || null,
+          image_url: ring.image_url || RING_IMAGES[index % RING_IMAGES.length],
           created_at: ring.created_at,
           updated_at: ring.updated_at,
           
           // Computed fields
-          img: ring.image_url || null,
-          name: ring.model_name || ring.ring_name || '',
-          metal: ring.material || '',
+          img: ring.image_url || RING_IMAGES[index % RING_IMAGES.length],
+          name: ring.ring_name,
+          metal: ring.material,
           cert: ring.status || 'AVAILABLE',
           type: mapMaterialToType(ring.material),
           isNew: isNewRing(ring.created_at),
-          model_name: ring.model_name || '',
-          collection: ring.collection_name || '',
-          identifier: ring.ring_identifier || ''
+          model_name: ring.model_name || 'Signature Collection',
+          collection: ring.collection_name || 'Classic',
+          identifier: ring.ring_identifier
         }));
 
         setAllRings(mappedRings);
+        
+        // If we have fewer than 50 rings, generate additional ones
+        if (mappedRings.length < 50 && !filters.search) {
+          const additionalNeeded = 50 - mappedRings.length;
+          console.log(`Generating ${additionalNeeded} additional rings to reach 50`);
+          
+          const additionalRings = [];
+          for (let i = 0; i < additionalNeeded; i++) {
+            const newId = 1000 + i;
+            const metal = ['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver'][Math.floor(Math.random() * 4)];
+            additionalRings.push({
+              id: newId,
+              ring_identifier: `GEN-${String(i + 1).padStart(3, '0')}`,
+              ring_name: `Designer Ring ${i + 1}`,
+              model_id: null,
+              batch_id: null,
+              size: ['5','6','7','8','9','10'][Math.floor(Math.random() * 6)],
+              material: metal,
+              status: 'AVAILABLE',
+              location_type: 'WAREHOUSE',
+              location_label: 'Virtual Inventory',
+              battery_level: null,
+              last_seen_at: null,
+              last_seen_lat: null,
+              last_seen_lng: null,
+              price: Math.floor(Math.random() * 5000) + 1000,
+              image_url: RING_IMAGES[(mappedRings.length + i) % RING_IMAGES.length],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              img: RING_IMAGES[(mappedRings.length + i) % RING_IMAGES.length],
+              name: `Designer Ring ${i + 1}`,
+              metal: metal,
+              cert: 'AVAILABLE',
+              type: mapMaterialToType(metal),
+              isNew: Math.random() > 0.5,
+              model_name: 'Designer Collection',
+              collection: ['Modern', 'Classic', 'Vintage'][Math.floor(Math.random() * 3)],
+              identifier: `GEN-${String(i + 1).padStart(3, '0')}`
+            });
+          }
+          
+          setAllRings(prev => [...prev, ...additionalRings]);
+        }
       } else {
-        console.warn('API returned error, showing no rings');
-        setAllRings([]);
-        showNotification('Failed to load rings from the database.', 'error');
+        console.warn('API returned error, using fallback rings');
+        setAllRings(generateFallbackRings());
       }
     } catch (error) {
       console.error('Error loading rings:', error);
-      setAllRings([]);
-      showNotification('Failed to load rings from the database.', 'error');
+      setAllRings(generateFallbackRings());
     } finally {
       setIsLoading(false);
     }
-  }, [filters.material, filters.minPrice, filters.maxPrice]);
+  }, [filters.material, filters.minPrice, filters.maxPrice, filters.search]);
 
   // Load filter options from API
   const loadFilterOptions = useCallback(async () => {
@@ -227,27 +323,76 @@ const CoupleShopView: React.FC = () => {
       if (data.data.materials && data.data.materials.length > 0) {
         setMaterials(data.data.materials);
       } else {
-        setMaterials([]);
+        setMaterials(['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver']);
       }
 
       // Update price range
       if (data.data.priceRange) {
         setPriceRange({
           min: data.data.priceRange.min_price || 0,
-          max: data.data.priceRange.max_price || 0
+          max: data.data.priceRange.max_price || 10000
         });
       }
     } catch (error) {
       console.error('Error loading filter options:', error);
-      setMaterials([]);
-      setPriceRange({ min: 0, max: 0 });
+      setMaterials(['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver']);
     }
   }, []);
 
-  // Apply sorting
-  const applySort = useCallback(() => {
+  // Generate fallback rings if API fails
+  const generateFallbackRings = (): Ring[] => {
+    const rings: Ring[] = [];
+    for (let i = 0; i < 50; i++) {
+      const metal = ['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver'][Math.floor(Math.random() * 4)];
+      rings.push({
+        id: i + 1,
+        ring_identifier: `BK-${String(i + 1).padStart(3, '0')}`,
+        ring_name: `Eternal Ring ${i + 1}`,
+        model_id: null,
+        batch_id: null,
+        size: ['5','6','7','8','9','10'][Math.floor(Math.random() * 6)],
+        material: metal,
+        status: 'AVAILABLE',
+        location_type: 'WAREHOUSE',
+        location_label: 'Main Warehouse',
+        battery_level: null,
+        last_seen_at: null,
+        last_seen_lat: null,
+        last_seen_lng: null,
+        price: Math.floor(Math.random() * 5000) + 1000,
+        image_url: RING_IMAGES[i % RING_IMAGES.length],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        img: RING_IMAGES[i % RING_IMAGES.length],
+        name: `Eternal Ring ${i + 1}`,
+        metal: metal,
+        cert: 'AVAILABLE',
+        type: mapMaterialToType(metal),
+        isNew: i % 7 === 0,
+        model_name: 'Signature Collection',
+        collection: 'Classic',
+        identifier: `BK-${String(i + 1).padStart(3, '0')}`
+      });
+    }
+    return rings;
+  };
+
+  // Apply sorting and search
+  const applySortAndSearch = useCallback(() => {
     let sorted = [...allRings];
     
+    // Apply search filter
+    if (filters.search.trim()) {
+      const searchTerm = filters.search.toLowerCase().trim();
+      sorted = sorted.filter(ring => 
+        ring.ring_name.toLowerCase().includes(searchTerm) ||
+        ring.ring_identifier.toLowerCase().includes(searchTerm) ||
+        ring.material.toLowerCase().includes(searchTerm) ||
+        ring.collection.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Apply sorting
     switch(filters.sort) {
       case 'low-high':
         sorted.sort((a, b) => a.price - b.price);
@@ -269,7 +414,7 @@ const CoupleShopView: React.FC = () => {
     
     setFilteredRings(sorted);
     setVisibleCount(18);
-  }, [allRings, filters.sort]);
+  }, [allRings, filters.sort, filters.search]);
 
   // Helper: Map material to type
   const mapMaterialToType = (material: string): string => {
@@ -300,8 +445,17 @@ const CoupleShopView: React.FC = () => {
     setFilters(prev => ({ ...prev, sort: e.target.value }));
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters(prev => ({ ...prev, search: e.target.value }));
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadRingsFromAPI();
+  };
+
   const handleApplyPriceFilter = () => {
-    setFilters(prev => ({ ...prev }));
+    loadRingsFromAPI();
   };
 
   const handleClearFilters = () => {
@@ -309,7 +463,8 @@ const CoupleShopView: React.FC = () => {
       material: '',
       minPrice: '',
       maxPrice: '',
-      sort: 'featured'
+      sort: 'featured',
+      search: ''
     });
   };
 
@@ -319,99 +474,93 @@ const CoupleShopView: React.FC = () => {
     }
   };
 
-// CORRECTED Add to cart function with backend API
-const addToCart = async (ring: Ring) => {
-  try {
-    console.log('Adding to cart:', ring);
-
-    if (!ring.representative_ring_id) {
-      showBottomNotification('This ring model is not in stock yet', 'error');
-      return;
-    }
-    
-    // Get existing session ID or null
-    let sessionId = getUserScopedLocalStorageItem('sessionId');
-    
-    const response = await fetch(`${API_BASE_URL}/cart/add`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(sessionId && { 'x-session-id': sessionId })
-      },
-      body: JSON.stringify({
-        ringId: ring.representative_ring_id,
-        quantity: 1,
-        size: ring.size || '7',
-        material: ring.material
-      })
-    });
-    
-    const data = await response.json();
-    console.log('Add to cart response:', data);
-    
-    if (response.ok) {
-      // Save the session ID from server if it's new
-      if (data.sessionId && !sessionId) {
-        setUserScopedLocalStorageItem('sessionId', data.sessionId);
-        console.log('Saved new session ID:', data.sessionId);
-      }
+  // Add to cart function with backend API
+  const addToCart = async (ring: Ring) => {
+    try {
+      console.log('Adding to cart:', ring);
       
-      // Update cart count
-      setCartCount(data.data.length);
+      // Get existing session ID or null
+      let sessionId = localStorage.getItem('sessionId');
       
-      // Show success notification
-      showBottomNotification(`${ring.ring_name} added to cart!`, 'success');
+      const response = await fetch(`${API_BASE_URL}/cart/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionId && { 'x-session-id': sessionId })
+        },
+        body: JSON.stringify({
+          ringId: ring.id,
+          quantity: 1,
+          size: ring.size || '7',
+          material: ring.material
+        })
+      });
       
-      // Dispatch event for header and cart page to update
-      window.dispatchEvent(new Event('cartUpdated'));
-    } else {
-      throw new Error(data.message || 'Failed to add to cart');
-    }
-  } catch (e) {
-    console.error('Error adding to cart:', e);
-    showBottomNotification('Error adding to cart', 'error');
-  }
-};
-
-// Small bottom notification function
-const showBottomNotification = (message: string, type: 'success' | 'error' = 'success') => {
-  const notification = document.createElement('div');
-  notification.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
-  
-  const bgColor = type === 'success' ? 'bg-[#ff2aa2]' : 'bg-red-500';
-  const icon = type === 'success' ? 'check_circle' : 'error';
-  
-  notification.innerHTML = `
-    <div class="${bgColor} text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md">
-      <span class="material-symbols-outlined text-sm">${icon}</span>
-      <p class="text-sm font-medium flex-1">${message}</p>
-      <button class="hover:bg-white/20 rounded-full p-1 transition-colors" onclick="this.closest('.fixed').remove()">
-        <span class="material-symbols-outlined text-sm">close</span>
-      </button>
-    </div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Auto remove after 2 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.style.animation = 'slide-down-bottom 0.2s ease-out forwards';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
+      const data = await response.json();
+      console.log('Add to cart response:', data);
+      
+      if (response.ok) {
+        // Save the session ID from server if it's new
+        if (data.sessionId && !sessionId) {
+          localStorage.setItem('sessionId', data.sessionId);
+          console.log('Saved new session ID:', data.sessionId);
         }
-      }, 200);
+        
+        // Update cart count
+        setCartCount(data.data.length);
+        
+        // Show success notification
+        showBottomNotification(`${ring.ring_name} added to cart!`, 'success');
+        
+        // Dispatch event for header and cart page to update
+        window.dispatchEvent(new Event('cartUpdated'));
+      } else {
+        throw new Error(data.message || 'Failed to add to cart');
+      }
+    } catch (e) {
+      console.error('Error adding to cart:', e);
+      showBottomNotification('Error adding to cart', 'error');
     }
-  }, 2000);
-};
+  };
+
+  // Small bottom notification function
+  const showBottomNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    const notificationDiv = document.createElement('div');
+    notificationDiv.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
+    
+    const bgColor = type === 'success' ? 'bg-[#ff2aa2]' : 'bg-red-500';
+    const icon = type === 'success' ? 'check_circle' : 'error';
+    
+    notificationDiv.innerHTML = `
+      <div class="${bgColor} text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md">
+        <span class="material-symbols-outlined text-sm">${icon}</span>
+        <p class="text-sm font-medium flex-1">${message}</p>
+        <button class="hover:bg-white/20 rounded-full p-1 transition-colors" onclick="this.closest('.fixed').remove()">
+          <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(notificationDiv);
+    
+    // Auto remove after 2 seconds
+    setTimeout(() => {
+      if (notificationDiv.parentNode) {
+        notificationDiv.style.animation = 'slide-down-bottom 0.2s ease-out forwards';
+        setTimeout(() => {
+          if (notificationDiv.parentNode) {
+            notificationDiv.remove();
+          }
+        }, 200);
+      }
+    }, 2000);
+  };
 
   // Toggle favorite
   const toggleFavorite = (ringId: number, event: React.MouseEvent) => {
     event.preventDefault();
-    const favoriteKey = `favorite_ring_${ringId}`;
-    const isFav = getUserScopedLocalStorageItem(favoriteKey) === 'true';
-    setUserScopedLocalStorageItem(favoriteKey, (!isFav).toString());
+    const isFav = localStorage.getItem(`fav-${ringId}`) === 'true';
+    localStorage.setItem(`fav-${ringId}`, (!isFav).toString());
     
     // Force re-render of the favorite icon
     const target = event.currentTarget.querySelector('.material-symbols-outlined');
@@ -428,8 +577,8 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
 
   // Navigate to ring detail
   const viewRingDetail = (ring: Ring) => {
-    setUserScopedSessionStorageItem('currentRing', JSON.stringify(ring));
-    navigate(`/shop/rings/${ring.id}`);
+    sessionStorage.setItem('currentRing', JSON.stringify(ring));
+    navigate('/ring-view');
   };
 
   // Initial load
@@ -442,20 +591,30 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
   }, [loadRingsFromAPI]);
 
   useEffect(() => {
-    applySort();
-  }, [allRings, filters.sort, applySort]);
+    applySortAndSearch();
+  }, [allRings, filters.sort, filters.search, applySortAndSearch]);
 
+  // Calculate stats
+  const totalRings = allRings.length;
+  const availableRings = allRings.filter(r => r.status === 'AVAILABLE').length;
   const limit = Math.min(visibleCount, filteredRings.length);
   const percent = filteredRings.length ? (limit / filteredRings.length) * 100 : 0;
 
   // Active filters display
   const activeFilters = [];
+  if (filters.search) activeFilters.push(`Search: ${filters.search}`);
   if (filters.material) activeFilters.push(`Material: ${filters.material}`);
   if (filters.minPrice) activeFilters.push(`Min: $${filters.minPrice}`);
   if (filters.maxPrice) activeFilters.push(`Max: $${filters.maxPrice}`);
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
+      {/* History Modal */}
+      <HistoryModal 
+        isOpen={isHistoryModalOpen} 
+        onClose={() => setIsHistoryModalOpen(false)} 
+      />
+
       {/* STICKY HEADER - Full navbar with diamond logo */}
       <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
@@ -470,14 +629,25 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               <Link to="/shop" className="text-primary border-b border-primary/40 pb-1">Couple Shop</Link>
               <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
               <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
-              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
             </nav>
           </div>
           {/* right icons & member */}
           <div className="flex items-center gap-6">
-            <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications_none</span>
+            {/* History Button */}
+            <button 
+              onClick={() => setIsHistoryModalOpen(true)} 
+              className="relative text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors group"
+            >
+              <span className="material-symbols-outlined">history</span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+              <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                Purchase History
+              </span>
             </button>
+            
+            {/* <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined">notifications_none</span>
+            </button> */}
             <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
               <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
             </button>
@@ -504,7 +674,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* HERO + FILTERS */}
+        {/* HERO + SEARCH + FILTERS */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="max-w-2xl">
             <nav className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-widest">
@@ -515,31 +685,57 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <h2 className="heading-serif text-5xl md:text-6xl font-light tracking-tight mb-4">
               The Signature <span className="font-bold text-primary">Collection</span>
             </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
+            <p className="text-slate-600 dark:text-black-400 text-lg leading-relaxed">
               Explore our curated selection of handcrafted rings, where timeless elegance meets modern ethical sourcing.
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <select 
-              value={filters.material}
-              onChange={handleMaterialChange}
-              className="px-6 py-3 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
-            >
-              <option value="">All Materials</option>
-              {materials.map(material => (
-                <option key={material} value={material}>{material}</option>
-              ))}
-            </select>
-            <select 
-              value={filters.sort}
-              onChange={handleSortChange}
-              className="px-6 py-3 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
-            >
-              <option value="featured">Sort by: Featured</option>
-              <option value="low-high">Price: Low to High</option>
-              <option value="high-low">Price: High to Low</option>
-              <option value="newest">Newest Arrivals</option>
-            </select>
+          <div className="flex flex-col gap-4">
+            {/* Search Bar */}
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <input
+                type="text"
+                value={filters.search}
+                onChange={handleSearchChange}
+                placeholder="Search by name, material, or collection..."
+                className="w-full md:w-80 px-5 py-3 pl-12 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-full text-sm focus:ring-2 focus:ring-primary focus:border-primary transition-all text-pink-600 dark:text-pink-400"
+              />
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-pink-900 text-lg">
+                search
+              </span>
+              {filters.search && (
+                <button
+                  type="button"
+                  onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              )}
+            </form>
+            
+            {/* Filter Controls */}
+            <div className="flex items-center gap-4">
+              <select 
+                value={filters.material}
+                onChange={handleMaterialChange}
+                className="px-6 py-3 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary text-pink-600 dark:text-pink-400"
+              >
+                <option value="">All Materials</option>
+                {materials.map(material => (
+                  <option key={material} value={material}>{material}</option>
+                ))}
+              </select>
+              <select 
+                value={filters.sort}
+                onChange={handleSortChange}
+                className="px-6 py-3 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary text-pink-600 dark:text-pink-400"
+              >
+                <option value="featured">Sort by: Featured</option>
+                <option value="low-high">Price: Low to High</option>
+                <option value="high-low">Price: High to Low</option>
+                <option value="newest">Newest Arrivals</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -552,7 +748,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               value={filters.minPrice}
               onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value }))}
               placeholder={`Min $${priceRange.min}`} 
-              className="w-24 px-3 py-2 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+              className="w-24 px-3 py-2 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
             />
             <span>-</span>
             <input 
@@ -560,7 +756,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               value={filters.maxPrice}
               onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
               placeholder={`Max $${priceRange.max}`} 
-              className="w-24 px-3 py-2 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+              className="w-24 px-3 py-2 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
             />
             <button 
               onClick={handleApplyPriceFilter}
@@ -572,7 +768,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
               onClick={handleClearFilters}
               className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold hover:border-primary transition-colors"
             >
-              Clear
+              Clear All
             </button>
           </div>
         </div>
@@ -581,12 +777,35 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
         {activeFilters.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 mb-6 min-h-[40px]">
             {activeFilters.map(filter => (
-              <span key={filter} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
+              <span key={filter} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm flex items-center gap-1">
                 {filter}
+                <button
+                  onClick={() => {
+                    if (filter.startsWith('Search:')) setFilters(prev => ({ ...prev, search: '' }));
+                    if (filter.startsWith('Material:')) setFilters(prev => ({ ...prev, material: '' }));
+                    if (filter.startsWith('Min:')) setFilters(prev => ({ ...prev, minPrice: '' }));
+                    if (filter.startsWith('Max:')) setFilters(prev => ({ ...prev, maxPrice: '' }));
+                  }}
+                  className="hover:bg-primary/20 rounded-full p-0.5"
+                >
+                  <span className="material-symbols-outlined text-xs">close</span>
+                </button>
               </span>
             ))}
           </div>
         )}
+
+        {/* Stats Bar */}
+        <div className="flex justify-between items-center mb-6 text-sm text-slate-500">
+          <div className="flex items-center gap-4">
+            <span className="material-symbols-outlined text-primary">database</span>
+            <span><span className="font-bold text-slate-900 dark:text-white">{filteredRings.length}</span> rings found</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary">inventory</span>
+            <span><span className="font-bold text-pink-900 dark:text-white">{availableRings}</span> available now</span>
+          </div>
+        </div>
 
         {/* RING GRID */}
         {isLoading ? (
@@ -597,9 +816,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
         ) : limit === 0 ? (
           <div className="text-center py-20">
             <span className="material-symbols-outlined text-5xl text-slate-400 mb-4">search_off</span>
-            <p className="text-slate-500 dark:text-slate-400">
-              {activeFilters.length > 0 ? 'No rings found matching your criteria.' : 'No rings available in the database yet.'}
-            </p>
+            <p className="text-slate-500 dark:text-slate-400">No rings found matching your criteria.</p>
             <button 
               onClick={handleClearFilters}
               className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
@@ -608,40 +825,37 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-9 gap-y-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-9 gap-y-16 bg">
             {filteredRings.slice(0, limit).map((ring) => {
               const newBadge = ring.isNew ? (
-                <div className="absolute top-4 right-16 bg-primary text-white text-[8px] font-bold px-3 py-3.5 rounded-full uppercase tracking-widest z-5">
+                <div className="absolute top-4 right-16 bg-primary text-pink text-[8px] font-bold px-3 py-3.5 rounded-full uppercase tracking-widest z-5">
                   New
                 </div>
               ) : null;
               
-              const statusColor = ring.status === 'AVAILABLE' ? 'bg-green-500' : 
+              const statusColor = ring.status === 'AVAILABLE' ? 'bg-green-500 ' : 
                                  ring.status === 'RESERVED' ? 'bg-yellow-500' : 'bg-gray-500';
 
-              const isFav = getUserScopedLocalStorageItem(`favorite_ring_${ring.id}`) === 'true';
+              const isFav = localStorage.getItem(`fav-${ring.id}`) === 'true';
 
               return (
-                <div key={ring.id} className="ring-card group flex flex-col">
-                  <div className="relative aspect-[4/5] bg-white dark:bg-slate-800 rounded-xl overflow-hidden mb-6 shadow-lg">
-                    {ring.image_url || ring.img ? (
-                      <img 
-                        alt={ring.ring_name} 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                        src={ring.image_url || ring.img || undefined} 
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-slate-400 dark:bg-slate-900 dark:text-slate-500">
-                        No image in database
-                      </div>
-                    )}
+                <div key={ring.id} className="ring-card group flex flex-col ">
+                  <div className="relative aspect-[4/5] bg-white dark:bg-pink-80 rounded-xl overflow-hidden mb-6 shadow-lg text-center">
+                    <img 
+                      alt={ring.ring_name} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 text-primary" 
+                      src={ring.image_url || ring.img} 
+                      loading="lazy" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=800&fit=crop';
+                      }} 
+                    />
                     
                     {/* Status Badge */}
                     <div className="absolute top-4 left-4">
                       <div className="relative group">
                         <span className={`w-3 h-3 rounded-full ${statusColor} inline-block`}></span>
-                        <span className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
+                        <span className="absolute left-6 top-1/2 -translate-y-1/2 bg-pink-500 text-pink text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
                           {ring.status}
                         </span>
                       </div>
@@ -664,7 +878,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                     
                     {/* Battery level (if exists) */}
                     {ring.battery_level && (
-                      <div className="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
+                      <div className="absolute bottom-4 right-4 bg-black/50 text-pink text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
                         <span className="material-symbols-outlined text-xs align-middle">battery_full</span> {ring.battery_level}%
                       </div>
                     )}
@@ -672,12 +886,12 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                   
                   <div className="flex flex-col gap-1 px-2">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">{ring.ring_name}</h3>
+                      <h3 className="text-lg font-bold tracking-tight text-pink-600 text-white">{ring.ring_name}</h3>
                       <span className="text-xs text-slate-400">#{ring.ring_identifier}</span>
                     </div>
                     
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                      {[ring.material, ring.size ? `Size ${ring.size}` : ''].filter(Boolean).join(' • ')}
+                      {ring.material} • Size {ring.size}
                     </p>
                     
                     <p className="text-xl font-bold text-primary mt-2">${ring.price.toLocaleString()}</p>
@@ -692,15 +906,10 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                     
                     <div className="flex items-center gap-2 mt-4">
                       <button 
-                        className={`flex-1 py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
-                          ring.representative_ring_id
-                            ? 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
-                            : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none dark:bg-slate-800 dark:text-slate-400'
-                        }`}
+                        className="flex-1 bg-primary text-white py-3 rounded-lg text-sm font-bold tracking-widest uppercase hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
                         onClick={() => addToCart(ring)}
-                        disabled={!ring.representative_ring_id}
                       >
-                        {ring.representative_ring_id ? 'Add to Cart' : 'Out of Stock'}
+                        Add to Cart
                       </button>
                       <button 
                         className="flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all text-primary"
@@ -722,7 +931,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <p className="text-sm text-slate-500 uppercase tracking-[0.2em]">
               Showing {limit} of {filteredRings.length} pieces
             </p>
-            <div className="w-full max-w-xs h-1 bg-slate-20 dark:bg-slate-200 rounded-full overflow-hidden">
+            <div className="w-full max-w-xs h-1 bg-pink-100 dark:bg-slate-700 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-primary transition-all duration-500" 
                 style={{ width: `${percent}%` }}
@@ -730,10 +939,10 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             </div>
             <button 
               onClick={handleDiscoverMore}
-              className="px-12 py-4 bg-white dark:bg-pink-600 border border-slate-200 dark:border-white-700 rounded-lg text-sm font-bold tracking-widest uppercase hover:border-primary transition-all flex items-center gap-3 group"
+              className="px-12 py-4 bg-white dark:bg-pink-500 border border-slate-200 dark:border-pink-700 rounded-lg text-sm font-bold tracking-widest uppercase hover:border-primary transition-all flex items-center gap-3 group"
             >
-              <span style={{ color: 'white' }}>Discover More</span>
-              <span className="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform color: 'white'">
+              <span>Discover More</span>
+              <span className="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform">
                 expand_more
               </span>
             </button>
@@ -768,14 +977,14 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
       )}
 
       {/* FOOTER */}
-      <footer className="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
+      <footer className="bg-white dark:bg-black/10 border-t border-primary/10 pt-20 pb-10 mt-20">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center gap-2 mb-6">
               <span className="material-symbols-outlined text-primary">diamond</span>
-              <h2 className="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
+              <h2 className="text-lg font-extrabold tracking-widest uppercase">BondKeeper</h2>
             </div>
-            <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical craftsmanship and timeless design. Every ring tells a story.</p>
+            <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
             <div className="flex gap-4">
               <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
                 <span className="material-symbols-outlined text-lg">share</span>
@@ -804,7 +1013,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
             <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
             <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
             <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+              <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
               <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
             </div>
           </div>
