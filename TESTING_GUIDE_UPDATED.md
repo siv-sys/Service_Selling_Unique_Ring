@@ -50,7 +50,7 @@ New priority order:
 1. **Issue 1**: Backend Returns HTML Instead of JSON (NEW - HIGHEST PRIORITY)
 2. **Issue 2**: Blank White Page
 3. **Issue 3**: CORS Errors  
-4. **Issue 4**: Database Connection Failed
+4. **Issue 4**: Database Connection Failed (ECONNREFUSED 127.0.0.1:3306 on Vercel)
 5. **Issue 5**: 404 on Routes
 
 ---
@@ -64,7 +64,23 @@ Before you start testing:
 - [ ] Backend routing fix deployed (`vercel --prod`)
 - [ ] Environment variables set in Vercel dashboard
 - [ ] Frontend built and deployed
-- [ ] Database credentials configured
+- [ ] Database credentials configured (NO `localhost` / `127.0.0.1` for Vercel)
+
+If you see a response like:
+
+```json
+{"status":"error","database":"disconnected","message":"connect ECONNREFUSED 127.0.0.1:3306"}
+```
+
+then:
+
+- **Cause**: Backend on Vercel is still trying to use `localhost:3306` for MySQL  
+- **Fix**: Follow `FIX_DATABASE_CONNECTION.md` to set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `JWT_SECRET`, `CLIENT_URL`, and `NODE_ENV=production` in the Vercel backend project, then redeploy with:
+
+```powershell
+cd c:\Users\USER\OneDrive\Desktop\Service_Selling_Unique_Ring\backend
+vercel --prod
+```
 
 ### Card 2: First Test to Run
 
