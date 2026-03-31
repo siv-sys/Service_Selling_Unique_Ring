@@ -323,7 +323,7 @@ const ProfileView = () => {
                 </span>
               )}
             </Link>
-            <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
+            <div className="flex items-center gap-3 pl-2 border-l border-primary/20 text-pink-500">
               <span className="text-sm font-medium hidden sm:inline">{profile.title || DEFAULT_PROFILE_NAME}</span>
               <Link to="/profile">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
@@ -339,20 +339,20 @@ const ProfileView = () => {
         {/* Hero Section - Avatar */}
         <div className="text-center mb-12">
           <div className="relative inline-block">
-            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20 mx-auto">
+            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20 mx-auto text-pink-500">
               {avatarUrl ? (
                 <img className="w-full h-full object-cover" src={resolveApiAssetUrl(avatarUrl)} alt="Profile" />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary/30 to-primary flex items-center justify-center">
+                <div className="w-full h-full bg-gradient-to-br from-primary/30 to-primary flex items-center justify-center text-pink-300">
                   <span className="material-symbols-outlined text-5xl text-white">person</span>
                 </div>
               )}
             </div>
             <button 
               onClick={handleOpenPicker}
-              className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:bg-primary/80 transition-colors"
+              className="absolute bottom-0 right-0 bg-primary text-pink-500 p-2 rounded-full shadow-lg hover:bg-primary/80 transition-colors "
             >
-              <span className="material-symbols-outlined text-sm">camera_alt</span>
+              <span className="material-symbols-outlined text-sm text-pink-300">camera_alt</span>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
@@ -363,58 +363,58 @@ const ProfileView = () => {
           {isEditing ? (
             <div className="space-y-6">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Couple Name</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-pink-500 mb-2">Couple Name</label>
                 <input
-                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-gray-700 dark:text-white"
+                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-pink-900 dark:text-white"
                   value={draftProfile.title}
                   onChange={(event) => setDraftProfile((prev) => ({ ...prev, title: event.target.value }))}
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Together Since</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-pink-500 mb-2">Together Since</label>
                 <input
-                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-gray-700 dark:text-white"
+                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-pink-900 dark:text-white"
                   value={draftProfile.togetherSince}
                   onChange={(event) => setDraftProfile((prev) => ({ ...prev, togetherSince: event.target.value }))}
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Profile Handle</label>
-                <div className="flex items-center">
-                  <span className="text-slate-500 mr-2">eternalrings.app/u/</span>
+                <label className="block text-xs font-bold uppercase tracking-widest text-pink-500 mb-2">Profile Handle</label>
+                <div className="flex items-center text-pink-500">
+                  <span className="text-slate-900 mr-2">eternalrings.app/u/</span>
                   <input
-                    className="flex-1 px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-gray-700 dark:text-white"
+                    className="flex-1 px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-pink-900 dark:text-white"
                     value={draftProfile.handle}
                     onChange={(event) => setDraftProfile((prev) => ({ ...prev, handle: event.target.value }))}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Phone Number</label>
+                <label className="block text-xs font-bold uppercase tracking-widest text-pink-500 mb-2">Phone Number</label>
                 <input
-                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-gray-700 dark:text-white"
+                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-pink-900 dark:text-white"
                   value={draftProfile.phone}
                   onChange={(event) => setDraftProfile((prev) => ({ ...prev, phone: event.target.value }))}
                 />
               </div>
               <div className="flex gap-4">
-                <button className="flex-1 bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/80 transition-all" onClick={handleSaveProfile} disabled={saving}>
+                <button className="flex-1 bg-primary text-green-500 py-3 rounded-xl font-bold hover:bg-primary/80 transition-all" onClick={handleSaveProfile} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button className="flex-1 border-2 border-primary text-primary py-3 rounded-xl font-bold hover:bg-primary/5 transition-all" onClick={handleCancelEdit}>
+                <button className="flex-1 border-2 border-primary text-red-500 py-3 rounded-xl font-bold hover:bg-primary/5 transition-all" onClick={handleCancelEdit}>
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
             <div className="text-center">
-              <h1 className="heading-serif text-4xl md:text-5xl font-light mb-2">{profile.title}</h1>
+              <h1 className="heading-serif text-4xl md:text-5xl font-light mb-2 text-pink-500">{profile.title}</h1>
               <p className="text-primary text-lg mb-4">{profile.togetherSince}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 text-left">
                 <div className="bg-pink-50 dark:bg-pink-80 rounded-2xl p-5">
                   <span className="material-symbols-outlined text-primary text-2xl mb-2">link</span>
                   <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Shared Link</p>
-                  <p className="font-mono text-sm">eternalrings.app/u/{profile.handle}</p>
+                  <p className="font-mono text-sm text-pink-500">eternalrings.app/u/{profile.handle}</p>
                 </div>
                 <div className="bg-pink-50 dark:bg-pink-80 rounded-2xl p-5">
                   <span className="material-symbols-outlined text-primary text-2xl mb-2">phone</span>
@@ -423,7 +423,7 @@ const ProfileView = () => {
                   <p className="text-xs text-green-600 mt-1">✓ Verified</p>
                 </div>
               </div>
-              <button className="mt-8 px-8 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/80 transition-all" onClick={handleStartEdit}>
+              <button className="mt-8 px-8 py-3 bg-primary text-orange-700 rounded-xl font-bold hover:bg-primary/80 transition-all" onClick={handleStartEdit}>
                 Edit Profile
               </button>
             </div>
@@ -463,7 +463,7 @@ const ProfileView = () => {
               <span className="material-symbols-outlined text-red-500">logout</span>
             </div>
             <div className="text-left">
-              <h4 className="font-bold text-lg">Sign Out</h4>
+              <h4 className="font-bold text-lg text-red-500">Sign Out</h4>
               <p className="text-sm text-slate-500">Leave this device safely</p>
             </div>
           </div>

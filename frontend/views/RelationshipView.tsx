@@ -460,7 +460,7 @@ const RelationshipView = ({
           <div className="bg-white dark:bg-surface-dark/80 rounded-3xl p-8 border border-primary/10 shadow-premium">
             <div className="text-center mb-8">
               <span className="text-xs uppercase tracking-[0.3em] text-primary/70 font-semibold">✦ Always & Forever</span>
-              <h1 className="heading-serif text-5xl font-light mt-2">Start Your Journey Together</h1>
+              <h1 className="heading-serif text-5xl font-light mt-2 text-pink-500">Start Your Journey Together</h1>
               <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-2xl mx-auto">
                 Connect with your partner to create your digital relationship certificate and celebrate your love.
                 Once linked, you can document milestones and share your story.
@@ -478,7 +478,7 @@ const RelationshipView = ({
                   placeholder="Search by Partner ID or email"
                 />
                 <button 
-                  className="bg-primary text-white px-8 py-3 rounded-xl font-bold hover:bg-primary/80 transition-all"
+                  className="bg-primary text-pink-500 px-8 py-3 rounded-xl font-bold hover:bg-primary/80 transition-all"
                   type="button" 
                   disabled={isSendingInvite} 
                   onClick={() => void handleSendInvite()}
@@ -531,11 +531,11 @@ const RelationshipView = ({
                 ) : pendingInvitations.length === 0 ? (
                   <div className="text-center py-8">
                     <span className="material-symbols-outlined text-5xl text-slate-300 mb-3">mail_outline</span>
-                    <h4 className="text-xl font-bold mb-2">No pending invites yet</h4>
+                    <h4 className="text-xl font-bold mb-2 text-pink-500">No pending invites yet</h4>
                     <p className="text-slate-500 mb-4">When you receive or send a partner request, it will appear here.</p>
                     <div className="flex gap-3 justify-center">
-                      <button className="px-4 py-2 border border-primary/30 rounded-lg text-primary font-bold" type="button">How it works</button>
-                      <button className="px-4 py-2 bg-primary text-white rounded-lg font-bold" type="button" onClick={() => void handleCopyMyId()}>Copy My ID</button>
+                      <button className="px-4 py-2 border border-primary/30 rounded-lg text-white bg-pink-500 font-bold" type="button">How it works</button>
+                      <button className="px-4 py-2 bg-primary text-white bg-green-500 border-pink-200 rounded-lg font-bold" type="button" onClick={() => void handleCopyMyId()}>Copy My ID</button>
                     </div>
                   </div>
                 ) : (

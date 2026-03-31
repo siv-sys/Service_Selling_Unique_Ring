@@ -335,7 +335,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose }) => {
               </div>
             ) : selectedOrder ? (
               // Detailed Receipt View
-              <div className="space-y-6 bg-pink-200 dark:bg-slate-800/50 p-6 rounded-xl">
+              <div className="space-y-6">
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <button
                     onClick={() => setSelectedOrder(null)}
@@ -359,7 +359,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Receipt Card */}
-                <div className="bg-pink-200  rounded-2xl p-6 border border-primary/10">
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-primary/10">
                   {/* Receipt Header */}
                   <div className="border-b border-primary/10 pb-4 mb-4">
                     <div className="flex justify-between items-start flex-wrap gap-2 mb-2">
@@ -384,7 +384,7 @@ const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose }) => {
                       <p><span className="text-slate-900">Email:</span> <span className="text-slate-900 dark:text-white">{selectedOrder.user?.email || 'N/A'}</span></p>
                       <p><span className="text-slate-900">Phone:</span> <span className="text-slate-900 dark:text-white">{selectedOrder.shipping_phone || selectedOrder.user?.phone || 'N/A'}</span></p>
                       {selectedOrder.shipping_address && (
-                        <p className="col-span-2"><span className="text-slate-900">Address:</span> <span className="text-slate-900 dark:text-white">{selectedOrder.shipping_address}</span></p>
+                        <p className="col-span-2"><span className="text-slate-500">Address:</span> <span className="text-slate-900 dark:text-white">{selectedOrder.shipping_address}</span></p>
                       )}
                     </div>
                   </div>
