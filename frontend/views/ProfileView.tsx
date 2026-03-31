@@ -1,11 +1,9 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { api, resolveApiAssetUrl } from '../lib/api';
-import {
-  getStoredAuthValue,
-  getUserScopedLocalStorageItem,
-  removeUserScopedLocalStorageItem,
-  setUserScopedLocalStorageItem,
-} from '../lib/userStorage';
+import { THEME_EVENT, isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
+import { getUserScopedLocalStorageItem, getStoredAuthValue } from '../lib/userStorage';
+import HistoryModal from './HistoryModal';
 
 const PROFILE_STORAGE_KEY = 'bondkeeper_profile_persist_v1';
 const USER_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
@@ -13,15 +11,7 @@ const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
 const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
 const DEFAULT_PROFILE_NAME = 'Member';
 
-const ProfileView = ({
-  onNavigateDashboard = () => {},
-  onNavigateCoupleShop = () => {},
-  onNavigateMyRing = () => {},
-  onNavigateRelationship = () => {},
-  onNavigateSettings = () => {},
-  onNavigateCoupleProfile = () => {},
-  onNavigateProfile = () => {}
-}) => {
+const ProfileView = () => {
   const initialProfile = React.useMemo(() => ({
     title: 'Alex & Sam',
     togetherSince: 'Celebrating love since October 12, 2021',
@@ -39,7 +29,41 @@ const ProfileView = ({
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [cartCount, setCartCount] = React.useState(0);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = React.useState(false);
   const fileInputRef = React.useRef(null);
+
+  // Load dark mode preference
+  React.useEffect(() => {
+    setIsDarkMode(isStoredDarkModeEnabled());
+  }, []);
+
+  React.useEffect(() => {
+    const syncTheme = () => setIsDarkMode(isStoredDarkModeEnabled());
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener(THEME_EVENT, syncTheme);
+    return () => {
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener(THEME_EVENT, syncTheme);
+    };
+  }, []);
+
+  // Load cart count
+  React.useEffect(() => {
+    const syncCartCount = () => {
+      try {
+        const cart = JSON.parse(getUserScopedLocalStorageItem('cart') || '[]');
+        setCartCount(cart.length);
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    syncCartCount();
+    window.addEventListener('cartUpdated', syncCartCount);
+    return () => window.removeEventListener('cartUpdated', syncCartCount);
+  }, []);
 
   const readPersistedProfile = React.useCallback(() => {
     try {
@@ -54,22 +78,22 @@ const ProfileView = ({
 
   const persistProfile = React.useCallback((data) => {
     try {
-      setUserScopedLocalStorageItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
     } catch {
-      // Ignore local storage write errors (private mode or quota limits).
+      // Ignore local storage write errors
     }
   }, []);
 
   const persistUserAvatar = React.useCallback((nextAvatarUrl) => {
     try {
       if (nextAvatarUrl) {
-        setUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY, nextAvatarUrl);
+        localStorage.setItem(USER_AVATAR_STORAGE_KEY, nextAvatarUrl);
       } else {
-        removeUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY);
+        localStorage.removeItem(USER_AVATAR_STORAGE_KEY);
       }
       window.dispatchEvent(new Event(USER_AVATAR_UPDATED_EVENT));
     } catch {
-      // Ignore local storage write errors (private mode or quota limits).
+      // Ignore local storage write errors
     }
   }, []);
 
@@ -194,7 +218,6 @@ const ProfileView = ({
       });
       setIsEditing(false);
     } catch (err) {
-      // Keep local changes on the device, but be explicit when sync failed.
       persistProfile(payload);
       applyProfile(payload);
       setIsEditing(false);
@@ -227,7 +250,7 @@ const ProfileView = ({
     try {
       await api.post('/auth/logout', {});
     } catch {
-      // Clear client auth state even if the server-side session record is unavailable.
+      // Clear client auth state
     } finally {
       ['auth_user_id', 'auth_roles', 'auth_session_token'].forEach((key) => {
         sessionStorage.removeItem(key);
@@ -237,955 +260,266 @@ const ProfileView = ({
     }
   };
 
-  return (
-    <div className="profile-page">
-      <style>{`
-        .profile-page {
-          min-height: 100vh;
-          background:
-            radial-gradient(circle at top right, rgba(239, 47, 90, 0.12), transparent 24%),
-            radial-gradient(circle at bottom left, rgba(61, 119, 228, 0.12), transparent 26%),
-            linear-gradient(180deg, #f8fbff 0%, #eef3fa 100%);
-          color: #13213c;
-          font-family: Manrope, 'Segoe UI', sans-serif;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .dark .profile-page {
-          background:
-            radial-gradient(circle at top right, rgba(239, 47, 90, 0.12), transparent 24%),
-            radial-gradient(circle at bottom left, rgba(61, 119, 228, 0.12), transparent 26%),
-            linear-gradient(180deg, #0f172a 0%, #111827 100%);
-          color: #e5e7eb;
-        }
-
-        * {
-          box-sizing: border-box;
-        }
-
-        .profile-page::before {
-          content: '';
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-          background-image:
-            linear-gradient(rgba(255, 255, 255, 0.26) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
-          background-size: 120px 120px;
-          mask-image: radial-gradient(circle at center, black, transparent 80%);
-          opacity: 0.45;
-        }
-
-        .dark .profile-page::before {
-          background-image:
-            linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-          opacity: 0.3;
-        }
-
-        .topbar {
-          height: 68px;
-          border-bottom: 1px solid #e8e2ea;
-          background: #ffffff;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 56px;
-          gap: 24px;
-          position: sticky;
-          top: 0;
-          z-index: 20;
-        }
-
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          white-space: nowrap;
-        }
-
-        .brand-logo {
-          color: #f542a7;
-          font-size: 20px;
-        }
-
-        .brand-text {
-          color: #f542a7;
-          font-size: 34px;
-          font-weight: 600;
-          font-family: 'Times New Roman', Georgia, serif;
-        }
-
-        .main-nav {
-          flex: 1;
-          display: flex;
-          justify-content: flex-start;
-          gap: 34px;
-          margin-left: 28px;
-        }
-
-        .main-nav a {
-          border: 0;
-          font-size: 25px;
-          cursor: pointer;
-          padding: 4px 0;
-          text-decoration: none;
-          color: #27272a;
-          font-weight: 500;
-        }
-
-        .main-nav a:hover {
-          color: #f542a7;
-        }
-
-        .main-nav a.active {
-          color: #f542a7;
-          font-weight: 700;
-        }
-
-        .top-actions {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-        }
-
-        .top-icon-btn {
-          border: 0;
-          background: transparent;
-          cursor: pointer;
-          color: #27272a;
-          width: 26px;
-          height: 26px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0;
-        }
-
-        .top-icon-btn .material-symbols-outlined {
-          font-size: 19px;
-          font-variation-settings: 'wght' 250;
-        }
-
-        .divider {
-          width: 1px;
-          height: 24px;
-          background: #e6e2e8;
-        }
-
-        .profile-name {
-          font-size: 24px;
-          font-weight: 500;
-          color: #1f1f23;
-        }
-
-        .mini-avatar {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          border: 1px solid #f0edf2;
-          object-fit: cover;
-        }
-
-        .profile-chevron {
-          color: #9b96a2;
-          font-size: 15px;
-          line-height: 1;
-          margin-left: -6px;
-          margin-right: 2px;
-        }
-
-        .wrap {
-          max-width: 980px;
-          margin: 0 auto;
-          padding: 72px 20px 64px;
-        }
-
-        .hero {
-          text-align: center;
-          margin-bottom: 56px;
-          padding: 30px 28px 24px;
-          border-radius: 34px;
-          background:
-            linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 246, 251, 0.8));
-          border: 1px solid rgba(255, 255, 255, 0.92);
-          box-shadow:
-            0 30px 60px rgba(20, 36, 64, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.7);
-          backdrop-filter: blur(4px);
-        }
-
-        .hero-avatar-wrap {
-          position: relative;
-          width: 196px;
-          height: 196px;
-          margin: 0 auto;
-        }
-
-        .hero-avatar {
-          width: 196px;
-          height: 196px;
-          border-radius: 50%;
-          background: linear-gradient(180deg, #c7d0db, #aeb8c7);
-          border: 7px solid rgba(255, 255, 255, 0.96);
-          box-shadow:
-            0 24px 44px rgba(18, 33, 59, 0.2),
-            0 0 0 1px rgba(255, 255, 255, 0.6);
-          object-fit: cover;
-          display: block;
-        }
-
-        .avatar-camera {
-          position: absolute;
-          right: -2px;
-          bottom: 12px;
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          border: 3px solid #fff;
-          background: linear-gradient(160deg, #ff4f87, #ef2f5a);
-          color: #fff;
-          font-size: 21px;
-          display: grid;
-          place-items: center;
-          box-shadow: 0 16px 30px rgba(239, 47, 90, 0.35);
-          cursor: pointer;
-        }
-
-        .hero h1 {
-          margin: 24px 0 8px;
-          font-size: clamp(34px, 4.2vw, 56px);
-          letter-spacing: -0.04em;
-          line-height: 0.98;
-          color: #15233e;
-          display: inline-flex;
-          align-items: center;
-          gap: 12px;
-          justify-content: center;
-          font-weight: 800;
-          text-wrap: balance;
-        }
-
-        .hero p {
-          margin: 0;
-          color: #ef2f5a;
-          font-size: clamp(20px, 2.2vw, 40px);
-          font-weight: 700;
-          line-height: 1.2;
-          letter-spacing: -0.01em;
-        }
-
-        .status-note {
-          margin: 14px 0 0;
-          color: #70829d;
-          font-size: 14px;
-          font-weight: 700;
-        }
-
-        .status-note.error {
-          color: #b43a58;
-        }
-
-
-        .edit-actions {
-          margin-top: 28px;
-          display: inline-flex;
-          gap: 12px;
-        }
-
-        .edit-btn,
-        .save-btn,
-        .cancel-btn {
-          border: 0;
-          border-radius: 999px;
-          height: 56px;
-          padding: 0 34px;
-          font-size: 15px;
-          font-weight: 800;
-          cursor: pointer;
-        }
-
-        .edit-btn,
-        .save-btn {
-          background: linear-gradient(180deg, #ff4f87, #ef2f5a);
-          color: #fff;
-          box-shadow: 0 16px 30px rgba(239, 47, 90, 0.28);
-        }
-
-        .cancel-btn {
-          border: 1px solid #d4ddec;
-          background: #fff;
-          color: #627896;
-        }
-
-        .profile-input {
-          width: min(100%, 460px);
-          height: 48px;
-          border-radius: 12px;
-          border: 1px solid #d8e0ec;
-          background: #fff;
-          color: #15233e;
-          font-size: 22px;
-          font-weight: 700;
-          text-align: center;
-          padding: 0 12px;
-          margin: 6px auto;
-          display: block;
-          font-family: inherit;
-        }
-
-        .profile-input.sub {
-          color: #ef2f5a;
-          font-size: 18px;
-          height: 44px;
-        }
-
-        .days-card {
-          border: 1px solid rgba(242, 214, 220, 0.95);
-          border-radius: 34px;
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 244, 247, 0.96));
-          padding: 24px 28px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          box-shadow: 0 18px 34px rgba(32, 54, 91, 0.08);
-        }
-
-        .days-left {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .days-icon {
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          background: linear-gradient(180deg, #fff1f4, #ffe7ed);
-          color: #ef2f5a;
-          display: grid;
-          place-items: center;
-          font-size: 26px;
-          flex: 0 0 auto;
-        }
-
-        .days-label {
-          margin: 0;
-          color: #627896;
-          font-size: 12px;
-          font-weight: 900;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-        }
-
-        .days-value {
-          margin: 3px 0 0;
-          color: #ef2f5a;
-          font-size: clamp(34px, 4.5vw, 52px);
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: -0.03em;
-        }
-
-        .days-right {
-          text-align: right;
-        }
-
-        .days-avatars {
-          font-size: 28px;
-          line-height: 1;
-        }
-
-        .days-link {
-          margin-top: 10px;
-          color: #4c6280;
-          font-size: 15px;
-          font-weight: 700;
-        }
-
-        .days-dot {
-          display: inline-block;
-          width: 9px;
-          height: 9px;
-          border-radius: 50%;
-          background: #27b95d;
-          margin-right: 8px;
-        }
-
-        .grid {
-          margin-top: 22px;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-          gap: 18px;
-        }
-
-        .card {
-          border: 1px solid rgba(223, 232, 243, 0.95);
-          border-radius: 30px;
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96));
-          padding: 24px;
-          box-shadow: 0 16px 32px rgba(28, 50, 87, 0.07);
-        }
-
-        .card-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 14px;
-        }
-
-        .card-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: grid;
-          place-items: center;
-          font-size: 18px;
-        }
-
-        .card-icon.link {
-          background: #eaf1ff;
-          color: #2b67ef;
-        }
-
-        .card-icon.phone {
-          background: #e8f8ee;
-          color: #1caa66;
-        }
-
-        .verified {
-          border-radius: 999px;
-          background: #dff7e9;
-          color: #23a464;
-          font-size: 11px;
-          font-weight: 900;
-          padding: 4px 10px;
-          letter-spacing: 0.02em;
-        }
-
-        .card h3 {
-          margin: 0;
-          font-size: 30px;
-          letter-spacing: -0.03em;
-          color: #16243e;
-        }
-
-        .card p {
-          margin: 8px 0 18px;
-          color: #6e819c;
-          font-size: 15px;
-          line-height: 1.4;
-          font-weight: 600;
-        }
-
-        .handle-box {
-          min-height: 52px;
-          border: 1px solid #d4ddec;
-          border-radius: 999px;
-          background: linear-gradient(180deg, #f8fbff, #eef3fb);
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 0 16px;
-          color: #8093a9;
-          font-size: 13px;
-          font-weight: 700;
-          white-space: nowrap;
-          overflow: hidden;
-        }
-
-        .handle-box strong {
-          color: #15233e;
-          font-size: 24px;
-          letter-spacing: -0.02em;
-        }
-
-        .handle-input {
-          border: 0;
-          background: transparent;
-          color: #15233e;
-          font-size: 24px;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-          width: 100%;
-          min-width: 0;
-          outline: none;
-          font-family: inherit;
-        }
-
-        .phone-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-        }
-
-        .phone-value {
-          color: #16243e;
-          font-size: 28px;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-        }
-
-        .phone-input {
-          border: 1px solid #d8e0ec;
-          border-radius: 10px;
-          background: #fff;
-          color: #16243e;
-          font-size: 28px;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-          height: 48px;
-          padding: 0 12px;
-          width: min(100%, 320px);
-          font-family: inherit;
-        }
-
-        .change-btn {
-          border: 0;
-          border-radius: 999px;
-          height: 40px;
-          padding: 0 16px;
-          background: linear-gradient(180deg, #fff0f3, #ffe7ed);
-          color: #ef2f5a;
-          font-size: 14px;
-          font-weight: 800;
-          cursor: pointer;
-        }
-
-        .signout {
-          margin-top: 20px;
-          border: 1px solid rgba(243, 211, 217, 0.95);
-          border-radius: 999px;
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 246, 248, 0.96));
-          padding: 18px 22px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          box-shadow: 0 14px 28px rgba(29, 49, 86, 0.06);
-          cursor: pointer;
-          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-        }
-
-        .signout:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 18px 30px rgba(29, 49, 86, 0.09);
-          border-color: rgba(239, 47, 90, 0.28);
-        }
-
-        .signout-left {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-        }
-
-        .signout-icon {
-          width: 46px;
-          height: 46px;
-          border-radius: 50%;
-          border: 1px solid #f1ccd4;
-          color: #ef2f5a;
-          display: grid;
-          place-items: center;
-          font-size: 22px;
-        }
-
-        .signout h4 {
-          margin: 0;
-          font-size: 28px;
-          letter-spacing: -0.02em;
-          color: #111f39;
-        }
-
-        .signout p {
-          margin: 3px 0 0;
-          color: #6e819d;
-          font-size: 15px;
-          font-weight: 600;
-        }
-
-        .signout-arrow {
-          color: #c8d2de;
-          font-size: 34px;
-          line-height: 1;
-        }
-
-        .footer {
-          margin-top: 120px;
-          text-align: center;
-          color: #9aaac0;
-          font-size: 13px;
-          font-weight: 600;
-        }
-
-        .footer-links {
-          display: flex;
-          justify-content: center;
-          gap: 30px;
-          margin-bottom: 10px;
-        }
-
-        .footer-links button {
-          border: 0;
-          background: transparent;
-          color: #9aaac0;
-          font-size: 13px;
-          cursor: pointer;
-        }
-
-        .hidden-input {
-          display: none;
-        }
-
-        .dark .hero,
-        .dark .days-card,
-        .dark .card,
-        .dark .signout {
-          background: linear-gradient(180deg, rgba(17, 24, 39, 0.94), rgba(30, 41, 59, 0.94));
-          border-color: rgba(148, 163, 184, 0.22);
-          box-shadow: 0 18px 40px rgba(2, 6, 23, 0.35);
-        }
-
-        .dark .hero h1,
-        .dark .card h3,
-        .dark .phone-value,
-        .dark .signout h4,
-        .dark .handle-box strong,
-        .dark .handle-input,
-        .dark .profile-input,
-        .dark .phone-input {
-          color: #f8fafc;
-        }
-
-        .dark .hero p,
-        .dark .status-note,
-        .dark .days-label,
-        .dark .days-link,
-        .dark .card p,
-        .dark .handle-box,
-        .dark .footer,
-        .dark .footer-links button,
-        .dark .change-btn,
-        .dark .signout p {
-          color: #94a3b8;
-        }
-
-        .dark .profile-input,
-        .dark .phone-input,
-        .dark .handle-box,
-        .dark .cancel-btn {
-          background: #111827;
-          border-color: #374151;
-        }
-
-        .dark .cancel-btn {
-          color: #e5e7eb;
-        }
-
-        .dark .verified {
-          background: rgba(34, 197, 94, 0.12);
-          color: #86efac;
-        }
-
-        .dark .card-icon.link {
-          background: rgba(59, 130, 246, 0.16);
-          color: #93c5fd;
-        }
-
-        .dark .card-icon.phone {
-          background: rgba(34, 197, 94, 0.16);
-          color: #86efac;
-        }
-
-        .dark .days-icon,
-        .dark .change-btn {
-          background: rgba(236, 19, 128, 0.12);
-          color: #f472b6;
-        }
-
-        .dark .signout-icon {
-          border-color: rgba(236, 19, 128, 0.28);
-          color: #f472b6;
-        }
-
-        .dark .signout-arrow {
-          color: #64748b;
-        }
-
-        @media (max-width: 1100px) {
-          .topbar {
-            height: auto;
-            min-height: 68px;
-            padding: 10px 14px;
-            flex-wrap: wrap;
-            gap: 10px;
-          }
-
-          .main-nav {
-            order: 3;
-            width: 100%;
-            justify-content: flex-start;
-            overflow-x: auto;
-            padding-bottom: 4px;
-            margin-left: 0;
-          }
-
-          .main-nav a {
-            padding: 4px 0 8px;
-          }
-
-          .top-actions {
-            min-width: auto;
-            margin-left: auto;
-          }
-
-          .grid {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .top-actions .top-icon-btn,
-          .top-actions .divider,
-          .top-actions .profile-name {
-            display: none;
-          }
-
-          .wrap {
-            padding-top: 36px;
-          }
-
-          .hero {
-            margin-bottom: 34px;
-          }
-
-          .hero-avatar-wrap {
-            width: 156px;
-            height: 156px;
-          }
-
-          .hero-avatar {
-            width: 156px;
-            height: 156px;
-          }
-
-          .avatar-camera {
-            width: 52px;
-            height: 52px;
-            font-size: 20px;
-          }
-
-          .days-card {
-            border-radius: 24px;
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
-          .days-right {
-            text-align: left;
-          }
-
-          .card h3,
-          .signout h4 {
-            font-size: 28px;
-          }
-
-          .phone-value {
-            font-size: 28px;
-          }
-
-          .phone-row {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
-          .handle-box strong {
-            font-size: 21px;
-          }
-
-          .handle-input {
-            font-size: 21px;
-          }
-
-          .footer {
-            margin-top: 72px;
-          }
-        }
-      `}</style>
-
-      <header className="topbar">
-        <div className="brand">
-          <span className="material-symbols-outlined brand-logo">diamond</span>
-          <span className="brand-text">BondKeeper</span>
+  const handleThemeToggle = () => {
+    const nextDarkMode = !isDarkMode;
+    setIsDarkMode(nextDarkMode);
+    setDarkModePreference(nextDarkMode);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
+        <div className="flex items-center justify-center py-20">
+          <div className="loading-spinner mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading profile...</p>
         </div>
+      </div>
+    );
+  }
 
-        <nav className="main-nav" aria-label="Main">
-          <a href="#dashboard" onClick={onNavigateDashboard}>Dashboard</a>
-          <a href="#coupleshop" className="active" onClick={onNavigateCoupleShop}>Couple Shop</a>
-          <a href="#myring" onClick={onNavigateMyRing}>My Ring</a>
-          <a href="#coupleprofile" onClick={onNavigateCoupleProfile}>Couple Profile</a>
-        </nav>
+  return (
+    <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
+      {/* History Modal */}
+      <HistoryModal 
+        isOpen={isHistoryModalOpen} 
+        onClose={() => setIsHistoryModalOpen(false)} 
+      />
 
-        <div className="top-actions">
-          <button type="button" className="top-icon-btn" aria-label="Notifications">
-            <span className="material-symbols-outlined">notifications_none</span>
-          </button>
-          <button type="button" className="top-icon-btn" aria-label="Theme">
-            <span className="material-symbols-outlined">bedtime</span>
-          </button>
-          <button type="button" className="top-icon-btn" aria-label="Shopping cart">
-            <span className="material-symbols-outlined">shopping_cart</span>
-          </button>
-          <span className="divider" />
-          <span className="profile-name">{profile.title || DEFAULT_PROFILE_NAME}</span>
-          <span className="material-symbols-outlined profile-chevron" aria-hidden="true">expand_more</span>
-          <img
-            className="mini-avatar"
-            src={resolveApiAssetUrl(avatarUrl) || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80'}
-            alt={profile.title || DEFAULT_PROFILE_NAME}
-          />
+      {/* STICKY HEADER */}
+      <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+        <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-12">
+            <Link to="/dashboard" className="flex items-center gap-2 group">
+              <span className="material-symbols-outlined text-primary text-3xl">diamond</span>
+              <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+              <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
+              <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
+              <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
+              <Link to="/profile" className="text-primary border-b border-primary/40 pb-1">Couple Profile</Link>
+              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+              <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => setIsHistoryModalOpen(true)} 
+              className="relative text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors group"
+            >
+              <span className="material-symbols-outlined">history</span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+            </button>
+            <button onClick={handleThemeToggle} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
+            </button>
+            <Link to="/cart" className="relative">
+              <button className="text-charcoal/60 hover:text-primary">
+                <span className="material-symbols-outlined">shopping_cart</span>
+              </button>
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+            <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
+              <span className="text-sm font-medium hidden sm:inline">{profile.title || DEFAULT_PROFILE_NAME}</span>
+              <Link to="/profile">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+                  <span className="material-symbols-outlined">favorite</span>
+                </div>
+              </Link>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="wrap">
-        <section className="hero">
-          <div className="hero-avatar-wrap">
-            {avatarUrl ? (
-              <img className="hero-avatar" src={resolveApiAssetUrl(avatarUrl)} alt="Selected profile" />
-            ) : (
-              <div className="hero-avatar" />
-            )}
-            <button type="button" className="avatar-camera" onClick={handleOpenPicker}>
-              {'\u{1F4F7}'}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden-input"
-              onChange={handleAvatarChange}
-            />
-          </div>
-          {isEditing ? (
-            <>
-              <input
-                className="profile-input"
-                value={draftProfile.title}
-                onChange={(event) => setDraftProfile((prev) => ({ ...prev, title: event.target.value }))}
-                aria-label="Profile title"
-              />
-              <input
-                className="profile-input sub"
-                value={draftProfile.togetherSince}
-                onChange={(event) => setDraftProfile((prev) => ({ ...prev, togetherSince: event.target.value }))}
-                aria-label="Together since text"
-              />
-            </>
-          ) : (
-            <>
-              <h1>{profile.title} {'\u270E'}</h1>
-              <p>{profile.togetherSince}</p>
-            </>
-          )}
-          <div className="edit-actions">
-            {isEditing ? (
-              <>
-                <button type="button" className="save-btn" onClick={handleSaveProfile} disabled={saving}>Save Changes</button>
-                <button type="button" className="cancel-btn" onClick={handleCancelEdit} disabled={saving}>Discard</button>
-              </>
-            ) : (
-              <button type="button" className="edit-btn" onClick={handleStartEdit} disabled={loading}>Edit Details</button>
-            )}
-          </div>
-        </section>
-
-        <section className="days-card">
-          <div className="days-left">
-            <div className="days-icon">{'\u2728'}</div>
-            <div>
-              <p className="days-label">Shared Journey</p>
-              <p className="days-value">{profile.daysTogether} Days</p>
-            </div>
-          </div>
-          <div className="days-right">
-            <div className="days-avatars">{'\u{1F468}\u{1F469}'}</div>
-            <div className="days-link"><span className="days-dot" />{profile.linkedPartnerLabel}</div>
-          </div>
-        </section>
-
-        <section className="grid">
-          <article className="card">
-            <div className="card-head">
-              <div className="card-icon link">{'\u{1F517}'}</div>
-            </div>
-            <h3>Shared Link</h3>
-            <p>Choose a simple profile handle for your couple page.</p>
-            <div className="handle-box">
-              <span>eternalrings.app/u/</span>
-              {isEditing ? (
-                <input
-                  className="handle-input"
-                  value={draftProfile.handle}
-                  onChange={(event) => setDraftProfile((prev) => ({ ...prev, handle: event.target.value }))}
-                  aria-label="Profile handle"
-                />
+      <main className="max-w-4xl mx-auto px-6 py-12">
+        {/* Hero Section - Avatar */}
+        <div className="text-center mb-12">
+          <div className="relative inline-block">
+            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20 mx-auto">
+              {avatarUrl ? (
+                <img className="w-full h-full object-cover" src={resolveApiAssetUrl(avatarUrl)} alt="Profile" />
               ) : (
-                <strong>{profile.handle}</strong>
+                <div className="w-full h-full bg-gradient-to-br from-primary/30 to-primary flex items-center justify-center">
+                  <span className="material-symbols-outlined text-5xl text-white">person</span>
+                </div>
               )}
             </div>
-          </article>
+            <button 
+              onClick={handleOpenPicker}
+              className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:bg-primary/80 transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm">camera_alt</span>
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+          </div>
+        </div>
 
-          <article className="card">
-            <div className="card-head">
-              <div className="card-icon phone">{'\u26E8'}</div>
-              <span className="verified">VERIFIED</span>
-            </div>
-            <h3>Phone Access</h3>
-            <p>Your number stays protected with two-factor verification.</p>
-            <div className="phone-row">
-              {isEditing ? (
+        {/* Profile Info Card */}
+        <div className="bg-white dark:bg-surface-dark/80 rounded-3xl p-8 border border-primary/10 shadow-premium mb-8">
+          {isEditing ? (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Couple Name</label>
                 <input
-                  className="phone-input"
+                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-gray-700 dark:text-white"
+                  value={draftProfile.title}
+                  onChange={(event) => setDraftProfile((prev) => ({ ...prev, title: event.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Together Since</label>
+                <input
+                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-gray-700 dark:text-white"
+                  value={draftProfile.togetherSince}
+                  onChange={(event) => setDraftProfile((prev) => ({ ...prev, togetherSince: event.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Profile Handle</label>
+                <div className="flex items-center">
+                  <span className="text-slate-500 mr-2">eternalrings.app/u/</span>
+                  <input
+                    className="flex-1 px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-gray-700 dark:text-white"
+                    value={draftProfile.handle}
+                    onChange={(event) => setDraftProfile((prev) => ({ ...prev, handle: event.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Phone Number</label>
+                <input
+                  className="w-full px-5 py-3 bg-pink-100 dark:bg-pink-80 border border-pink-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-gray-700 dark:text-white"
                   value={draftProfile.phone}
                   onChange={(event) => setDraftProfile((prev) => ({ ...prev, phone: event.target.value }))}
-                  aria-label="Phone number"
                 />
-              ) : (
-                <div className="phone-value">{profile.phone}</div>
-              )}
-              <button type="button" className="change-btn" onClick={handleQuickPhoneChange}>Update Number</button>
+              </div>
+              <div className="flex gap-4">
+                <button className="flex-1 bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/80 transition-all" onClick={handleSaveProfile} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button className="flex-1 border-2 border-primary text-primary py-3 rounded-xl font-bold hover:bg-primary/5 transition-all" onClick={handleCancelEdit}>
+                  Cancel
+                </button>
+              </div>
             </div>
-          </article>
-        </section>
+          ) : (
+            <div className="text-center">
+              <h1 className="heading-serif text-4xl md:text-5xl font-light mb-2">{profile.title}</h1>
+              <p className="text-primary text-lg mb-4">{profile.togetherSince}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 text-left">
+                <div className="bg-pink-50 dark:bg-pink-80 rounded-2xl p-5">
+                  <span className="material-symbols-outlined text-primary text-2xl mb-2">link</span>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Shared Link</p>
+                  <p className="font-mono text-sm">eternalrings.app/u/{profile.handle}</p>
+                </div>
+                <div className="bg-pink-50 dark:bg-pink-80 rounded-2xl p-5">
+                  <span className="material-symbols-outlined text-primary text-2xl mb-2">phone</span>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Phone Number</p>
+                  <p className="text-lg font-bold">{profile.phone}</p>
+                  <p className="text-xs text-green-600 mt-1">✓ Verified</p>
+                </div>
+              </div>
+              <button className="mt-8 px-8 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/80 transition-all" onClick={handleStartEdit}>
+                Edit Profile
+              </button>
+            </div>
+          )}
+        </div>
 
-        <section className="signout" role="button" tabIndex={0} onClick={handleSignOut} onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            handleSignOut();
-          }
-        }}>
-          <div className="signout-left">
-            <div className="signout-icon">{'\u21AA'}</div>
-            <div>
-              <h4>Sign Out</h4>
-              <p>Leave this device safely and keep your account protected.</p>
+        {/* Days Together Card */}
+        <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-3xl p-8 border border-primary/10 mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-primary text-3xl">favorite</span>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-slate-500">Shared Journey</p>
+                <p className="text-3xl font-bold text-primary">{profile.daysTogether} Days</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-2xl mb-2">
+                <span>👨</span>
+                <span className="text-primary">❤️</span>
+                <span>👩</span>
+              </div>
+              <p className="text-sm text-slate-500">{profile.linkedPartnerLabel}</p>
             </div>
           </div>
-          <span className="signout-arrow">{'\u203A'}</span>
-        </section>
+        </div>
 
-        <footer className="footer">
-          <div className="footer-links">
-            <button type="button">Privacy Policy</button>
-            <button type="button">Terms of Service</button>
-            <button type="button">Help Center</button>
+        {/* Sign Out Button */}
+        <button 
+          className="w-full bg-white dark:bg-surface-dark/80 border border-red-200 dark:border-red-800 rounded-2xl p-5 flex items-center justify-between hover:border-red-300 transition-all group"
+          onClick={handleSignOut}
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-red-500">logout</span>
+            </div>
+            <div className="text-left">
+              <h4 className="font-bold text-lg">Sign Out</h4>
+              <p className="text-sm text-slate-500">Leave this device safely</p>
+            </div>
           </div>
-          <p>{'\u00A9'} 2025 Eternal Rings. Crafted for couples who stay connected.</p>
+          <span className="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+        </button>
+
+        {/* Footer */}
+        <footer className="mt-16 text-center">
+          <div className="flex justify-center gap-6 mb-4">
+            <button className="text-xs text-slate-400 hover:text-primary transition-colors">Privacy Policy</button>
+            <button className="text-xs text-slate-400 hover:text-primary transition-colors">Terms of Service</button>
+            <button className="text-xs text-slate-400 hover:text-primary transition-colors">Help Center</button>
+          </div>
+          <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. Crafted for couples who stay connected.</p>
         </footer>
       </main>
+
+      <style>{`
+        .loading-spinner {
+          border: 3px solid rgba(255,42,162,0.1);
+          border-top: 3px solid #ff2aa2;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .premium-blur {
+          backdrop-filter: blur(12px);
+        }
+
+        .love-pattern-bg {
+          position: relative;
+        }
+
+        .love-pattern-bg::before {
+          content: '';
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+          background-image: radial-gradient(circle at 20% 40%, rgba(255,42,162,0.03) 0%, transparent 50%);
+          z-index: 0;
+        }
+
+        .heading-serif {
+          font-family: 'Times New Roman', Georgia, serif;
+        }
+      `}</style>
     </div>
   );
 };

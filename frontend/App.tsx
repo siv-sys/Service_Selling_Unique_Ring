@@ -8,7 +8,7 @@ import { api, type AuthUser } from './lib/api';
 import { THEME_EVENT, syncStoredTheme } from './lib/theme';
 import AdminSeedView from './views/AdminSeedView';
 import AdminDashboardView from './views/AdminDashboardView';
-import CartView from './views/cardView';
+import CartView from './views/Cart';
 import CoupleProfileView from './views/CoupleProfileView';
 import CoupleShopView from './views/CoupleShopView';
 import DashboardView from './views/DashboardView';
@@ -24,6 +24,7 @@ import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
 import { getUserScopedLocalStorageItem } from './lib/userStorage';
+import PurchaseView from './views/Purchase';
 
 const USER_HOME_PATH = '/dashboard';
 const ADMIN_HOME_PATH = '/admindashboard';
@@ -315,7 +316,9 @@ function AppRoutes() {
           )
         }
       />
-
+      <Route path="/cart" element={userLayout(<CartView />)} />
+      <Route path="/purchase" element={userLayout(<PurchaseView />)} />  // ADD THIS LINE
+      <Route path={ADMIN_HOME_PATH} element={adminLayout(<AdminDashboardView />)} />
       <Route
         path="/reset-password"
         element={

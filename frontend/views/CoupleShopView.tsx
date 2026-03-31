@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import HistoryModal from './HistoryModal';
+import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem, getStoredAuthValue } from '../lib/userStorage';
 
 // Types
 interface Ring {
@@ -100,7 +101,7 @@ const RING_IMAGES = [
   "https://www.jewelslane.com/cdn/shop/collections/390e29522d597c608f0d91088edf2ded.jpg?v=1755361799"
 ];
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4001/api';
 
 const CoupleShopView: React.FC = () => {
   const navigate = useNavigate();
@@ -109,7 +110,7 @@ const CoupleShopView: React.FC = () => {
   const [allRings, setAllRings] = useState<Ring[]>([]);
   const [filteredRings, setFilteredRings] = useState<Ring[]>([]);
   const [visibleCount, setVisibleCount] = useState<number>(18);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [materials, setMaterials] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 10000 });
   const [cartCount, setCartCount] = useState<number>(0);
@@ -131,6 +132,11 @@ const CoupleShopView: React.FC = () => {
     setIsDarkMode(savedDarkMode);
     if (savedDarkMode) {
       document.documentElement.classList.add('dark');
+    }
+
+    // Set guest user if not logged in
+    if (!getStoredAuthValue('auth_user_id')) {
+      sessionStorage.setItem('auth_user_id', 'guest');
     }
   }, []);
 
@@ -160,7 +166,7 @@ const CoupleShopView: React.FC = () => {
   // Fetch cart count from backend
   const fetchCartCount = async () => {
     try {
-      const sessionId = localStorage.getItem('sessionId');
+      const sessionId = getUserScopedLocalStorageItem('sessionId');
       if (!sessionId) return;
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
@@ -193,11 +199,6 @@ const CoupleShopView: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
-  };
-
-  // Handle notification click
-  const handleNotificationClick = () => {
-    showNotification('No new notifications', 'info');
   };
 
   // Load rings from API
@@ -480,7 +481,7 @@ const CoupleShopView: React.FC = () => {
       console.log('Adding to cart:', ring);
       
       // Get existing session ID or null
-      let sessionId = localStorage.getItem('sessionId');
+      let sessionId = getUserScopedLocalStorageItem('sessionId');
       
       const response = await fetch(`${API_BASE_URL}/cart/add`, {
         method: 'POST',
@@ -502,7 +503,7 @@ const CoupleShopView: React.FC = () => {
       if (response.ok) {
         // Save the session ID from server if it's new
         if (data.sessionId && !sessionId) {
-          localStorage.setItem('sessionId', data.sessionId);
+          setUserScopedLocalStorageItem('sessionId', data.sessionId);
           console.log('Saved new session ID:', data.sessionId);
         }
         
@@ -561,23 +562,23 @@ const CoupleShopView: React.FC = () => {
     event.preventDefault();
     const isFav = localStorage.getItem(`fav-${ringId}`) === 'true';
     localStorage.setItem(`fav-${ringId}`, (!isFav).toString());
-    
-    // Force re-render of the favorite icon
-    const target = event.currentTarget.querySelector('.material-symbols-outlined');
-    if (target) {
-      if (!isFav) {
-        target.classList.add('text-primary');
-        target.setAttribute('style', 'font-variation-settings: "FILL" 1');
-      } else {
-        target.classList.remove('text-primary');
-        target.setAttribute('style', 'font-variation-settings: "FILL" 0');
-      }
-    }
   };
 
   // Navigate to ring detail
   const viewRingDetail = (ring: Ring) => {
-    sessionStorage.setItem('currentRing', JSON.stringify(ring));
+    const ringForDetail = {
+      id: ring.id,
+      name: ring.ring_name,
+      price: ring.price,
+      metal: ring.material,
+      cert: ring.cert || ring.status,
+      img: ring.image_url || ring.img,
+      isNew: ring.isNew,
+      sku: ring.ring_identifier,
+      size: ring.size,
+      ringId: ring.ring_identifier
+    };
+    sessionStorage.setItem('currentRing', JSON.stringify(ringForDetail));
     navigate('/ring-view');
   };
 
@@ -615,7 +616,7 @@ const CoupleShopView: React.FC = () => {
         onClose={() => setIsHistoryModalOpen(false)} 
       />
 
-      {/* STICKY HEADER - Full navbar with diamond logo */}
+      {/* SINGLE HEADER - Clean navbar with only History, Dark Mode, and Cart */}
       <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
           {/* left logo + navigation */}
@@ -625,13 +626,16 @@ const CoupleShopView: React.FC = () => {
               <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
             </Link>
             <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
-              <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
+              <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
               <Link to="/shop" className="text-primary border-b border-primary/40 pb-1">Couple Shop</Link>
               <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
               <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+              <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
             </nav>
           </div>
-          {/* right icons & member */}
+          
+          {/* right icons - Only History, Dark Mode, Cart, and Profile */}
           <div className="flex items-center gap-6">
             {/* History Button */}
             <button 
@@ -645,12 +649,12 @@ const CoupleShopView: React.FC = () => {
               </span>
             </button>
             
-            {/* <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications_none</span>
-            </button> */}
+            {/* Dark Mode Toggle */}
             <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
               <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
             </button>
+            
+            {/* Cart Button */}
             <Link to="/cart" className="relative">
               <button className="text-charcoal/60 hover:text-primary">
                 <span className="material-symbols-outlined">shopping_cart</span>
@@ -661,6 +665,8 @@ const CoupleShopView: React.FC = () => {
                 </span>
               )}
             </Link>
+            
+            {/* User Profile */}
             <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
               <span className="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
               <Link to="/profile">
@@ -677,12 +683,7 @@ const CoupleShopView: React.FC = () => {
         {/* HERO + SEARCH + FILTERS */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
           <div className="max-w-2xl">
-            <nav className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-widest">
-              <Link to="/">Home</Link>
-              <span>/</span>
-              <span className="text-primary font-bold">Shop</span>
-            </nav>
-            <h2 className="heading-serif text-5xl md:text-6xl font-light tracking-tight mb-4">
+            <h2 className="heading-serif text-5xl md:text-6xl font-light tracking-tight mb-4 text-pink-900 dark:text-pink-400">
               The Signature <span className="font-bold text-primary">Collection</span>
             </h2>
             <p className="text-slate-600 dark:text-black-400 text-lg leading-relaxed">
@@ -740,9 +741,9 @@ const CoupleShopView: React.FC = () => {
         </div>
 
         {/* Price Range Filter */}
-        <div className="mb-8 flex flex-wrap items-center gap-4">
+        <div className="mb-8 flex flex-wrap items-center gap-4 text-pink-600 dark:text-pink-400">
           <span className="text-sm font-medium">Price Range:</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm text-pink-600 dark:text-pink-400">
             <input 
               type="number" 
               value={filters.minPrice}
@@ -759,7 +760,7 @@ const CoupleShopView: React.FC = () => {
               className="w-24 px-3 py-2 bg-white dark:bg-pink-80 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
             />
             <button 
-              onClick={handleApplyPriceFilter}
+              onClick={handleApplyPriceFilter} 
               className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
             >
               Apply
@@ -798,20 +799,30 @@ const CoupleShopView: React.FC = () => {
         {/* Stats Bar */}
         <div className="flex justify-between items-center mb-6 text-sm text-slate-500">
           <div className="flex items-center gap-4">
-            <span className="material-symbols-outlined text-primary">database</span>
-            <span><span className="font-bold text-slate-900 dark:text-white">{filteredRings.length}</span> rings found</span>
+            <span className="material-symbols-outlined text-pink-500">database</span>
+            <span><span className="font-bold text-pink-900 dark:text-pink-400">{filteredRings.length}</span> rings found</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">inventory</span>
-            <span><span className="font-bold text-pink-900 dark:text-white">{availableRings}</span> available now</span>
+            <span className="material-symbols-outlined text-pink-500">inventory</span>
+            <span><span className="font-bold text-pink-900 dark:text-pink-400">{availableRings}</span> available now</span>
           </div>
+        </div>
+
+        {/* History Link - FIXED: Now opens the modal instead of a broken link */}
+        <div className="flex items-center gap-2 mb-6">
+          <span className="material-symbols-outlined text-pink-500">history</span>
+          <button 
+            onClick={() => setIsHistoryModalOpen(true)} 
+            className="text-pink-500 hover:text-primary hover:underline transition-colors"
+          >
+            View Purchase History
+          </button>
         </div>
 
         {/* RING GRID */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="loading-spinner mb-4"></div>
-            <p className="text-slate-600 dark:text-slate-400">Loading beautiful rings from our collection...</p>
           </div>
         ) : limit === 0 ? (
           <div className="text-center py-20">
@@ -906,13 +917,13 @@ const CoupleShopView: React.FC = () => {
                     
                     <div className="flex items-center gap-2 mt-4">
                       <button 
-                        className="flex-1 bg-primary text-white py-3 rounded-lg text-sm font-bold tracking-widest uppercase hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                        className="flex-1 bg-pink-500 py-3 rounded-lg text-sm font-bold tracking-widest uppercase hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 text-white"
                         onClick={() => addToCart(ring)}
                       >
                         Add to Cart
                       </button>
                       <button 
-                        className="flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all text-primary"
+                        className="flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all text-pink-600 dark:text-pink-400 hover:text-primary"
                         onClick={() => viewRingDetail(ring)}
                       >
                         See More
@@ -977,12 +988,12 @@ const CoupleShopView: React.FC = () => {
       )}
 
       {/* FOOTER */}
-      <footer className="bg-white dark:bg-black/10 border-t border-primary/10 pt-20 pb-10 mt-20">
+      <footer className="bg-white dark:bg-black border-t border-primary/10 pt-20 pb-10 mt-20">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center gap-2 mb-6">
               <span className="material-symbols-outlined text-primary">diamond</span>
-              <h2 className="text-lg font-extrabold tracking-widest uppercase">BondKeeper</h2>
+              <h2 className="text-lg font-extrabold tracking-widest uppercase text-pink-300 dark:text-pink-300">BondKeeper</h2>
             </div>
             <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
             <div className="flex gap-4">
@@ -992,7 +1003,7 @@ const CoupleShopView: React.FC = () => {
             </div>
           </div>
           <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Experience</h4>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Experience</h4>
             <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
               <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
               <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
@@ -1001,7 +1012,7 @@ const CoupleShopView: React.FC = () => {
             </ul>
           </div>
           <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Support</h4>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Support</h4>
             <ul className="flex flex-col gap-4 text-sm">
               <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
               <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
@@ -1010,7 +1021,7 @@ const CoupleShopView: React.FC = () => {
             </ul>
           </div>
           <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Mailing List</h4>
             <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
             <div className="flex gap-2">
               <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
@@ -1021,8 +1032,8 @@ const CoupleShopView: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
           <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
-            <Link to="/privacy" className="hover:text-primary">Privacy</Link>
-            <Link to="/terms" className="hover:text-primary">Terms</Link>
+            <Link to="/privacy" className="hover:text-primary text-pink-400 dark:text-pink-300">Privacy</Link>
+            <Link to="/terms" className="hover:text-primary text-pink-400 dark:text-pink-300">Terms</Link>
           </div>
         </div>
       </footer>

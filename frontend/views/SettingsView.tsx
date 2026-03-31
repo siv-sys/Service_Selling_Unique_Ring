@@ -1758,6 +1758,11 @@ const SettingsView = ({
 
         .content {
           min-width: 0;
+          background: var(--white);
+          border: 1px solid var(--line);
+          border-radius: var(--radius-lg);
+          box-shadow: var(--shadow-card);
+          padding: 32px;
         }
 
         .content-head {
