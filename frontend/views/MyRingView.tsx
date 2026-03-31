@@ -128,7 +128,7 @@ const RingInformation: React.FC = () => {
       }
 
       setRingData(null);
-      setError('You do not own a ring yet. Buy a ring first, then your ring information will appear here.');
+      setError(null);
       setLoading(false);
     } catch (error) {
       console.error('Error loading ring:', error);
@@ -259,7 +259,7 @@ const RingInformation: React.FC = () => {
     );
   }
 
-  if (error || !ringData) {
+  if (error) {
     return (
       <div className="min-h-screen bg-cream dark:bg-charcoal">
         {/* STICKY HEADER */}
@@ -320,6 +320,105 @@ const RingInformation: React.FC = () => {
         </div>
 
         {/* Custom Pink Notification */}
+        {notification && (
+          <div 
+            className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
+              ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
+              text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+          >
+            <span className="material-symbols-outlined text-sm">
+              {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
+            </span>
+            <p className="text-sm font-medium flex-1">{notification.message}</p>
+            <button 
+              className="hover:bg-white/20 rounded-full p-1 transition-colors"
+              onClick={() => setNotification(null)}
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!ringData) {
+    return (
+      <div className="min-h-screen bg-cream dark:bg-charcoal">
+        {/* STICKY HEADER */}
+        <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+          <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+            <div className="flex items-center gap-12">
+              <Link to="/dashboard" className="flex items-center gap-2 group">
+                <span className="material-symbols-outlined text-primary text-3xl">diamond</span>
+                <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+              </Link>
+              <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+                <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
+                <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
+                <Link to="/myring" className="text-primary border-b border-primary/40 pb-1">My Ring</Link>
+                <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+                <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+              </nav>
+            </div>
+            <div className="flex items-center gap-6">
+              <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+                <span className="material-symbols-outlined">notifications_none</span>
+              </button>
+              <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+                <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
+              </button>
+              <Link to="/cart" className="relative">
+                <button className="text-charcoal/60 hover:text-primary">
+                  <span className="material-symbols-outlined">shopping_cart</span>
+                </button>
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+              <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
+                <span className="text-sm font-medium hidden sm:inline">{coupleName}</span>
+                <Link to="/profile">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+                    <span className="material-symbols-outlined">favorite</span>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-4 py-16 md:py-24">
+          <div className="rounded-[2rem] border border-primary/15 bg-white/80 dark:bg-charcoal/50 backdrop-blur-sm shadow-[0_24px_60px_rgba(236,19,128,0.08)] p-8 md:p-12 text-center">
+            <div className="mx-auto mb-5 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <span className="material-symbols-outlined text-3xl">diamond</span>
+            </div>
+            <p className="text-[11px] tracking-[0.22em] uppercase font-bold text-primary/60 mb-3">My Ring</p>
+            <h1 className="heading-serif text-3xl md:text-5xl font-bold text-primary leading-tight">
+              Your ring will appear here after purchase
+            </h1>
+            <p className="mt-4 text-charcoal/70 dark:text-cream/70 text-base md:text-lg max-w-2xl mx-auto leading-7">
+              You have not purchased a ring yet. Once you buy one from Couple Shop, this page will automatically show your ring details, images, and care information.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                to="/shop"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-primary text-white font-medium shadow-md hover:bg-primary-dark transition-colors"
+              >
+                Browse Couple Shop
+              </Link>
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center justify-center px-6 py-3 rounded-full border border-primary/20 text-primary font-medium hover:bg-primary/5 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        </main>
+
         {notification && (
           <div 
             className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom

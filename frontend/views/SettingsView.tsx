@@ -1628,7 +1628,14 @@ const SettingsView = ({
             box-shadow:
               inset 0 1px 0 rgba(255, 255, 255, 0.92),
               0 10px 24px rgba(148, 163, 184, 0.16);
-            transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+            transition:
+              background 260ms cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+              transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+              filter 260ms ease;
+            will-change: transform, background, box-shadow;
+            backface-visibility: hidden;
           }
 
           .admin-toggle::before {
@@ -1641,22 +1648,26 @@ const SettingsView = ({
             font-weight: 800;
             letter-spacing: 0.16em;
             color: #7b8ea8;
-            transition: color 0.22s ease, transform 0.22s ease;
+            transition: color 260ms cubic-bezier(0.22, 1, 0.36, 1), transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
           }
 
           .admin-toggle::after {
             content: '';
             position: absolute;
-            top: 4px;
-            left: 4px;
-            width: 28px;
-            height: 28px;
+            top: 5px;
+            left: 5px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
             box-shadow:
               0 10px 18px rgba(15, 23, 42, 0.18),
               0 1px 2px rgba(15, 23, 42, 0.08);
-            transition: transform 0.22s ease, box-shadow 0.22s ease;
+            transition:
+              transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+              width 220ms cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform;
           }
 
           .admin-toggle.on {
@@ -1675,14 +1686,19 @@ const SettingsView = ({
           }
 
           .admin-toggle.on::after {
-            transform: translateX(36px);
+            transform: translateX(34px);
             box-shadow:
               0 12px 22px rgba(5, 73, 52, 0.22),
               0 1px 2px rgba(15, 23, 42, 0.08);
           }
 
           .admin-toggle:hover:not(:disabled) {
-            transform: translateY(-1px);
+            transform: translateY(-1px) scale(1.01);
+            filter: saturate(1.03);
+          }
+
+          .admin-toggle:active:not(:disabled) {
+            transform: translateY(0) scale(0.985);
           }
 
           .admin-toggle:focus-visible {
