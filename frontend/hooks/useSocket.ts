@@ -1,50 +1,54 @@
-import { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect } from 'react';
+import { io, type Socket } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001';
 
 interface UseSocketOptions {
   userId?: number;
-  onNotification?: (data: any) => void;
-  onConnectionEstablished?: (data: any) => void;
+  onNotification?: (data: unknown) => void;
+  onConnectionEstablished?: (data: unknown) => void;
 }
 
+let sharedSocket: Socket | null = null;
+
 export function useSocket(options: UseSocketOptions = {}) {
-  const socketRef = useRef<Socket | null>(null);
   const { userId, onNotification, onConnectionEstablished } = options;
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      if (sharedSocket) {
+        sharedSocket.disconnect();
+        sharedSocket = null;
+      }
+      return;
+    }
 
-    // Initialize Socket.IO connection
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 5,
     });
 
+    sharedSocket = socket;
+
     socket.on('connect', () => {
-      console.log('✅ Socket connected:', socket.id);
-      
-      // Join user's personal room
+      console.log('Socket connected:', socket.id);
       socket.emit('join_user_room', userId);
     });
 
     socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+      console.log('Socket disconnected');
     });
 
     socket.on('connected', (data) => {
-      console.log('🏠 Joined room:', data);
+      console.log('Joined room:', data);
     });
 
-    // Listen for notifications
     if (onNotification) {
       socket.on('notification', onNotification);
     }
 
-    // Listen for connection established events
     if (onConnectionEstablished) {
       socket.on('connection_established', onConnectionEstablished);
     }
@@ -53,22 +57,21 @@ export function useSocket(options: UseSocketOptions = {}) {
       console.error('Socket error:', error);
     });
 
-    socketRef.current = socket;
-
-    // Cleanup on unmount
     return () => {
-      if (socket.connected) {
-        socket.disconnect();
+      socket.removeAllListeners();
+      socket.disconnect();
+
+      if (sharedSocket === socket) {
+        sharedSocket = null;
       }
     };
   }, [userId, onNotification, onConnectionEstablished]);
 
-  return socketRef.current;
+  return sharedSocket;
 }
 
-// Helper function to get socket instance
 export function getSocket(): Socket | null {
-  return socketRef.current;
+  return sharedSocket;
 }
 
 export default useSocket;

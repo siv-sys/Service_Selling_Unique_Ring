@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 async function seedRings() {
-  console.log('🌱 Seeding rings data...');
+  console.log('Seeding rings data...');
 
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
@@ -61,29 +61,30 @@ async function seedRings() {
 
     for (const model of models) {
       await connection.execute(`
-        INSERT INTO ring_models 
-        (model_name, collection_name, material, description, image_url, base_price, currency_code)        VALUES (?, ?, ?, ?, ?, ?, 'USD')
+        INSERT INTO ring_models
+        (model_name, collection_name, material, description, image_url, base_price, currency_code)
+        VALUES (?, ?, ?, ?, ?, ?, 'USD')
         ON DUPLICATE KEY UPDATE
         model_name = VALUES(model_name)
       `, [model.model_name, model.collection_name, model.material, model.description, model.image_url, model.base_price]);
     }
 
-    console.log('✅ Ring models seeded');
+    console.log('Ring models seeded');
 
     // Get model IDs
     const [modelRows] = await connection.execute('SELECT id, model_name FROM ring_models');
 
     // Insert rings (inventory)
     const rings = [];
-    
+
     // Create multiple rings for each model
     for (const model of modelRows) {
       const sizes = ['5', '6', '7', '8', '9', '10'];
-      
+
       for (let i = 0; i < 3; i++) {
         const size = sizes[Math.floor(Math.random() * sizes.length)];
         const identifier = `${model.model_name.substring(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
-        
+
         rings.push([
           identifier,
           `${model.model_name} Ring`,
@@ -101,24 +102,23 @@ async function seedRings() {
 
     for (const ring of rings) {
       await connection.execute(`
-        INSERT INTO rings 
+        INSERT INTO rings
         (ring_identifier, ring_name, model_id, batch_id, size, material, price, status, location_type, location_label)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, ring);
     }
 
-    console.log(`✅ ${rings.length} rings seeded`);
+    console.log(`${rings.length} rings seeded`);
 
     // Create a batch
-    const [batchResult] = await connection.execute(`
+    await connection.execute(`
       INSERT INTO ring_batches (batch_code, manufactured_at, notes)
       VALUES (?, DATE_SUB(NOW(), INTERVAL 30 DAY), ?)
     `, ['BATCH-2025-001', 'Initial production batch']);
 
-    console.log('✅ Batch created');
-
+    console.log('Batch created');
   } catch (error) {
-    console.error('❌ Seeding error:', error);
+    console.error('Seeding error:', error);
   } finally {
     await connection.end();
   }

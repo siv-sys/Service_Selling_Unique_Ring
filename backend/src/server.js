@@ -14,7 +14,7 @@ async function ensureDatabaseInitialized() {
         await initializeCoreTables();
         dbReady = true;
       } catch (error) {
-        console.warn(`⚠️ Database startup check failed: ${error.message}`);
+        console.warn(`Database startup check failed: ${error.message}`);
         console.warn('Server will still start, but DB features may fail.');
       }
 
@@ -36,12 +36,12 @@ async function startServer() {
 
     initializeSocketIO(server);
 
-    console.log(`✅ Server running on port ${port}`);
+    console.log(`Server running on port ${port}`);
     console.log(`Database status: ${app.locals.dbReady ? 'connected' : 'disconnected'}`);
   });
 
   server.on('error', (error) => {
-    console.error('❌ Server startup error:', error);
+    console.error('Server startup error:', error);
     process.exit(1);
   });
 }
@@ -51,14 +51,14 @@ if (process.env.VERCEL) {
     try {
       await ensureDatabaseInitialized();
     } catch (error) {
-      console.warn('⚠️ Database init failed in serverless handler:', error.message);
+      console.warn('Database init failed in serverless handler:', error.message);
     }
 
     return app(req, res);
   };
 } else {
   startServer().catch((error) => {
-    console.error('❌ Fatal startup error:', error);
+    console.error('Fatal startup error:', error);
     process.exit(1);
   });
 

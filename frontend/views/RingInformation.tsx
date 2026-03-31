@@ -27,6 +27,7 @@ interface RingData {
   sku?: string;
   size?: string;
   ringId?: string;
+  representative_ring_id?: number | null;
 }
 
 const MyRingView: React.FC = () => {
@@ -106,6 +107,11 @@ const MyRingView: React.FC = () => {
       sku: ring?.sku,
       size: ring?.size,
       ringId: ring?.ringId,
+      representative_ring_id: typeof ring?.representative_ring_id === 'number'
+        ? ring.representative_ring_id
+        : ring?.representative_ring_id
+          ? Number(ring.representative_ring_id)
+          : null,
     };
   };
 
@@ -204,6 +210,13 @@ const MyRingView: React.FC = () => {
       // Get existing session ID or null
       let sessionId = getUserScopedLocalStorageItem('sessionId');
       
+      const ringId = ringData.representative_ring_id || ringData.id;
+
+      if (!ringId) {
+        showBottomNotification('This ring is missing a cart identifier', 'error');
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/cart/add`, {
         method: 'POST',
         headers: {
@@ -211,7 +224,7 @@ const MyRingView: React.FC = () => {
           ...(sessionId && { 'x-session-id': sessionId })
         },
         body: JSON.stringify({
-          ringId: ringData.id || Date.now(),
+          ringId,
           quantity: 1,
           size: selectedSize || ringData.size || '7',
           material: selectedMetal || ringData.metal

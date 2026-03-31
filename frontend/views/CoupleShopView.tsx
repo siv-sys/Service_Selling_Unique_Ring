@@ -623,7 +623,18 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
 
               return (
                 <div key={ring.id} className="ring-card group flex flex-col bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-2xl transition-shadow">
-                  <button onClick={() => viewRingDetail(ring)} className="relative block w-full aspect-[4/5] overflow-hidden bg-slate-50 dark:bg-slate-900">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => viewRingDetail(ring)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        viewRingDetail(ring);
+                      }
+                    }}
+                    className="relative block w-full aspect-[4/5] overflow-hidden bg-slate-50 dark:bg-slate-900 cursor-pointer"
+                  >
                     {ring.image_url || ring.img ? (
                       <img 
                         alt={ring.ring_name} 
@@ -650,9 +661,17 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                     </div>
                     
                     <div className="absolute top-3 right-3">
-                      <button 
-                        className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-900 hover:text-primary transition-colors favorite-btn z-10"
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-900 hover:text-primary transition-colors favorite-btn z-10 cursor-pointer"
                         onClick={(e) => { e.stopPropagation(); toggleFavorite(ring.id, e); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleFavorite(ring.id, e as unknown as React.MouseEvent);
+                          }
+                        }}
                         aria-label={isFav ? 'Remove favorite' : 'Add favorite'}
                       >
                         <span 
@@ -661,7 +680,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                         >
                           favorite
                         </span>
-                      </button>
+                      </span>
                     </div>
                     {newBadge}
                     
@@ -671,7 +690,7 @@ const showBottomNotification = (message: string, type: 'success' | 'error' = 'su
                         <span className="material-symbols-outlined text-xs align-middle">battery_full</span> {ring.battery_level}%
                       </div>
                     )}
-                  </button>
+                  </div>
                   
                   <div className="p-4 flex flex-col gap-2">
                     <div className="flex justify-between items-start">

@@ -1,5 +1,5 @@
 import React from 'react';
-import api from '../lib/api';
+import { api } from '../lib/api';
 
 interface Invitation {
   id: number;
@@ -39,27 +39,27 @@ const ConnectionRequestsView: React.FC = () => {
 
   const handleAccept = async (invitationId: number) => {
     try {
-      const result: any = await api.post(`/pair-invitations/${invitationId}/accept`);
+      const result: any = await api.post(`/pair-invitations/${invitationId}/accept`, {});
       if (result.success) {
-        alert('✅ Connection established! Redirecting...');
+        alert('Connection established! Redirecting...');
         fetchInvitations(); // Refresh list
         // Redirect to couple profile or shared page
         window.location.href = '/couple-profile';
       }
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to accept invitation');
+      alert(error instanceof Error ? error.message : 'Failed to accept invitation');
     }
   };
 
   const handleReject = async (invitationId: number) => {
     try {
-      const result: any = await api.post(`/pair-invitations/${invitationId}/reject`);
+      const result: any = await api.post(`/pair-invitations/${invitationId}/reject`, {});
       if (result.success) {
         alert('Invitation rejected');
         fetchInvitations(); // Refresh list
       }
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to reject invitation');
+      alert(error instanceof Error ? error.message : 'Failed to reject invitation');
     }
   };
 
@@ -67,13 +67,13 @@ const ConnectionRequestsView: React.FC = () => {
     if (!confirm('Are you sure you want to cancel this invitation?')) return;
     
     try {
-      const result: any = await api.post(`/pair-invitations/${invitationId}/cancel`);
+      const result: any = await api.post(`/pair-invitations/${invitationId}/cancel`, {});
       if (result.success) {
         alert('Invitation cancelled');
         fetchInvitations(); // Refresh list
       }
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to cancel invitation');
+      alert(error instanceof Error ? error.message : 'Failed to cancel invitation');
     }
   };
 
