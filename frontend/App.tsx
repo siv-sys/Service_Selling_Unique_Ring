@@ -19,6 +19,7 @@ import MemoriesView from './views/MemoriesView';
 import MyRingView from './views/MyRingView';
 import ProfileView from './views/ProfileView';
 import PublicProfileView from './views/PublicProfileView';
+import PurchaseView from './views/Purchase';
 import { RegisterScreen } from './views/RegisterView';
 import RelationshipView from './views/RelationshipView';
 import RingInformationView from './views/RingInformation';
@@ -63,10 +64,11 @@ function getStoredAccessToken(): string | null {
 }
 
 function persistAuth(user: AuthUser, accessToken: string, remember: boolean, rememberToken?: string | null) {
+  const displayName = user.name?.trim() || user.email.split('@')[0] || user.email;
   sessionStorage.setItem('auth_user_id', String(user.id));
   sessionStorage.setItem('auth_roles', user.role);
   sessionStorage.setItem('auth_email', user.email);
-  sessionStorage.setItem('auth_name', user.name || '');
+  sessionStorage.setItem('auth_name', displayName);
   sessionStorage.setItem('auth_access_token', accessToken);
 
   if (remember) {

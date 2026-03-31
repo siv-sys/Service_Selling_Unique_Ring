@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
-import { getUserScopedLocalStorageItem, setUserScopedSessionStorageItem } from '../lib/userStorage';
+import { getStoredAuthValue, getUserScopedLocalStorageItem, setUserScopedSessionStorageItem } from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
@@ -14,7 +14,15 @@ interface RecentlyViewedRing {
 }
 
 const Dashboard: React.FC = () => {
-  const [memberName, setMemberName] = useState<string>('Alexander');
+  const [memberName, setMemberName] = useState<string>(() => {
+    const storedName = getStoredAuthValue('auth_name')?.trim();
+    if (storedName) return storedName;
+
+    const storedEmail = getStoredAuthValue('auth_email')?.trim();
+    if (storedEmail) return storedEmail.split('@')[0] || storedEmail;
+
+    return 'Member';
+  });
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   const cartCount = 0;
   const isDarkMode = false;
@@ -58,6 +66,23 @@ const Dashboard: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [notification]);
+
+  useEffect(() => {
+    const syncMemberName = () => {
+      const storedName = getStoredAuthValue('auth_name')?.trim();
+      if (storedName) {
+        setMemberName(storedName);
+        return;
+      }
+
+      const storedEmail = getStoredAuthValue('auth_email')?.trim();
+      setMemberName(storedEmail ? storedEmail.split('@')[0] || storedEmail : 'Member');
+    };
+
+    syncMemberName();
+    window.addEventListener('storage', syncMemberName);
+    return () => window.removeEventListener('storage', syncMemberName);
+  }, []);
 
   // Show notification function
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -253,7 +278,6 @@ const Dashboard: React.FC = () => {
                     <p className="font-medium heading-serif text-xl text-pink-400 dark:text-pink-300">{ring.name}</p>
                     <p className="text-xs text-charcoal/50 dark:text-cream/50">{ring.material}</p>
                   </div>
-                  <span className="material-symbols-outlined text-primary/60">visibility</span>
                 </div>
               </Link>
             ))}

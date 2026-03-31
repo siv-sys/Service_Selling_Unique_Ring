@@ -1,6 +1,8 @@
 ﻿import React from 'react';
+import { Link } from 'react-router-dom';
 import { api, resolveApiAssetUrl } from '../lib/api';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { THEME_EVENT, isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
 import {
   getStoredAuthValue,
   getUserScopedLocalStorageItem,
@@ -150,6 +152,9 @@ const ProfileView = ({
   const [saving, setSaving] = React.useState(false);
   const [isUpdatingPhone, setIsUpdatingPhone] = React.useState(false);
   const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = React.useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [cartCount, setCartCount] = React.useState(0);
   const [error, setError] = React.useState('');
   const [shareMessage, setShareMessage] = React.useState('');
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -278,6 +283,16 @@ const ProfileView = ({
       shareMessageTimerRef.current = null;
     }, 2200);
   }, []);
+
+  const handleNotificationClick = () => {
+    showShareMessage('No new notifications.');
+  };
+
+  const handleThemeToggle = () => {
+    const nextDarkMode = !isDarkMode;
+    setIsDarkMode(nextDarkMode);
+    setDarkModePreference(nextDarkMode);
+  };
 
   React.useEffect(() => () => {
     if (shareMessageTimerRef.current) {
@@ -1597,22 +1612,6 @@ const ProfileView = ({
         }
       `}</style>
 
-      <header className="topbar">
-        <div className="brand">
-          <span className="material-symbols-outlined brand-logo">diamond</span>
-          <span className="brand-text">BondKeeper</span>
-        </div>
-      </div>
-    );
-  }
-
-        <nav className="main-nav" aria-label="Main">
-          <button type="button" onClick={onNavigateDashboard}>Dashboard</button>
-          <button type="button" className="active" onClick={onNavigateCoupleShop}>Couple Shop</button>
-          <button type="button" onClick={onNavigateMyRing}>My Ring</button>
-          <button type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
-        </nav>
-
       {/* STICKY HEADER */}
       <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
@@ -1837,29 +1836,8 @@ const ProfileView = ({
                 </button>
               ) : null}
             </div>
-          ) : (
-            <div className="text-center">
-              <h1 className="heading-serif text-4xl md:text-5xl font-light mb-2 text-pink-500">{profile.title}</h1>
-              <p className="text-primary text-lg mb-4">{profile.togetherSince}</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 text-left">
-                <div className="bg-pink-50 dark:bg-pink-80 rounded-2xl p-5">
-                  <span className="material-symbols-outlined text-primary text-2xl mb-2">link</span>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Shared Link</p>
-                  <p className="font-mono text-sm text-pink-500">eternalrings.app/u/{profile.handle}</p>
-                </div>
-                <div className="bg-pink-50 dark:bg-pink-80 rounded-2xl p-5">
-                  <span className="material-symbols-outlined text-primary text-2xl mb-2">phone</span>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Phone Number</p>
-                  <p className="text-lg font-bold">{profile.phone}</p>
-                  <p className="text-xs text-green-600 mt-1">✓ Verified</p>
-                </div>
-              </div>
-              <button className="mt-8 px-8 py-3 bg-primary text-orange-700 rounded-xl font-bold hover:bg-primary/80 transition-all" onClick={handleStartEdit}>
-                Edit Profile
-              </button>
-            </div>
-          )}
-        </div>
+          </article>
+        </section>
 
         {/* Days Together Card */}
         <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-3xl p-8 border border-primary/10 mb-8">
