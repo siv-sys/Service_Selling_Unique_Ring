@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import HistoryModal from './HistoryModal';
-import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
+import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem, removeUserScopedLocalStorageItem } from '../lib/userStorage';
+
+const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
+const PAYMENT_WAIT_SECONDS = 5 * 60;
+const RECEIPT_TIMESTAMP_WINDOW_MS = 5 * 60 * 1000;
 
 interface CoupleProfile {
   id: string;
@@ -25,6 +29,71 @@ interface SelectedRing {
   stock: number;
   image: string;
   id?: number;
+  collection?: string;
+  source?: 'cart' | 'ring' | 'direct';
+}
+
+function formatCountdown(totalSeconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function buildQrMatrix(seed: string) {
+  const size = 21;
+  const matrix = Array.from({ length: size }, () => Array(size).fill(false));
+  const normalizedSeed = String(seed || 'bondkeeper').split('').reduce((acc, char, index) => {
+    return (acc + char.charCodeAt(0) * (index + 11)) % 10007;
+  }, 17);
+
+  const paintFinder = (rowStart: number, colStart: number) => {
+    for (let row = 0; row < 7; row += 1) {
+      for (let col = 0; col < 7; col += 1) {
+        const onBorder = row === 0 || row === 6 || col === 0 || col === 6;
+        const inCenter = row >= 2 && row <= 4 && col >= 2 && col <= 4;
+        matrix[rowStart + row][colStart + col] = onBorder || inCenter;
+      }
+    }
+  };
+
+  paintFinder(0, 0);
+  paintFinder(0, size - 7);
+  paintFinder(size - 7, 0);
+
+  for (let row = 0; row < size; row += 1) {
+    for (let col = 0; col < size; col += 1) {
+      const inFinderArea =
+        (row < 7 && col < 7) ||
+        (row < 7 && col >= size - 7) ||
+        (row >= size - 7 && col < 7);
+
+      if (inFinderArea) {
+        continue;
+      }
+
+      const value = (row * 37 + col * 19 + normalizedSeed) % 11;
+      const diagonal = (row + col + normalizedSeed) % 7 === 0;
+      matrix[row][col] = value < 4 || diagonal;
+    }
+  }
+
+  return matrix;
+}
+
+function resolveSelectedRing(cartItem: any, source: SelectedRing['source']): SelectedRing {
+  return {
+    name: cartItem?.ring_name || cartItem?.name || '',
+    sku: cartItem?.ring_identifier || cartItem?.sku || '',
+    type: cartItem?.material || cartItem?.type || '',
+    size: String(cartItem?.size || '7'),
+    price: Number(cartItem?.price || cartItem?.base_price || 0),
+    stock: Number(cartItem?.stock || cartItem?.available_units || 3),
+    image: cartItem?.image_url || cartItem?.img || cartItem?.image || '',
+    id: cartItem?.ringId || cartItem?.id,
+    collection: cartItem?.collection_name || cartItem?.collection || '',
+    source,
+  };
 }
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4001/api';
@@ -38,6 +107,14 @@ const PurchaseView: React.FC = () => {
   const [cartCount, setCartCount] = useState<number>(1);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [modalData, setModalData] = useState<any>(null);
+  const [paymentStep, setPaymentStep] = useState<1 | 2>(1);
+  const [paymentSecondsLeft, setPaymentSecondsLeft] = useState<number>(PAYMENT_WAIT_SECONDS);
+  const [paymentOpenedAt, setPaymentOpenedAt] = useState<number>(0);
+  const [paymentProofPreview, setPaymentProofPreview] = useState<string>('');
+  const [paymentProofName, setPaymentProofName] = useState<string>('');
+  const [paymentProofTimestamp, setPaymentProofTimestamp] = useState<number>(0);
+  const [proofError, setProofError] = useState<string>('');
+  const [isConfirmingPayment, setIsConfirmingPayment] = useState<boolean>(false);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
 
@@ -71,15 +148,8 @@ const PurchaseView: React.FC = () => {
         const cartItems = JSON.parse(checkoutCart);
         if (cartItems && cartItems.length > 0) {
           const firstItem = cartItems[0];
-          setRingData({
-            name: firstItem.ring_name || '',
-            sku: firstItem.ring_identifier || '',
-            type: firstItem.material || '',
-            size: firstItem.size || '7',
-            price: firstItem.price || 0,
-            stock: 3,
-            image: firstItem.image_url || ''
-          });
+          setRingData(resolveSelectedRing(firstItem, 'cart'));
+          return;
         }
       } catch (e) {
         console.error('Error parsing checkout cart:', e);
@@ -91,18 +161,20 @@ const PurchaseView: React.FC = () => {
     if (purchaseRing) {
       try {
         const parsedRing = JSON.parse(purchaseRing);
-        setRingData({
-          name: parsedRing.name || parsedRing.ring_name || '',
-          sku: parsedRing.sku || parsedRing.ring_identifier || '',
-          type: parsedRing.metal || '',
-          size: parsedRing.size || '7',
-          price: parsedRing.price || 0,
-          stock: 3,
-          image: parsedRing.img || parsedRing.image_url || '',
-          id: parsedRing.id
-        });
+        setRingData(resolveSelectedRing(parsedRing, 'ring'));
+        return;
       } catch (e) {
         console.error('Error parsing purchase ring:', e);
+      }
+    }
+
+    const currentRing = sessionStorage.getItem('currentRing');
+    if (currentRing) {
+      try {
+        const parsedCurrentRing = JSON.parse(currentRing);
+        setRingData(resolveSelectedRing(parsedCurrentRing, 'direct'));
+      } catch (e) {
+        console.error('Error parsing current ring:', e);
       }
     }
   }, []);
@@ -123,6 +195,39 @@ const PurchaseView: React.FC = () => {
       document.documentElement.classList.add('dark');
     }
   }, []);
+
+  useEffect(() => {
+    if (!showModal || !modalData) {
+      return;
+    }
+
+    setPaymentStep(1);
+    setPaymentSecondsLeft(PAYMENT_WAIT_SECONDS);
+    setPaymentOpenedAt(Date.now());
+    setPaymentProofPreview('');
+    setPaymentProofName('');
+    setPaymentProofTimestamp(0);
+    setProofError('');
+    setIsConfirmingPayment(false);
+  }, [modalData, showModal]);
+
+  useEffect(() => {
+    if (!showModal || paymentStep !== 1) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setPaymentSecondsLeft((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [paymentStep, showModal]);
 
   // Load cart count
   useEffect(() => {
@@ -237,6 +342,28 @@ const PurchaseView: React.FC = () => {
     }
   };
 
+  const buildPurchasedRingPayload = () => ({
+    id: ringData.id || Date.now(),
+    ring_name: ringData.name,
+    name: ringData.name,
+    model_name: ringData.name,
+    ring_identifier: ringData.sku,
+    identifier: ringData.sku,
+    sku: ringData.sku,
+    image_url: ringData.image,
+    img: ringData.image,
+    material: ringData.type,
+    metal: ringData.type,
+    size: ringData.size,
+    price: ringData.price,
+    status: 'Purchased',
+    collection_name: 'Verified purchase',
+    created_at: new Date().toISOString(),
+    payment_proof_name: paymentProofName,
+    payment_proof_timestamp: paymentProofTimestamp ? new Date(paymentProofTimestamp).toISOString() : '',
+    payment_verified_at: new Date().toISOString(),
+  });
+
   // Step 1 validation
   const validateStep1 = (): boolean => {
     if (!customerName || !email) {
@@ -277,41 +404,11 @@ const PurchaseView: React.FC = () => {
     }
 
     if (ringData.stock <= 0) {
-      showNotification('❌ Sorry, this ring is out of stock.', 'error');
-      return;
-    }
-
-    // Save to history
-    const saved = saveOrderToHistory();
-    if (!saved) {
-      showNotification('Error processing order', 'error');
+      showNotification('Sorry, this ring is out of stock.', 'error');
       return;
     }
 
     const newStock = ringData.stock - 1;
-
-    // Store couple profile
-    const coupleProfile: CoupleProfile = {
-      id: 'CP' + Math.floor(Math.random() * 10000),
-      partner1: customerName,
-      email,
-      phone,
-      address: `${address}, ${city}, ${country}`,
-      ring: ringData.name,
-      sku: ringData.sku,
-      price: ringData.price,
-      purchaseDate: new Date().toLocaleDateString(),
-      ringImage: ringData.image
-    };
-
-    sessionStorage.setItem('bondKeeper_couple', JSON.stringify(coupleProfile));
-    sessionStorage.setItem('showThankYou', 'true');
-    sessionStorage.setItem('newStock', newStock.toString());
-    
-    // Clear cart after purchase
-    localStorage.removeItem('cart');
-    sessionStorage.removeItem('checkoutCart');
-    sessionStorage.removeItem('purchaseRing');
 
     setModalData({
       customerName,
@@ -320,14 +417,116 @@ const PurchaseView: React.FC = () => {
       price: ringData.price,
       newStock,
       date: new Date().toLocaleDateString(),
-      ringImage: ringData.image
+      ringImage: ringData.image,
+      total,
     });
 
     setShowModal(true);
+  };
 
-    setTimeout(() => {
-      navigate('/profile');
-    }, 3000);
+  const handleProofUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const fileAge = Math.abs(Date.now() - file.lastModified);
+    if (fileAge > RECEIPT_TIMESTAMP_WINDOW_MS) {
+      setProofError('Please upload a recent payment screenshot taken within the last 5 minutes.');
+      setPaymentProofPreview('');
+      setPaymentProofName('');
+      setPaymentProofTimestamp(0);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        setProofError('Could not read the uploaded screenshot.');
+        return;
+      }
+
+      setProofError('');
+      setPaymentProofPreview(reader.result);
+      setPaymentProofName(file.name);
+      setPaymentProofTimestamp(file.lastModified);
+    };
+    reader.onerror = () => {
+      setProofError('Could not read the uploaded screenshot.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!paymentProofPreview || !paymentProofName || !paymentProofTimestamp) {
+      setProofError('Upload your payment screenshot before continuing.');
+      return;
+    }
+
+    const timestampGap = Math.abs(Date.now() - paymentProofTimestamp);
+    if (timestampGap > RECEIPT_TIMESTAMP_WINDOW_MS) {
+      setProofError('The screenshot timestamp is too old. Please upload a recent screenshot.');
+      return;
+    }
+
+    setIsConfirmingPayment(true);
+
+    try {
+      const saved = saveOrderToHistory();
+      if (!saved) {
+        showNotification('Error processing order', 'error');
+        return;
+      }
+
+      const coupleProfile: CoupleProfile = {
+        id: 'CP' + Math.floor(Math.random() * 10000),
+        partner1: customerName,
+        email,
+        phone,
+        address: `${address}, ${city}, ${country}`,
+        ring: ringData.name,
+        sku: ringData.sku,
+        price: ringData.price,
+        purchaseDate: new Date().toLocaleDateString(),
+        ringImage: ringData.image
+      };
+
+      sessionStorage.setItem('bondKeeper_couple', JSON.stringify(coupleProfile));
+      sessionStorage.setItem('showThankYou', 'true');
+      sessionStorage.setItem('newStock', String(Math.max(0, ringData.stock - 1)));
+      sessionStorage.setItem('pendingPaymentProof', JSON.stringify({
+        fileName: paymentProofName,
+        timestamp: new Date(paymentProofTimestamp).toISOString(),
+        verifiedAt: new Date().toISOString(),
+      }));
+
+      setUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY, JSON.stringify(buildPurchasedRingPayload()));
+
+      removeUserScopedLocalStorageItem('cart');
+      const sessionId = getUserScopedLocalStorageItem('sessionId');
+      if (sessionId) {
+        try {
+          await fetch(`${API_BASE_URL}/cart`, {
+            method: 'DELETE',
+            headers: {
+              'x-session-id': sessionId,
+            },
+          });
+        } catch {
+          // Ignore cart cleanup failures and continue to My Ring.
+        }
+      }
+      sessionStorage.removeItem('checkoutCart');
+      sessionStorage.removeItem('purchaseRing');
+
+      setShowModal(false);
+      navigate('/myring');
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      showNotification('Payment verification failed.', 'error');
+    } finally {
+      setIsConfirmingPayment(false);
+    }
   };
 
   const closeModal = () => {
@@ -361,6 +560,11 @@ const PurchaseView: React.FC = () => {
       default: return '';
     }
   };
+
+  const qrMatrix = React.useMemo(() => {
+    const seed = modalData ? `${modalData.sku || 'bondkeeper'}-${modalData.total || modalData.price || 0}` : 'bondkeeper';
+    return buildQrMatrix(seed);
+  }, [modalData]);
 
   return (
     <div className="min-h-screen bg-cream dark:bg-charcoal">
@@ -482,8 +686,16 @@ const PurchaseView: React.FC = () => {
               <div className="mt-6 p-4 bg-primary/5 rounded-2xl">
                 <p className="text-xs flex items-center gap-2 text-primary">
                   <span className="material-symbols-outlined text-primary text-lg">verified</span>
-                  After purchase, this ring will be linked to your profile.
+                  {ringData.source === 'cart'
+                    ? 'This is the exact ring currently in your cart.'
+                    : 'After purchase, this ring will be linked to your profile.'}
                 </p>
+                {ringData.collection ? (
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    Collection: {ringData.collection}
+                    {ringData.source ? ` · Source: ${ringData.source}` : ''}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -685,14 +897,14 @@ const PurchaseView: React.FC = () => {
         </div>
       </main>
 
-      {/* SUCCESS MODAL */}
+      {/* PAYMENT MODAL */}
       {showModal && modalData && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop opacity-100 pointer-events-auto transition-opacity duration-300"
           onClick={handleModalBackdropClick}
         >
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-          <div className="relative bg-white dark:bg-charcoal rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-primary/20 modal-content opacity-100 translate-y-0 transition-all duration-300">
+          <div className="relative bg-white dark:bg-charcoal rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl border border-primary/20 modal-content opacity-100 translate-y-0 transition-all duration-300 max-h-[92vh] overflow-y-auto">
             <button
               onClick={closeModal}
               className="absolute top-4 right-4 text-slate-400 hover:text-primary transition-colors"
@@ -700,62 +912,173 @@ const PurchaseView: React.FC = () => {
               <span className="material-symbols-outlined">close</span>
             </button>
 
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-pulse">
-                <span className="material-symbols-outlined text-5xl">celebration</span>
+            {paymentStep === 1 ? (
+              <div className="pt-4">
+                <div className="flex justify-center mb-5">
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined text-5xl">qr_code_2</span>
+                  </div>
+                </div>
+
+                <p className="text-center text-[11px] tracking-[0.28em] uppercase font-bold text-primary/60">Scan To Pay</p>
+                <h2 className="heading-serif text-4xl font-bold text-center text-primary mt-2">Payment QR</h2>
+                <p className="text-center text-slate-600 dark:text-cream/70 mt-2 max-w-xl mx-auto">
+                  Scan the QR code below to complete payment. This payment code is valid for {formatCountdown(paymentSecondsLeft)}.
+                </p>
+
+                <div className="mt-6 flex justify-center">
+                  <div className="w-full max-w-sm rounded-[2rem] bg-white border border-slate-200 shadow-xl p-5">
+                    <div className="rounded-[1.5rem] overflow-hidden border border-slate-100 bg-white p-4 relative">
+                      <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-[11px] uppercase tracking-[0.3em] font-bold text-slate-900">
+                        <span>KHQR</span>
+                        <span className="text-primary">BondKeeper</span>
+                      </div>
+                      <div className="mt-8 rounded-2xl bg-slate-50 p-4">
+                        <div
+                          className="grid aspect-square gap-1"
+                          style={{ gridTemplateColumns: `repeat(${qrMatrix.length}, minmax(0, 1fr))` }}
+                        >
+                          {qrMatrix.map((row, rowIndex) =>
+                            row.map((filled, colIndex) => (
+                              <div
+                                key={`${rowIndex}-${colIndex}`}
+                                className={filled ? 'bg-black rounded-[2px]' : 'bg-white'}
+                              />
+                            ))
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-4 text-center">
+                        <p className="font-semibold text-slate-900">{modalData.customerName}</p>
+                        <p className="text-sm text-slate-500">{modalData.ring} · ${modalData.total}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-3 text-sm text-slate-600 dark:text-slate-300 max-w-xl mx-auto">
+                  <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                    <p className="font-medium text-primary">Step 1 of 2</p>
+                    <p className="mt-1">Open your banking app, scan the QR, and save a screenshot of the payment receipt.</p>
+                  </div>
+                  <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/60 p-4">
+                    <p className="font-medium text-primary">Time window</p>
+                    <p className="mt-1">
+                      You have five minutes to pay. The next step unlocks when the timer reaches 00:00.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentStep(2)}
+                    disabled={paymentSecondsLeft > 0}
+                    className={`px-8 py-4 rounded-full font-bold shadow-lg flex items-center gap-2 transition-all ${
+                      paymentSecondsLeft > 0
+                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                        : 'bg-primary text-white hover:bg-primary/80'
+                    }`}
+                  >
+                    <span>{paymentSecondsLeft > 0 ? `Wait ${formatCountdown(paymentSecondsLeft)}` : 'Next'}</span>
+                    <span className="material-symbols-outlined">arrow_forward</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="pt-4">
+                <div className="flex justify-center mb-5">
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined text-5xl">upload</span>
+                  </div>
+                </div>
 
-            <h2 className="heading-serif text-4xl font-bold text-center text-primary">Thank you!</h2>
-            <p className="text-center text-slate-600 dark:text-cream/70 mt-2">Your bond is now forever registered.</p>
+                <p className="text-center text-[11px] tracking-[0.28em] uppercase font-bold text-primary/60">Upload Proof</p>
+                <h2 className="heading-serif text-4xl font-bold text-center text-primary mt-2">Send your receipt</h2>
+                <p className="text-center text-slate-600 dark:text-cream/70 mt-2 max-w-xl mx-auto">
+                  Upload the screenshot you just took. We verify the file timestamp against the current time before sending you to My Ring.
+                </p>
 
-            {modalData.ringImage && (
-              <div className="mt-4 flex justify-center">
-                <div className="w-24 h-24 rounded-lg overflow-hidden border-2 border-primary/20">
-                  <img 
-                    src={modalData.ringImage} 
-                    alt={modalData.ring}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/96?text=Ring';
-                    }}
-                  />
+                <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div className="rounded-3xl border border-primary/10 bg-primary/5 p-5">
+                    <p className="text-xs uppercase tracking-[0.25em] text-primary/60 font-bold">Payment details</p>
+                    <div className="mt-4 space-y-3 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-500">Customer</span>
+                        <span className="font-bold text-right">{modalData.customerName}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-500">Ring</span>
+                        <span className="font-bold text-right">{modalData.ring}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-500">Amount</span>
+                        <span className="font-bold text-primary text-right">${modalData.total}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-slate-500">Deadline</span>
+                        <span className="font-bold text-right">{formatCountdown(paymentSecondsLeft)}</span>
+                      </div>
+                    </div>
+
+                    {paymentProofPreview && (
+                      <div className="mt-5 rounded-2xl overflow-hidden border border-primary/10 bg-white">
+                        <img src={paymentProofPreview} alt="Payment proof preview" className="w-full h-48 object-cover" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-3xl border border-primary/10 bg-white/80 dark:bg-charcoal/60 p-5">
+                    <label className="block text-xs uppercase tracking-[0.25em] text-primary/60 font-bold mb-3">
+                      Upload screenshot
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProofUpload}
+                      className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-white file:font-semibold hover:file:bg-primary/90"
+                    />
+                    <p className="mt-3 text-sm text-slate-500">
+                      We only accept screenshots or photos saved within the last 5 minutes.
+                    </p>
+                    {paymentProofName && (
+                      <p className="mt-3 text-sm font-medium text-primary break-all">
+                        Selected: {paymentProofName}
+                      </p>
+                    )}
+                    {proofError && (
+                      <p className="mt-3 text-sm font-medium text-red-500">{proofError}</p>
+                    )}
+
+                    <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                      <p className="font-semibold text-slate-800 mb-1">Timestamp check</p>
+                      <p>
+                        Your screenshot file time must be close to the current time so we can confirm it was captured during payment.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentStep(1)}
+                    className="px-8 py-4 rounded-full font-bold border border-primary/20 text-primary hover:bg-primary/5 transition-colors"
+                  >
+                    Back to QR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleConfirmPayment()}
+                    disabled={isConfirmingPayment}
+                    className="px-8 py-4 rounded-full font-bold shadow-lg flex items-center justify-center gap-2 bg-primary text-white hover:bg-primary/80 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <span>{isConfirmingPayment ? 'Verifying...' : 'Verify & Go to My Ring'}</span>
+                    <span className="material-symbols-outlined">verified</span>
+                  </button>
                 </div>
               </div>
             )}
-
-            <div className="mt-4 bg-primary/5 rounded-2xl p-6 space-y-3 text-sm border border-primary/10">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Customer</span>
-                <span className="font-bold">{modalData.customerName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Ring</span>
-                <span className="font-bold">{modalData.ring} ({modalData.sku})</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Total paid</span>
-                <span className="font-bold text-primary">${modalData.price}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Purchase date</span>
-                <span className="font-bold">{modalData.date}</span>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center text-slate-500 dark:text-cream/60 italic">
-              “Every great love story starts with a single step.<br /> Yours is now etched in eternity.”
-            </div>
-
-            <div className="mt-8 flex justify-center">
-              <Link
-                to="/profile"
-                className="bg-primary text-white px-8 py-4 rounded-full font-bold hover:bg-primary/80 transition-all flex items-center gap-2 shadow-lg"
-              >
-                <span>View your couple profile</span>
-                <span className="material-symbols-outlined">favorite</span>
-              </Link>
-            </div>
           </div>
         </div>
       )}
@@ -783,7 +1106,7 @@ const PurchaseView: React.FC = () => {
       {/* Footer */}
       <footer className="bg-white dark:bg-black/10 border-t border-primary/10 mt-20 pt-12 pb-8">
         <div className="max-w-7xl mx-auto px-6 text-center text-xs text-slate-400">
-          <p>© BondKeeper · Secure checkout. All rights reserved.</p>
+          <p>Â© BondKeeper Â· Secure checkout. All rights reserved.</p>
         </div>
       </footer>
 

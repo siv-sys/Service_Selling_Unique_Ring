@@ -213,7 +213,7 @@ const ProfileView = ({
 
   const persistProfile = React.useCallback((data: ProfileData) => {
     try {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
+      setUserScopedLocalStorageItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
     } catch {
       // Ignore local storage write errors
     }
@@ -242,9 +242,9 @@ const ProfileView = ({
   const persistUserAvatar = React.useCallback((nextAvatarUrl: string) => {
     try {
       if (nextAvatarUrl) {
-        localStorage.setItem(USER_AVATAR_STORAGE_KEY, nextAvatarUrl);
+        setUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY, nextAvatarUrl);
       } else {
-        localStorage.removeItem(USER_AVATAR_STORAGE_KEY);
+        removeUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY);
       }
       window.dispatchEvent(new Event(USER_AVATAR_UPDATED_EVENT));
     } catch {

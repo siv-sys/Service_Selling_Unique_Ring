@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE_URL, resolveApiAssetUrl } from '../lib/api';
+import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
 
 interface ShopRing {
   id: number;
@@ -345,7 +346,7 @@ const CoupleShopView: React.FC = () => {
         return;
       }
 
-      let sessionId = localStorage.getItem('sessionId');
+      let sessionId = getUserScopedLocalStorageItem('sessionId');
       const response = await fetch(`${API_BASE_URL}/cart/add`, {
         method: 'POST',
         headers: {
@@ -368,7 +369,9 @@ const CoupleShopView: React.FC = () => {
 
       if (data.sessionId && !sessionId) {
         sessionId = data.sessionId;
-        localStorage.setItem('sessionId', data.sessionId);
+        setUserScopedLocalStorageItem('sessionId', data.sessionId);
+      } else if (data.sessionId && sessionId) {
+        setUserScopedLocalStorageItem('sessionId', sessionId);
       }
 
       showNotification(`${ring.name} added to cart.`, 'success');

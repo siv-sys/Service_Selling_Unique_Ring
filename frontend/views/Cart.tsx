@@ -36,6 +36,10 @@ const Cart: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
 
+  const getSessionId = () => {
+    return getUserScopedLocalStorageItem('sessionId') || 'guest';
+  };
+
   // Upsell items
   const upsellItems: UpsellItem[] = [
     {
@@ -101,7 +105,7 @@ const Cart: React.FC = () => {
   const fetchCart = async () => {
     try {
       setIsLoading(true);
-      const sessionId = getUserScopedLocalStorageItem('sessionId') || 'guest';
+      const sessionId = getSessionId();
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
         headers: {
@@ -131,7 +135,7 @@ const Cart: React.FC = () => {
     if (newQuantity < 1) return;
     
     try {
-      const sessionId = getUserScopedLocalStorageItem('sessionId') || 'guest';
+      const sessionId = getSessionId();
       
       const response = await fetch(`${API_BASE_URL}/cart/${itemId}`, {
         method: 'PUT',
@@ -157,7 +161,7 @@ const Cart: React.FC = () => {
   // Remove item from cart
   const removeItem = async (itemId: number) => {
     try {
-      const sessionId = getUserScopedLocalStorageItem('sessionId') || 'guest';
+      const sessionId = getSessionId();
       
       const response = await fetch(`${API_BASE_URL}/cart/${itemId}`, {
         method: 'DELETE',

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { api, resolveApiAssetUrl } from '../lib/api';
 import { THEME_EVENT, isStoredDarkModeEnabled, setDarkModePreference } from '../lib/theme';
-import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
+import { getStoredAuthValue, getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
 
 type ProfilePayload = {
   title?: string;
@@ -62,6 +62,9 @@ type SearchPayload = {
 
 const RELATIONSHIP_DAYS_STORAGE_KEY = 'relationship_days_together';
 const RELATIONSHIP_DAYS_UPDATED_EVENT = 'bondkeeper:relationship-days-updated';
+const PROFILE_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
+const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
+const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
 
 const RelationshipView = ({
   onNavigateSettings = () => {},
@@ -167,6 +170,31 @@ const RelationshipView = ({
     }
   }, [applyConnectionData]);
 
+  const syncProfileCardData = React.useCallback(async () => {
+    const formatHandle = (value: string) =>
+      String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '') || 'member';
+
+    try {
+      const profile = await api.get<ProfilePayload>('/profile/me/current');
+      const rawUserId = getStoredAuthValue('auth_user_id');
+      const storedAvatar = getUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY) || '';
+      const user = rawUserId ? await api.get<{ avatarUrl: string | null }>(`/users/${rawUserId}`).catch(() => null) : null;
+      const resolvedAvatar = user?.avatarUrl || profile.avatarUrl || storedAvatar || '';
+
+      setPrimaryName(profile.title || 'Member');
+      setPrimaryHandle(formatHandle(profile.handle || profile.title || 'member'));
+      setPrimaryAvatar(resolvedAvatar ? resolveApiAssetUrl(resolvedAvatar) : '');
+    } catch {
+      // Keep fallback values.
+    }
+
+    await refreshConnection();
+  }, [refreshConnection]);
+
   React.useEffect(() => {
     setIsDarkMode(isStoredDarkModeEnabled());
   }, []);
@@ -182,30 +210,28 @@ const RelationshipView = ({
   }, []);
 
   React.useEffect(() => {
-    const formatHandle = (value: string) =>
-      String(value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_|_$/g, '') || 'member';
+    let active = true;
 
     const loadProfileCardData = async () => {
-      try {
-        const profile = await api.get<ProfilePayload>('/profile/me/current');
-        setPrimaryName(profile.title || 'Member');
-        setPrimaryHandle(formatHandle(profile.handle || profile.title || 'member'));
-        if (profile.avatarUrl) {
-          setPrimaryAvatar(resolveApiAssetUrl(profile.avatarUrl));
-        }
-      } catch {
-        // Keep fallback values.
-      }
-
-      await refreshConnection();
+      if (!active) return;
+      await syncProfileCardData();
     };
 
     void loadProfileCardData();
-  }, [refreshConnection]);
+
+    window.addEventListener('focus', loadProfileCardData);
+    window.addEventListener('storage', loadProfileCardData);
+    window.addEventListener(USER_AVATAR_UPDATED_EVENT, loadProfileCardData);
+    window.addEventListener(USER_PROFILE_UPDATED_EVENT, loadProfileCardData);
+
+    return () => {
+      active = false;
+      window.removeEventListener('focus', loadProfileCardData);
+      window.removeEventListener('storage', loadProfileCardData);
+      window.removeEventListener(USER_AVATAR_UPDATED_EVENT, loadProfileCardData);
+      window.removeEventListener(USER_PROFILE_UPDATED_EVENT, loadProfileCardData);
+    };
+  }, [syncProfileCardData]);
 
   React.useEffect(() => {
     const loadInvitations = async () => {
