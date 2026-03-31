@@ -1,6 +1,10 @@
 export const THEME_STORAGE_KEY = 'darkMode';
 export const THEME_EVENT = 'bondkeeper-theme-change';
 
+function isAdminRole(role: string | null | undefined) {
+  return String(role || '').trim().toLowerCase() === 'admin';
+}
+
 export function isStoredDarkModeEnabled() {
   if (typeof window === 'undefined') {
     return false;
@@ -18,8 +22,8 @@ export function applyTheme(isDarkMode: boolean) {
   document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
 }
 
-export function syncStoredTheme() {
-  applyTheme(isStoredDarkModeEnabled());
+export function syncStoredTheme(role?: string | null) {
+  applyTheme(!isAdminRole(role) && isStoredDarkModeEnabled());
 }
 
 export function setDarkModePreference(isDarkMode: boolean) {

@@ -336,11 +336,26 @@ async function initializeCoreTables() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       user_id ${userIdType} NOT NULL,
       system_updates BOOLEAN DEFAULT TRUE,
+      security_alerts BOOLEAN DEFAULT FALSE,
+      order_placement BOOLEAN DEFAULT FALSE,
+      push_notifications BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE KEY uq_notification_user (user_id)
     ) ENGINE=InnoDB
   `);
   await execute(`ALTER TABLE notification_preferences MODIFY COLUMN user_id ${userIdType} NOT NULL`);
+  await execute(`
+    ALTER TABLE notification_preferences
+    ADD COLUMN IF NOT EXISTS security_alerts BOOLEAN DEFAULT FALSE AFTER system_updates
+  `).catch(() => {});
+  await execute(`
+    ALTER TABLE notification_preferences
+    ADD COLUMN IF NOT EXISTS order_placement BOOLEAN DEFAULT FALSE AFTER security_alerts
+  `).catch(() => {});
+  await execute(`
+    ALTER TABLE notification_preferences
+    ADD COLUMN IF NOT EXISTS push_notifications BOOLEAN DEFAULT FALSE AFTER order_placement
+  `).catch(() => {});
   await execute(
     `
       ALTER TABLE notification_preferences

@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001';
+let activeSocket: Socket | null = null;
 
 interface UseSocketOptions {
   userId?: number;
@@ -10,7 +11,6 @@ interface UseSocketOptions {
 }
 
 export function useSocket(options: UseSocketOptions = {}) {
-  const socketRef = useRef<Socket | null>(null);
   const { userId, onNotification, onConnectionEstablished } = options;
 
   useEffect(() => {
@@ -53,22 +53,25 @@ export function useSocket(options: UseSocketOptions = {}) {
       console.error('Socket error:', error);
     });
 
-    socketRef.current = socket;
+    activeSocket = socket;
 
     // Cleanup on unmount
     return () => {
       if (socket.connected) {
         socket.disconnect();
       }
+      if (activeSocket === socket) {
+        activeSocket = null;
+      }
     };
   }, [userId, onNotification, onConnectionEstablished]);
 
-  return socketRef.current;
+  return activeSocket;
 }
 
 // Helper function to get socket instance
 export function getSocket(): Socket | null {
-  return socketRef.current;
+  return activeSocket;
 }
 
 export default useSocket;

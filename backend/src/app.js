@@ -12,6 +12,7 @@ const dashboardRoutes = require('./routes/dashboard.routes');
 const inventoryRoutes = require('./routes/inventory.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
 const profileRoutes = require('./routes/profile.routes');
+const publicProfileRoutes = require('./routes/public-profile.routes');
 const ringRoutes = require('./routes/ringRoutes');
 const settingsRoutes = require('./routes/settings.routes');
 const usersRoutes = require('./routes/users.routes');
@@ -19,6 +20,7 @@ const adminRoutes = require('./routes/admin.routes');
 const adminPairsRoutes = require('./routes/admin-pairs.routes');
 const pairInvitationsRoutes = require('./routes/pair-invitations.routes');
 const pairsRoutes = require('./routes/pairs.routes');
+const coupleShopRoutes = require('./routes/couple-shop.routes');
 
 const app = express();
 
@@ -59,10 +61,12 @@ app.get('/api', (_req, res) => {
       '/api/rings',
       '/api/cart',
       '/api/dashboard',
+      '/api/couple-shop',
       '/api/inventory',
       '/api/admin/pairs',
       '/api/notifications/me',
       '/api/profile/me/current',
+      '/api/public-profile/:handle',
       '/api/settings/system',
       '/api/settings/notifications/:userId',
     ],
@@ -79,6 +83,8 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/login', loginRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/public-profile', publicProfileRoutes);
+app.use('/api/couple-shop', coupleShopRoutes);
 app.use('/api/rings', ringRoutes);
 
 /*

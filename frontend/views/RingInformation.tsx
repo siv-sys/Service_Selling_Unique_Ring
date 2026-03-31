@@ -1,43 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { API_BASE_URL } from '../lib/api';
-import {
-  getUserScopedLocalStorageItem,
-  setUserScopedLocalStorageItem,
-  getUserScopedSessionStorageItem,
-  setUserScopedSessionStorageItem,
-} from '../lib/userStorage';
+import { Link, useNavigate } from 'react-router-dom';
+import HistoryModal from './HistoryModal';
+import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
 
 interface RingData {
   id?: number;
   name: string;
   price: number;
-  material?: string;
   metal: string;
   cert: string;
   img: string;
-  image_url?: string;
-  ring_identifier?: string;
-  identifier?: string;
-  status?: string;
-  model_name?: string;
-  collection_name?: string;
-  created_at?: string;
   isNew?: boolean;
   sku?: string;
   size?: string;
   ringId?: string;
 }
 
-const MyRingView: React.FC = () => {
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4001/api';
+
+const RingInformationView: React.FC = () => {
   const navigate = useNavigate();
-  const { ringId } = useParams<{ ringId: string }>();
   const [ringData, setRingData] = useState<RingData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedMetal, setSelectedMetal] = useState<string>('18k White Gold');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [cartCount, setCartCount] = useState<number>(0);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
 
   // Load dark mode preference
   useEffect(() => {
@@ -80,103 +69,26 @@ const MyRingView: React.FC = () => {
     }
   };
 
-  const normalizeRingData = (ring: any): RingData => {
-    const id = typeof ring?.id === 'number' ? ring.id : Number(ring?.id) || undefined;
-    const name = ring?.name || ring?.ring_name || 'Signature Ring';
-    const metal = ring?.metal || ring?.material || '18k White Gold';
-    const status = ring?.status || ring?.cert || 'AVAILABLE';
-    const img = ring?.img || ring?.image_url || ring?.model_image || 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900';
-
-    return {
-      id,
-      name,
-      price: Number(ring?.price) || 0,
-      material: ring?.material || metal,
-      metal,
-      cert: ring?.cert || status,
-      img,
-      image_url: ring?.image_url || img,
-      ring_identifier: ring?.ring_identifier,
-      identifier: ring?.identifier || ring?.ring_identifier || ring?.sku || (id ? `BK-${String(id).padStart(3, '0')}` : undefined),
-      status,
-      model_name: ring?.model_name,
-      collection_name: ring?.collection_name || ring?.collection,
-      created_at: ring?.created_at,
-      isNew: Boolean(ring?.isNew),
-      sku: ring?.sku,
-      size: ring?.size,
-      ringId: ring?.ringId,
-    };
-  };
-
-  const readStoredRing = (): RingData | null => {
-    try {
-      const storedRing = getUserScopedSessionStorageItem('currentRing');
-      if (!storedRing) return null;
-      return normalizeRingData(JSON.parse(storedRing));
-    } catch (error) {
-      console.error('Error parsing ring data', error);
-      return null;
-    }
-  };
-
-  const matchesRequestedRing = (ring: RingData | null) => {
-    if (!ring || !ringId) return false;
-
-    return [ring.id, ring.ringId, ring.identifier, ring.ring_identifier]
-      .filter(Boolean)
-      .some((value) => String(value) === ringId);
-  };
-
-  const applyRingData = (ring: any) => {
-    const normalized = normalizeRingData(ring);
-    setRingData(normalized);
-    setSelectedMetal(normalized.metal || '18k White Gold');
-    setSelectedSize((current) => current || normalized.size || '');
-    setLoading(false);
-  };
-
   useEffect(() => {
-    const loadRingData = async () => {
-      setLoading(true);
-      const storedRing = readStoredRing();
-
-      if (storedRing && (!ringId || matchesRequestedRing(storedRing))) {
-        applyRingData(storedRing);
-      }
-
-      if (!ringId) {
-        if (!storedRing) {
-          setRingData(null);
-          setLoading(false);
-        }
+    try {
+      // Retrieve ring data from sessionStorage (set by shop page "See More" button)
+      const storedRing = sessionStorage.getItem('currentRing');
+      
+      if (!storedRing) {
+        setRingData(null);
+        setLoading(false);
         return;
       }
 
-      try {
-        const response = await fetch(`${API_BASE_URL}/rings/${ringId}`);
-
-        if (!response.ok) {
-          throw new Error(`Failed to load ring ${ringId}`);
-        }
-
-        const data = await response.json();
-        const nextRing = data?.data || data;
-        applyRingData(nextRing);
-        setUserScopedSessionStorageItem('currentRing', JSON.stringify(normalizeRingData(nextRing)));
-      } catch (error) {
-        if (storedRing && matchesRequestedRing(storedRing)) {
-          return;
-        }
-
-        console.error('Error loading ring detail:', error);
-        setRingData(null);
-        setLoading(false);
-      }
-    };
-
-    void loadRingData();
-  }, [ringId]);
+      const parsedRing = JSON.parse(storedRing);
+      setRingData(parsedRing);
+      setSelectedMetal(parsedRing.metal || '18k White Gold');
+      setLoading(false);
+    } catch (error) {
+      console.error('Error parsing ring data', error);
+      setLoading(false);
+    }
+  }, []);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -189,11 +101,6 @@ const MyRingView: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
-  };
-
-  // Handle notification click
-  const handleNotificationClick = () => {
-    showBottomNotification('No new notifications', 'info');
   };
 
   // Add to cart function with backend API
@@ -244,6 +151,15 @@ const MyRingView: React.FC = () => {
     }
   };
 
+  // Handle purchase/book consultation - navigate to purchase page
+  const handlePurchase = () => {
+    if (ringData) {
+      // Store the ring data for purchase page
+      sessionStorage.setItem('purchaseRing', JSON.stringify(ringData));
+      navigate('/purchase');
+    }
+  };
+
   // Small bottom notification function
   const showBottomNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const notification = document.createElement('div');
@@ -275,11 +191,6 @@ const MyRingView: React.FC = () => {
         }, 200);
       }
     }, 2000);
-  };
-
-  // Handle book consultation
-  const handleBookConsultation = () => {
-    navigate('/purchase');
   };
 
   // Helper function to get stone details based on certification
@@ -336,7 +247,10 @@ const MyRingView: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
-        {/* Navbar */}
+        <HistoryModal 
+          isOpen={isHistoryModalOpen} 
+          onClose={() => setIsHistoryModalOpen(false)} 
+        />
         <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
           <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
             <div className="flex items-center gap-12">
@@ -345,15 +259,18 @@ const MyRingView: React.FC = () => {
                 <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
               </Link>
               <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
-                <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
-                <Link to="/shop" className="text-primary border-b border-primary/40 pb-1">Couple Shop</Link>
+                <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
+                <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
                 <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
                 <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+                <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+                <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
               </nav>
             </div>
             <div className="flex items-center gap-6">
-              <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-                <span className="material-symbols-outlined">notifications_none</span>
+              <button onClick={() => setIsHistoryModalOpen(true)} className="relative text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors group">
+                <span className="material-symbols-outlined">history</span>
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
               </button>
               <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
                 <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
@@ -379,8 +296,6 @@ const MyRingView: React.FC = () => {
             </div>
           </div>
         </header>
-
-        {/* Loading spinner */}
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
@@ -394,7 +309,10 @@ const MyRingView: React.FC = () => {
   if (!ringData) {
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
-        {/* Navbar */}
+        <HistoryModal 
+          isOpen={isHistoryModalOpen} 
+          onClose={() => setIsHistoryModalOpen(false)} 
+        />
         <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
           <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
             <div className="flex items-center gap-12">
@@ -403,15 +321,18 @@ const MyRingView: React.FC = () => {
                 <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
               </Link>
               <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
-                <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
-                <Link to="/shop" className="text-primary border-b border-primary/40 pb-1">Couple Shop</Link>
+                <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
+                <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
                 <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
                 <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+                <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+                <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
               </nav>
             </div>
             <div className="flex items-center gap-6">
-              <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-                <span className="material-symbols-outlined">notifications_none</span>
+              <button onClick={() => setIsHistoryModalOpen(true)} className="relative text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors group">
+                <span className="material-symbols-outlined">history</span>
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
               </button>
               <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
                 <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
@@ -437,12 +358,10 @@ const MyRingView: React.FC = () => {
             </div>
           </div>
         </header>
-
-        {/* No ring message */}
         <div className="flex items-center justify-center py-20">
           <div className="text-center p-12 max-w-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-3xl shadow-2xl">
             <span className="material-symbols-outlined text-6xl text-primary mb-4">dangerous</span>
-            <h1 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">No Ring Selected</h1>
+            <h1 className="text-2xl font-bold mb-4 text-slate-900 text-black">No Ring Selected</h1>
             <p className="mb-8 text-slate-600 dark:text-slate-400">Please select a ring from the Eternal Rings catalog first.</p>
             <Link 
               to="/shop" 
@@ -460,7 +379,12 @@ const MyRingView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
-      {/* STICKY HEADER */}
+      <HistoryModal 
+        isOpen={isHistoryModalOpen} 
+        onClose={() => setIsHistoryModalOpen(false)} 
+      />
+
+      {/* HEADER */}
       <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-12">
@@ -469,15 +393,18 @@ const MyRingView: React.FC = () => {
               <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
             </Link>
             <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
-              <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
-              <Link to="/shop" className="text-primary border-b border-primary/40 pb-1">Couple Shop</Link>
+              <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
+              <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
               <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
               <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+              <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
             </nav>
           </div>
           <div className="flex items-center gap-6">
-            <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications_none</span>
+            <button onClick={() => setIsHistoryModalOpen(true)} className="relative text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors group">
+              <span className="material-symbols-outlined">history</span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
             </button>
             <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
               <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
@@ -507,9 +434,9 @@ const MyRingView: React.FC = () => {
       <main className="max-w-7xl mx-auto px-6 py-12">
         {/* BREADCRUMBS */}
         <div className="flex items-center gap-2 mb-8 text-sm text-slate-500 dark:text-slate-400">
-          <Link to="/shop" className="hover:text-primary">back to shop</Link>
+          <Link to="/shop" className="hover:text-primary">Back to Shop</Link>
           <span className="material-symbols-outlined text-xs">chevron_left</span>
-          <span className="text-slate-900 dark:text-slate-100 font-medium">{ringData.name}</span>
+          <span className="text-slate-900 dark:text-pink-700 font-medium">{ringData.name}</span>
         </div>
 
         {/* PRODUCT GRID */}
@@ -539,11 +466,11 @@ const MyRingView: React.FC = () => {
 
           {/* Right Column: Details */}
           <div className="lg:col-span-5 flex flex-col">
-            <div className="sticky top-32">
-              <span className="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-2 block">
+            <div className="sticky top-32 text-center lg:text-left text-pink-500 dark:text-pink-400">
+              <span className=" font-bold tracking-[0.2em] text-xs uppercase mb-2 block text-pink-90 text-pink">
                 BondKeeper · Eternal
               </span>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white mb-4 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-black text-pink-90mb-4 leading-tight text-pink-800"> 
                 {ringData.name}
               </h1>
               
@@ -566,7 +493,7 @@ const MyRingView: React.FC = () => {
               <div className="space-y-8">
                 {/* Metal selection */}
                 <div>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white mb-4 block uppercase tracking-wider">
+                  <span className="text-sm font-bold  mb-4 block uppercase tracking-wider text-pink-200 text-pink dark:text-pink-300">
                     Metal / Material
                   </span>
                   <div className="flex gap-4 flex-wrap">
@@ -578,7 +505,7 @@ const MyRingView: React.FC = () => {
                           : 'border-slate-200 dark:border-slate-800 hover:border-primary/50'
                       }`}
                     >
-                      <div className="size-4 rounded-full bg-slate-300 border border-slate-400"></div>
+                      <div className="size-4 rounded-full bg-slate-300 border border-slate-400 text-pink-500 dark:text-pink-400"></div>
                       <span className="text-sm font-bold">{ringData.metal}</span>
                     </button>
                     <button 
@@ -589,7 +516,7 @@ const MyRingView: React.FC = () => {
                           : 'border-slate-200 dark:border-slate-800 hover:border-primary/50'
                       }`}
                     >
-                      <div className="size-4 rounded-full bg-yellow-400 border border-yellow-500"></div>
+                      <div className="size-4 rounded-full bg-yellow-400 border border-yellow-500 text -yellow-900 dark:text-yellow-300"></div>
                       <span className="text-sm font-bold">Yellow Gold</span>
                     </button>
                     <button 
@@ -600,7 +527,7 @@ const MyRingView: React.FC = () => {
                           : 'border-slate-200 dark:border-slate-800 hover:border-primary/50'
                       }`}
                     >
-                      <div className="size-4 rounded-full bg-amber-100 border border-amber-300"></div>
+                      <div className="size-4 rounded-full bg-amber-100 border border-amber-300 text-amber-900 dark:text-amber-300"></div>
                       <span className="text-sm font-bold">Rose Gold</span>
                     </button>
                   </div>
@@ -608,18 +535,18 @@ const MyRingView: React.FC = () => {
                 
                 {/* Size selection */}
                 <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  <div className="flex justify-between items-center mb-4 text-pink-200 text-pink dark:text-pink-300">
+                    <span className="text-sm font-bold uppercase tracking-wider">
                       Ring Size (US)
                     </span>
-                    <button className="text-xs font-bold text-primary underline underline-offset-4">
+                    <button className="text-xs font-bold text-primary underline underline-offset-4 text-pink-500 dark:text-pink-400">
                       Size Guide
                     </button>
                   </div>
                   <select 
                     value={selectedSize}
                     onChange={(e) => setSelectedSize(e.target.value)}
-                    className="w-full bg-transparent border-slate-200 dark:border-slate-800 rounded-lg py-3 focus:ring-primary focus:border-primary font-medium"
+                    className="w-full bg-transparent rounded-lg py-3 focus:ring-primary focus:border-primary font-medium text-sm text-slate-900 dark:text-pink-800 border-2"
                   >
                     <option value="">Select Size</option>
                     <option value="5">5</option>
@@ -635,17 +562,17 @@ const MyRingView: React.FC = () => {
                 <div className="flex flex-col gap-4">
                   <button 
                     onClick={addToCart}
-                    className="w-full py-5 bg-primary text-white font-black text-lg rounded-lg shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all uppercase tracking-widest flex items-center justify-center gap-3"
+                    className="w-full py-5  font-black text-lg rounded-lg shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all uppercase tracking-widest flex items-center justify-center gap-3 bg-pink-500 text-white"
                   >
-                    <span className="material-symbols-outlined">shopping_cart</span> 
+                    <span className="material-symbols-outlined text-pink-50">shopping_cart</span> 
                     Add to Cart
                   </button>
                   <button
-                    onClick={handleBookConsultation}
-                    className="w-full py-5 border-2 border-primary text-primary font-black text-lg rounded-lg hover:bg-primary hover:text-white transition-all uppercase tracking-widest flex items-center justify-center gap-3"
+                    onClick={handlePurchase}
+                    className="w-full py-5 border-2 border-primary font-black text-lg rounded-lg hover:bg-primary hover:text-white transition-all uppercase tracking-widest flex items-center justify-center gap-3 bg-green-500 text-white shadow-lg shadow-green-300/50"
                   >
                     <span className="material-symbols-outlined">calendar_month</span> 
-                    Book Consultation
+                    Book Consultation / Purchase
                   </button>
                 </div>
                 
@@ -673,40 +600,40 @@ const MyRingView: React.FC = () => {
         <div className="mt-32 space-y-24">
           {/* Specs Grid */}
           <section>
-            <h3 className="text-2xl font-black mb-12 flex items-center gap-4">
+            <h3 className="text-2xl font-black mb-12 flex items-center gap-4 text-pink-500 dark:text-pink-400">
               Product Specifications
               <div className="h-px flex-1 bg-primary/10"></div>
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               <div className="p-8 rounded-xl bg-primary/5 border border-primary/10">
                 <span className="text-xs font-bold text-primary uppercase mb-2 block">Stone / Cert</span>
-                <p className="text-xl font-bold">
+                <p className="text-xl font-bold text-pink-500 dark:text-pink-400">
                   {ringData.cert.split(' ').slice(0,2).join(' ') || ringData.cert}
                 </p>
                 <p className="text-sm text-slate-500 mt-1">{getStoneCarats(ringData.cert)}</p>
               </div>
               <div className="p-8 rounded-xl bg-primary/5 border border-primary/10">
                 <span className="text-xs font-bold text-primary uppercase mb-2 block">Material</span>
-                <p className="text-xl font-bold">{ringData.metal}</p>
+                <p className="text-xl font-bold text-pink-500 dark:text-pink-400">{ringData.metal}</p>
                 <p className="text-sm text-slate-500 mt-1">{getMaterialDetail(ringData.metal)}</p>
               </div>
               <div className="p-8 rounded-xl bg-primary/5 border border-primary/10">
                 <span className="text-xs font-bold text-primary uppercase mb-2 block">Certification</span>
-                <p className="text-xl font-bold">{ringData.cert}</p>
+                <p className="text-xl font-bold text-pink-500 dark:text-pink-400">{ringData.cert}</p>
                 <p className="text-sm text-slate-500 mt-1">{getCertDetail(ringData.cert)}</p>
               </div>
               <div className="p-8 rounded-xl bg-primary/5 border border-primary/10">
                 <span className="text-xs font-bold text-primary uppercase mb-2 block">Collection</span>
-                <p className="text-xl font-bold">{ringData.isNew ? 'New Arrival' : 'Signature Piece'}</p>
+                <p className="text-xl font-bold text-pink-500 dark:text-pink-400 ">{ringData.isNew ? 'New Arrival' : 'Signature Piece'}</p>
                 <p className="text-sm text-slate-500 mt-1">{ringData.isNew ? '2024 Collection' : 'Timeless Classic'}</p>
               </div>
             </div>
           </section>
 
-          {/* Story - Now using the ring's own image */}
+          {/* Story */}
           <div className="grid lg:grid-cols-2 gap-24 items-center">
             <div>
-              <h3 className="text-4xl font-black mb-8">The Story</h3>
+              <h3 className="text-4xl font-black mb-8 text-pink-500 dark:text-pink-400">The Story</h3>
               <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 space-y-6 leading-relaxed text-lg">
                 <p>{story.main}</p>
                 <p className="font-medium text-primary/80">{story.detail}</p>
@@ -735,7 +662,7 @@ const MyRingView: React.FC = () => {
               <div>
                 <div className="flex items-center gap-4 mb-6">
                   <span className="material-symbols-outlined text-primary text-3xl">local_shipping</span>
-                  <h4 className="text-xl font-bold">Shipping & Presentation</h4>
+                  <h4 className="text-xl font-bold text-pink-500 dark:text-pink-400">Shipping & Presentation</h4>
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
                   Your Lumière creation arrives in a signature velvet-lined mahogany box, protected by discreet, fully insured overnight shipping.
@@ -744,7 +671,7 @@ const MyRingView: React.FC = () => {
               <div>
                 <div className="flex items-center gap-4 mb-6">
                   <span className="material-symbols-outlined text-primary text-3xl">assignment_return</span>
-                  <h4 className="text-xl font-bold">Returns & Exchanges</h4>
+                  <h4 className="text-xl font-bold text-pink-500 dark:text-pink-400">Returns & Exchanges</h4>
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
                   If you are not completely enchanted, we offer a 30-day bespoke return policy.
@@ -755,58 +682,58 @@ const MyRingView: React.FC = () => {
         </div>
       </main>
 
-      {/* FOOTER */}
-      <footer className="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
-          <div className="col-span-1 md:col-span-1">
-            <div className="flex items-center gap-2 mb-6">
-              <span className="material-symbols-outlined text-primary">diamond</span>
-              <h2 className="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
-            </div>
-            <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical craftsmanship and timeless design. Every ring tells a story.</p>
-            <div className="flex gap-4">
-              <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
-                <span className="material-symbols-outlined text-lg">share</span>
-              </a>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Experience</h4>
-            <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
-              <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
-              <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
-              <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
-              <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Support</h4>
-            <ul className="flex flex-col gap-4 text-sm">
-              <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
-              <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
-              <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
-              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
-            <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
-            <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
-              <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
-          <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
-            <Link to="/privacy" className="hover:text-primary">Privacy</Link>
-            <Link to="/terms" className="hover:text-primary">Terms</Link>
-          </div>
-        </div>
-      </footer>
+       {/* FOOTER */}
+                 <footer className="bg-white dark:bg-black  border-t border-primary/10 pt-20 pb-10 mt-20">
+                   <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
+                     <div className="col-span-1 md:col-span-1">
+                       <div className="flex items-center gap-2 mb-6">
+                         <span className="material-symbols-outlined text-primary">diamond</span>
+                         <h2 className="text-lg font-extrabold tracking-widest uppercase text-pink-300 dark:text-pink-300">BondKeeper</h2>
+                       </div>
+                       <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
+                       <div className="flex gap-4">
+                         <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
+                           <span className="material-symbols-outlined text-lg">share</span>
+                         </a>
+                       </div>
+                     </div>
+                     <div>
+                       <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Experience</h4>
+                       <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+                         <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
+                         <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
+                         <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
+                         <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
+                       </ul>
+                     </div>
+                     <div>
+                       <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Support</h4>
+                       <ul className="flex flex-col gap-4 text-sm">
+                         <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
+                         <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
+                         <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
+                         <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
+                       </ul>
+                     </div>
+                     <div>
+                       <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Mailing List</h4>
+                       <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
+                       <div className="flex gap-2">
+                         <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+                         <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest text-pink-400 dark:text-pink-300">Join</button>
+                       </div>
+                     </div>
+                   </div>
+                   <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                     <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
+                     <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
+                       <Link to="/privacy" className="hover:text-primary text-pink-400 dark:text-pink-300">Privacy</Link>
+                       <Link to="/terms" className="hover:text-primary text-pink-400 dark:text-pink-300">Terms</Link>
+                     </div>
+                   </div>
+                 </footer>
+           
 
-      {/* Add animations */}
       <style>{`
         @keyframes slideUpBottom {
           from {
@@ -837,23 +764,9 @@ const MyRingView: React.FC = () => {
         .animate-slide-down-bottom {
           animation: slideDownBottom 0.3s ease-out forwards;
         }
-
-        .loading-spinner {
-          border: 3px solid rgba(255,42,162,0.1);
-          border-top: 3px solid #ff2aa2;
-          border-radius: 50%;
-          width: 40px;
-          height: 40px;
-          animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
       `}</style>
     </div>
   );
 };
 
-export default MyRingView;
+export default RingInformationView;

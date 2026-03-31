@@ -1,44 +1,46 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../lib/api';
-import {
-  getUserScopedLocalStorageItem,
-  setUserScopedLocalStorageItem,
-  getUserScopedSessionStorageItem,
-  setUserScopedSessionStorageItem,
-} from '../lib/userStorage';
+import { API_BASE_URL, resolveApiAssetUrl } from '../lib/api';
+import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
 
-// Types
-interface Ring {
+interface ShopRing {
   id: number;
-  ring_identifier: string;
+  model_id: number;
+  model_name: string;
   ring_name: string;
-  representative_ring_id?: number | null;
-  available_units?: number;
-  model_id: string | null;
-  batch_id: string | null;
-  size: string;
-  material: string;
-  status: string;
-  location_type: string;
-  location_label: string | null;
-  battery_level: number | null;
-  last_seen_at: string | null;
-  last_seen_lat: number | null;
-  last_seen_lng: number | null;
-  price: number;
-  image_url: string | null;
-  created_at: string;
-  updated_at: string;
-  img: string | null;
   name: string;
+  ring_identifier: string;
+  identifier: string;
+  sku: string;
+  serial_number: string;
+  image: string;
+  image_url: string;
+  img: string;
+  material: string;
   metal: string;
+  color: string;
+  variant: string;
+  size: string;
+  description: string | null;
+  status: string;
+  stock: number;
+  stockPercent: number;
+  statusColor: string;
+  price: number;
+  base_price: number;
+  currency_code: string;
+  collection_name: string | null;
+  collection: string;
+  available_units: number;
+  representative_ring_id: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  created_at: string | null;
+  updated_at: string | null;
   cert: string;
   type: string;
   isNew: boolean;
-  model_name: string;
-  collection: string;
-  identifier: string;
+  sample_size?: string;
 }
 
 interface Filters {
@@ -46,824 +48,640 @@ interface Filters {
   minPrice: string;
   maxPrice: string;
   sort: string;
+  search: string;
 }
+
+interface Notification {
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+const PLACEHOLDER_IMAGE =
+  'https://images.unsplash.com/photo-1605100804763-247f67b3557e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80';
+
+const DEFAULT_MATERIALS = ['18K Gold', 'Platinum', 'Rose Gold', 'Sterling Silver'];
+
+const DEFAULT_FILTERS: Filters = {
+  material: '',
+  minPrice: '',
+  maxPrice: '',
+  sort: 'featured',
+  search: '',
+};
+
+const mapMaterialToType = (material: string): string => {
+  const value = String(material || '').toLowerCase();
+  if (value.includes('platinum')) return 'platinum';
+  if (value.includes('gold')) return 'gold';
+  if (value.includes('diamond') || value.includes('white')) return 'diamond';
+  if (value.includes('silver')) return 'silver';
+  return 'other';
+};
+
+const normalizeRing = (ring: any, index: number): ShopRing => {
+  const id = Number(ring?.id || index + 1);
+  const modelName = String(ring?.model_name || ring?.name || `Ring ${index + 1}`);
+  const material = String(ring?.material || 'Unknown');
+  const collectionName = ring?.collection_name ? String(ring.collection_name) : null;
+  const rawImage = ring?.image_url || ring?.image || ring?.img || '';
+  const image = resolveApiAssetUrl(rawImage) || PLACEHOLDER_IMAGE;
+  const availableUnits = Number(ring?.available_units ?? ring?.stock ?? 0);
+  const representativeRingId = ring?.representative_ring_id != null ? Number(ring.representative_ring_id) : null;
+  const createdAt = ring?.created_at || ring?.createdAt || null;
+  const isNew = createdAt ? (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24) <= 30 : false;
+  const size = String(ring?.size || ring?.sample_size || '20').trim() || '20';
+  const serialNumber = String(ring?.serial_number || `INV-${id}-${material.toUpperCase().replace(/[^A-Z0-9]+/g, '-')}-${size}`);
+
+  return {
+    id,
+    model_id: Number(ring?.model_id ?? id),
+    model_name: modelName,
+    ring_name: modelName,
+    name: modelName,
+    ring_identifier: String(ring?.ring_identifier || `MODEL-${id}`),
+    identifier: String(ring?.identifier || `MODEL-${id}`),
+    sku: String(ring?.sku || `MODEL-${id}`),
+    image,
+    image_url: image,
+    img: image,
+    material,
+    metal: material,
+    color: material,
+    variant: String(ring?.variant || (collectionName ? `Collection ${collectionName}` : material)),
+    size,
+    description: ring?.description ?? null,
+    status: availableUnits > 0 ? 'AVAILABLE' : 'UNAVAILABLE',
+    stock: availableUnits,
+    stockPercent: availableUnits > 0 ? Math.min(100, availableUnits * 10) : 0,
+    statusColor: availableUnits <= 0 ? 'rose' : availableUnits <= 5 ? 'amber' : 'emerald',
+    price: Number(ring?.price ?? ring?.base_price ?? 0),
+    base_price: Number(ring?.base_price ?? ring?.price ?? 0),
+    currency_code: String(ring?.currency_code || 'USD'),
+    collection_name: collectionName,
+    collection: collectionName || 'Signature',
+    available_units: availableUnits,
+    representative_ring_id: representativeRingId,
+    serial_number: serialNumber,
+    createdAt: createdAt,
+    updatedAt: ring?.updated_at || ring?.updatedAt || null,
+    created_at: createdAt,
+    updated_at: ring?.updated_at || ring?.updatedAt || null,
+    cert: String(ring?.cert || ring?.description || collectionName || material || 'AVAILABLE'),
+    type: mapMaterialToType(material),
+    isNew,
+    sample_size: size,
+  };
+};
+
+const sortRings = (rings: ShopRing[], sort: string): ShopRing[] => {
+  const next = [...rings];
+
+  switch (sort) {
+    case 'low-high':
+      next.sort((a, b) => a.price - b.price);
+      break;
+    case 'high-low':
+      next.sort((a, b) => b.price - a.price);
+      break;
+    case 'newest':
+      next.sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bTime - aTime;
+      });
+      break;
+    default:
+      next.sort((a, b) => a.id - b.id);
+      break;
+  }
+
+  return next;
+};
 
 const CoupleShopView: React.FC = () => {
   const navigate = useNavigate();
-  
-  // State
-  const [allRings, setAllRings] = useState<Ring[]>([]);
-  const [filteredRings, setFilteredRings] = useState<Ring[]>([]);
+
+  const [allRings, setAllRings] = useState<ShopRing[]>([]);
+  const [filteredRings, setFilteredRings] = useState<ShopRing[]>([]);
   const [visibleCount, setVisibleCount] = useState<number>(18);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [materials, setMaterials] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
-  const [cartCount, setCartCount] = useState<number>(0);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
-  
-  const [filters, setFilters] = useState<Filters>({
-    material: '',
-    minPrice: '',
-    maxPrice: '',
-    sort: 'featured'
-  });
+  const [materials, setMaterials] = useState<string[]>(DEFAULT_MATERIALS);
+  const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 10000 });
+  const [notification, setNotification] = useState<Notification | null>(null);
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
 
-  // Load dark mode preference
-  useEffect(() => {
-    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
-    setIsDarkMode(savedDarkMode);
-    if (savedDarkMode) {
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
-
-  // Load cart count
-  useEffect(() => {
-    fetchCartCount();
-    
-    // Listen for cart updates
-    const handleCartUpdate = () => {
-      fetchCartCount();
-    };
-
-    window.addEventListener('cartUpdated', handleCartUpdate);
-    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
-  }, []);
-
-  // Auto-hide notification
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => {
-        setNotification(null);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
-  // Fetch cart count from backend
-  const fetchCartCount = async () => {
-    try {
-      const sessionId = getUserScopedLocalStorageItem('sessionId');
-      if (!sessionId) return;
-      
-      const response = await fetch(`${API_BASE_URL}/cart`, {
-        headers: {
-          'x-session-id': sessionId
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setCartCount(data.data?.length || 0);
-      }
-    } catch (e) {
-      console.error('Error fetching cart count:', e);
-    }
-  };
-
-  // Show notification function
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const showNotification = useCallback((message: string, type: Notification['type'] = 'info') => {
     setNotification({ message, type });
-  };
-
-  // Toggle dark mode
-  const toggleDarkMode = () => {
-    const newDarkMode = !isDarkMode;
-    setIsDarkMode(newDarkMode);
-    localStorage.setItem('darkMode', String(newDarkMode));
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
-
-  // Handle notification click
-  const handleNotificationClick = () => {
-    showNotification('No new notifications', 'info');
-  };
-
-  // Load rings from API
-  const loadRingsFromAPI = useCallback(async () => {
-    setIsLoading(true);
-
-    try {
-      // Build query string
-      const queryParams = new URLSearchParams();
-      if (filters.material) queryParams.append('material', filters.material);
-      if (filters.minPrice) queryParams.append('minPrice', filters.minPrice);
-      if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice);
-      
-      const url = `${API_BASE_URL}/rings/shop${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-      console.log('Fetching rings from:', url);
-      
-      const response = await fetch(url);
-      
-      if (response.ok) {
-        const data = await response.json();
-        const apiRings = data.data || [];
-        console.log(`Received ${apiRings.length} rings from API`);
-        
-        // Map API rings to our format
-        const mappedRings = apiRings.map((ring: any) => ({
-          id: ring.id,
-          ring_identifier: ring.ring_identifier || '',
-          representative_ring_id: ring.representative_ring_id ?? null,
-          available_units: Number(ring.available_units || 0),
-          ring_name: ring.model_name || ring.ring_name || '',
-          model_id: ring.model_id,
-          batch_id: ring.batch_id,
-          size: ring.size || '',
-          material: ring.material || '',
-          status: ring.status || 'AVAILABLE',
-          location_type: ring.location_type || 'WAREHOUSE',
-          location_label: ring.location_label,
-          battery_level: ring.battery_level,
-          last_seen_at: ring.last_seen_at,
-          last_seen_lat: ring.last_seen_lat,
-          last_seen_lng: ring.last_seen_lng,
-          price: parseFloat(ring.price) || 0,
-          image_url: ring.image_url || null,
-          created_at: ring.created_at,
-          updated_at: ring.updated_at,
-          
-          // Computed fields
-          img: ring.image_url || null,
-          name: ring.model_name || ring.ring_name || '',
-          metal: ring.material || '',
-          cert: ring.status || 'AVAILABLE',
-          type: mapMaterialToType(ring.material),
-          isNew: isNewRing(ring.created_at),
-          model_name: ring.model_name || '',
-          collection: ring.collection_name || '',
-          identifier: ring.ring_identifier || ''
-        }));
-
-        setAllRings(mappedRings);
-      } else {
-        console.warn('API returned error, showing no rings');
-        setAllRings([]);
-        showNotification('Failed to load rings from the database.', 'error');
-      }
-    } catch (error) {
-      console.error('Error loading rings:', error);
-      setAllRings([]);
-      showNotification('Failed to load rings from the database.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filters.material, filters.minPrice, filters.maxPrice]);
-
-  // Load filter options from API
-  const loadFilterOptions = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/rings/filter-options`);
-      if (!response.ok) throw new Error('Failed to load filter options');
-      
-      const data = await response.json();
-      
-      // Update materials
-      if (data.data.materials && data.data.materials.length > 0) {
-        setMaterials(data.data.materials);
-      } else {
-        setMaterials([]);
-      }
-
-      // Update price range
-      if (data.data.priceRange) {
-        setPriceRange({
-          min: data.data.priceRange.min_price || 0,
-          max: data.data.priceRange.max_price || 0
-        });
-      }
-    } catch (error) {
-      console.error('Error loading filter options:', error);
-      setMaterials([]);
-      setPriceRange({ min: 0, max: 0 });
-    }
   }, []);
 
-  // Apply sorting
-  const applySort = useCallback(() => {
-    let sorted = [...allRings];
-    
-    switch(filters.sort) {
-      case 'low-high':
-        sorted.sort((a, b) => a.price - b.price);
-        break;
-      case 'high-low':
-        sorted.sort((a, b) => b.price - a.price);
-        break;
-      case 'newest':
-        sorted.sort((a, b) => {
-          if (!a.created_at && !b.created_at) return 0;
-          if (!a.created_at) return 1;
-          if (!b.created_at) return -1;
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-        break;
-      default:
-        sorted.sort((a, b) => a.id - b.id);
-    }
-    
-    setFilteredRings(sorted);
-    setVisibleCount(18);
-  }, [allRings, filters.sort]);
+  const loadRingsFromAPI = useCallback(
+    async (overrideFilters?: Filters) => {
+      setIsLoading(true);
 
-  // Helper: Map material to type
-  const mapMaterialToType = (material: string): string => {
-    if (!material) return 'other';
-    const m = material.toLowerCase();
-    if (m.includes('platinum')) return 'platinum';
-    if (m.includes('gold')) return 'gold';
-    if (m.includes('diamond') || m.includes('white')) return 'diamond';
-    if (m.includes('silver')) return 'silver';
-    return 'other';
-  };
+      const activeFilters = overrideFilters || filters;
 
-  // Helper: Check if ring is new (within 30 days)
-  const isNewRing = (createdAt: string): boolean => {
-    if (!createdAt) return false;
-    const created = new Date(createdAt);
-    const now = new Date();
-    const daysDiff = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
-    return daysDiff <= 30;
-  };
+      try {
+        const queryParams = new URLSearchParams();
+        if (activeFilters.material) queryParams.append('material', activeFilters.material);
+        if (activeFilters.minPrice) queryParams.append('minPrice', activeFilters.minPrice);
+        if (activeFilters.maxPrice) queryParams.append('maxPrice', activeFilters.maxPrice);
+        if (activeFilters.search) queryParams.append('search', activeFilters.search);
 
-  // Handle filter changes
-  const handleMaterialChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFilters(prev => ({ ...prev, material: e.target.value }));
-  };
+        const query = queryParams.toString();
+        const response = await fetch(`${API_BASE_URL}/couple-shop${query ? `?${query}` : ''}`);
 
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFilters(prev => ({ ...prev, sort: e.target.value }));
-  };
-
-  const handleApplyPriceFilter = () => {
-    setFilters(prev => ({ ...prev }));
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      material: '',
-      minPrice: '',
-      maxPrice: '',
-      sort: 'featured'
-    });
-  };
-
-  const handleDiscoverMore = () => {
-    if (visibleCount < filteredRings.length) {
-      setVisibleCount(prev => Math.min(prev + 6, filteredRings.length));
-    }
-  };
-
-// CORRECTED Add to cart function with backend API
-const addToCart = async (ring: Ring) => {
-  try {
-    console.log('Adding to cart:', ring);
-
-    if (!ring.representative_ring_id) {
-      showBottomNotification('This ring model is not in stock yet', 'error');
-      return;
-    }
-    
-    // Get existing session ID or null
-    let sessionId = getUserScopedLocalStorageItem('sessionId');
-    
-    const response = await fetch(`${API_BASE_URL}/cart/add`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(sessionId && { 'x-session-id': sessionId })
-      },
-      body: JSON.stringify({
-        ringId: ring.representative_ring_id,
-        quantity: 1,
-        size: ring.size || '7',
-        material: ring.material
-      })
-    });
-    
-    const data = await response.json();
-    console.log('Add to cart response:', data);
-    
-    if (response.ok) {
-      // Save the session ID from server if it's new
-      if (data.sessionId && !sessionId) {
-        setUserScopedLocalStorageItem('sessionId', data.sessionId);
-        console.log('Saved new session ID:', data.sessionId);
-      }
-      
-      // Update cart count
-      setCartCount(data.data.length);
-      
-      // Show success notification
-      showBottomNotification(`${ring.ring_name} added to cart!`, 'success');
-      
-      // Dispatch event for header and cart page to update
-      window.dispatchEvent(new Event('cartUpdated'));
-    } else {
-      throw new Error(data.message || 'Failed to add to cart');
-    }
-  } catch (e) {
-    console.error('Error adding to cart:', e);
-    showBottomNotification('Error adding to cart', 'error');
-  }
-};
-
-// Small bottom notification function
-const showBottomNotification = (message: string, type: 'success' | 'error' = 'success') => {
-  const notification = document.createElement('div');
-  notification.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[9999] animate-slide-up-bottom';
-  
-  const bgColor = type === 'success' ? 'bg-[#ff2aa2]' : 'bg-red-500';
-  const icon = type === 'success' ? 'check_circle' : 'error';
-  
-  notification.innerHTML = `
-    <div class="${bgColor} text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md">
-      <span class="material-symbols-outlined text-sm">${icon}</span>
-      <p class="text-sm font-medium flex-1">${message}</p>
-      <button class="hover:bg-white/20 rounded-full p-1 transition-colors" onclick="this.closest('.fixed').remove()">
-        <span class="material-symbols-outlined text-sm">close</span>
-      </button>
-    </div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Auto remove after 2 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.style.animation = 'slide-down-bottom 0.2s ease-out forwards';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
+        if (!response.ok) {
+          throw new Error(`Failed to load ring models (${response.status})`);
         }
-      }, 200);
-    }
-  }, 2000);
-};
 
-  // Toggle favorite
-  const toggleFavorite = (ringId: number, event: React.MouseEvent) => {
-    event.preventDefault();
-    const favoriteKey = `favorite_ring_${ringId}`;
-    const isFav = getUserScopedLocalStorageItem(favoriteKey) === 'true';
-    setUserScopedLocalStorageItem(favoriteKey, (!isFav).toString());
-    
-    // Force re-render of the favorite icon
-    const target = event.currentTarget.querySelector('.material-symbols-outlined');
-    if (target) {
-      if (!isFav) {
-        target.classList.add('text-primary');
-        target.setAttribute('style', 'font-variation-settings: "FILL" 1');
-      } else {
-        target.classList.remove('text-primary');
-        target.setAttribute('style', 'font-variation-settings: "FILL" 0');
+        const payload = await response.json().catch(() => null);
+        const rows = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload)
+              ? payload
+              : [];
+
+        const normalized = rows.map((ring: any, index: number) => normalizeRing(ring, index));
+        const nextMaterials = Array.from(
+          new Set(
+            normalized
+              .map((ring) => ring.material)
+              .filter(Boolean)
+          )
+        );
+        const prices = normalized.map((ring) => ring.price).filter((price) => Number.isFinite(price));
+
+        setAllRings(normalized);
+        setFilteredRings(sortRings(normalized, activeFilters.sort));
+        setVisibleCount(18);
+        setMaterials(nextMaterials.length > 0 ? nextMaterials : DEFAULT_MATERIALS);
+        setPriceRange(
+          prices.length > 0
+            ? {
+                min: Math.min(...prices),
+                max: Math.max(...prices),
+              }
+            : { min: 0, max: 10000 }
+        );
+      } catch (error) {
+        console.error('Error loading shop rings:', error);
+        setAllRings([]);
+        setFilteredRings([]);
+        setMaterials(DEFAULT_MATERIALS);
+        showNotification('Unable to load ring models from the database.', 'error');
+      } finally {
+        setIsLoading(false);
       }
-    }
-  };
+    },
+    [filters, showNotification]
+  );
 
-  // Navigate to ring detail
-  const viewRingDetail = (ring: Ring) => {
-    setUserScopedSessionStorageItem('currentRing', JSON.stringify(ring));
-    navigate(`/shop/rings/${ring.id}`);
-  };
+  const activeFilters = useMemo(() => {
+    const next: string[] = [];
+    if (filters.search.trim()) next.push(`Search: ${filters.search.trim()}`);
+    if (filters.material) next.push(`Material: ${filters.material}`);
+    if (filters.minPrice) next.push(`Min: ${filters.minPrice}`);
+    if (filters.maxPrice) next.push(`Max: ${filters.maxPrice}`);
+    return next;
+  }, [filters]);
 
-  // Initial load
+  const displayedRings = useMemo(() => filteredRings.slice(0, visibleCount), [filteredRings, visibleCount]);
+  const totalRings = allRings.length;
+  const availableRings = allRings.filter((ring) => ring.status === 'AVAILABLE').length;
+
   useEffect(() => {
-    loadFilterOptions();
-  }, [loadFilterOptions]);
-
-  useEffect(() => {
-    loadRingsFromAPI();
+    void loadRingsFromAPI(DEFAULT_FILTERS);
   }, [loadRingsFromAPI]);
 
   useEffect(() => {
-    applySort();
-  }, [allRings, filters.sort, applySort]);
+    if (!notification) return undefined;
 
-  const limit = Math.min(visibleCount, filteredRings.length);
-  const percent = filteredRings.length ? (limit / filteredRings.length) * 100 : 0;
+    const timer = window.setTimeout(() => {
+      setNotification(null);
+    }, 3000);
 
-  // Active filters display
-  const activeFilters = [];
-  if (filters.material) activeFilters.push(`Material: ${filters.material}`);
-  if (filters.minPrice) activeFilters.push(`Min: $${filters.minPrice}`);
-  if (filters.maxPrice) activeFilters.push(`Max: $${filters.maxPrice}`);
+    return () => window.clearTimeout(timer);
+  }, [notification]);
+
+  const applyFilters = (nextFilters: Filters) => {
+    setFilters(nextFilters);
+    void loadRingsFromAPI(nextFilters);
+  };
+
+  const handleMaterialChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    applyFilters({ ...filters, material: e.target.value });
+  };
+
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    applyFilters({ ...filters, sort: e.target.value });
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters((prev) => ({ ...prev, search: e.target.value }));
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void loadRingsFromAPI(filters);
+  };
+
+  const handleApplyPriceFilter = () => {
+    void loadRingsFromAPI(filters);
+  };
+
+  const handleClearFilters = () => {
+    setFilters(DEFAULT_FILTERS);
+    void loadRingsFromAPI(DEFAULT_FILTERS);
+  };
+
+  const handleDiscoverMore = () => {
+    setVisibleCount((prev) => Math.min(prev + 6, filteredRings.length));
+  };
+
+  const toggleFavorite = (ringId: number, event: React.MouseEvent) => {
+    event.preventDefault();
+    const key = `fav-${ringId}`;
+    localStorage.setItem(key, String(localStorage.getItem(key) !== 'true'));
+    showNotification(localStorage.getItem(key) === 'true' ? 'Saved to favorites.' : 'Removed from favorites.', 'info');
+  };
+
+  const viewRingDetail = (ring: ShopRing) => {
+    const slimRing = {
+      id: ring.id,
+      name: ring.name,
+      model_name: ring.model_name,
+      ring_name: ring.ring_name,
+      price: ring.price,
+      material: ring.material,
+      metal: ring.metal,
+      color: ring.color,
+      img: ring.img,
+      image_url: ring.image_url,
+      image: ring.image,
+      ring_identifier: ring.ring_identifier,
+      identifier: ring.identifier,
+      sku: ring.sku,
+      collection_name: ring.collection_name,
+      collection: ring.collection,
+      description: ring.description,
+      created_at: ring.created_at,
+      updated_at: ring.updated_at,
+      isNew: ring.isNew,
+      size: ring.size,
+      cert: ring.cert,
+      ringId: ring.representative_ring_id,
+    };
+
+    sessionStorage.setItem('currentRing', JSON.stringify(slimRing));
+    sessionStorage.setItem('purchaseRing', JSON.stringify(slimRing));
+    navigate('/ring-view');
+  };
+
+  const addToCart = async (ring: ShopRing) => {
+    try {
+      if (!ring.representative_ring_id || ring.available_units <= 0) {
+        showNotification('This ring model has no available inventory item yet.', 'error');
+        return;
+      }
+
+      let sessionId = getUserScopedLocalStorageItem('sessionId');
+      const response = await fetch(`${API_BASE_URL}/cart/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionId ? { 'x-session-id': sessionId } : {}),
+        },
+        body: JSON.stringify({
+          ringId: ring.representative_ring_id,
+          quantity: 1,
+          size: ring.size || '7',
+          material: ring.material,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to add ring to cart');
+      }
+
+      if (data.sessionId && !sessionId) {
+        sessionId = data.sessionId;
+        setUserScopedLocalStorageItem('sessionId', data.sessionId);
+      } else if (data.sessionId && sessionId) {
+        setUserScopedLocalStorageItem('sessionId', sessionId);
+      }
+
+      showNotification(`${ring.name} added to cart.`, 'success');
+      window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      showNotification('Error adding ring to cart.', 'error');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark love-pattern-bg">
-      {/* STICKY HEADER - Full navbar with diamond logo */}
-      <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
-        <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
-          {/* left logo + navigation */}
-          <div className="flex items-center gap-12">
-            <Link to="/dashboard" className="flex items-center gap-2 group">
-              <span className="material-symbols-outlined text-primary text-3xl">diamond</span>
-              <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
-              <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
-              <Link to="/shop" className="text-primary border-b border-primary/40 pb-1">Couple Shop</Link>
-              <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
-              <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
-              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
-            </nav>
-          </div>
-          {/* right icons & member */}
-          <div className="flex items-center gap-6">
-            <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications_none</span>
-            </button>
-            <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
-            </button>
-            <Link to="/cart" className="relative">
-              <button className="text-charcoal/60 hover:text-primary">
-                <span className="material-symbols-outlined">shopping_cart</span>
-              </button>
-              {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
-            <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
-              <span className="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
-              <Link to="/profile">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
-                  <span className="material-symbols-outlined">favorite</span>
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* HERO + FILTERS */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-          <div className="max-w-2xl">
-            <nav className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-widest">
-              <Link to="/">Home</Link>
-              <span>/</span>
-              <span className="text-primary font-bold">Shop</span>
-            </nav>
-            <h2 className="heading-serif text-5xl md:text-6xl font-light tracking-tight mb-4">
-              The Signature <span className="font-bold text-primary">Collection</span>
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
-              Explore our curated selection of handcrafted rings, where timeless elegance meets modern ethical sourcing.
+    <div className="min-h-screen bg-[#fff8fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        <section className="mb-10 grid gap-6 lg:grid-cols-[1.4fr_0.6fr] items-end">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-primary font-bold mb-3">Ring Models</p>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4">
+              Shop directly from the `ring_models` table.
+            </h1>
+            <p className="max-w-2xl text-slate-600 dark:text-slate-400 text-base md:text-lg leading-relaxed">
+              This catalog now shows only model-level data from the database, and each card keeps a slim session payload for detail pages.
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <select 
-              value={filters.material}
-              onChange={handleMaterialChange}
-              className="px-6 py-3 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
-            >
-              <option value="">All Materials</option>
-              {materials.map(material => (
-                <option key={material} value={material}>{material}</option>
-              ))}
-            </select>
-            <select 
-              value={filters.sort}
-              onChange={handleSortChange}
-              className="px-6 py-3 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold focus:ring-primary focus:border-primary"
-            >
-              <option value="featured">Sort by: Featured</option>
-              <option value="low-high">Price: Low to High</option>
-              <option value="high-low">Price: High to Low</option>
-              <option value="newest">Newest Arrivals</option>
-            </select>
+          <div className="rounded-3xl border border-pink-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-6 shadow-xl shadow-pink-100/30">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="text-slate-500 uppercase tracking-[0.25em] text-[11px] mb-1">Models</div>
+                <div className="text-3xl font-black">{totalRings}</div>
+              </div>
+              <div>
+                <div className="text-slate-500 uppercase tracking-[0.25em] text-[11px] mb-1">Available</div>
+                <div className="text-3xl font-black">{availableRings}</div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Price Range Filter */}
-        <div className="mb-8 flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium">Price Range:</span>
-          <div className="flex items-center gap-2">
-            <input 
-              type="number" 
-              value={filters.minPrice}
-              onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value }))}
-              placeholder={`Min $${priceRange.min}`} 
-              className="w-24 px-3 py-2 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-            />
-            <span>-</span>
-            <input 
-              type="number" 
-              value={filters.maxPrice}
-              onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value }))}
-              placeholder={`Max $${priceRange.max}`} 
-              className="w-24 px-3 py-2 bg-white pink:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-            />
-            <button 
+        <section className="mb-8 rounded-3xl border border-pink-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-5 shadow-sm">
+          <div className="flex flex-col xl:flex-row xl:items-center gap-4 justify-between">
+            <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0">
+              <input
+                type="text"
+                value={filters.search}
+                onChange={handleSearchChange}
+                placeholder="Search by model, material, collection, or description"
+                className="w-full pl-12 pr-12 py-3 rounded-full border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              />
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+              {filters.search && (
+                <button
+                  type="button"
+                  onClick={() => applyFilters({ ...filters, search: '' })}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              )}
+            </form>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={filters.material}
+                onChange={handleMaterialChange}
+                className="px-4 py-3 rounded-xl border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm"
+              >
+                <option value="">All Materials</option>
+                {materials.map((material) => (
+                  <option key={material} value={material}>
+                    {material}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filters.sort}
+                onChange={handleSortChange}
+                className="px-4 py-3 rounded-xl border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm"
+              >
+                <option value="featured">Sort: Featured</option>
+                <option value="low-high">Price: Low to High</option>
+                <option value="high-low">Price: High to Low</option>
+                <option value="newest">Newest</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-500">Price Range</span>
+              <input
+                type="number"
+                value={filters.minPrice}
+                onChange={(e) => setFilters((prev) => ({ ...prev, minPrice: e.target.value }))}
+                placeholder={`Min $${priceRange.min}`}
+                className="w-28 px-3 py-2 rounded-lg border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm"
+              />
+              <span className="text-slate-400">-</span>
+              <input
+                type="number"
+                value={filters.maxPrice}
+                onChange={(e) => setFilters((prev) => ({ ...prev, maxPrice: e.target.value }))}
+                placeholder={`Max $${priceRange.max}`}
+                className="w-28 px-3 py-2 rounded-lg border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm"
+              />
+            </div>
+
+            <button
               onClick={handleApplyPriceFilter}
-              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors"
+              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold"
             >
               Apply
             </button>
-            <button 
+            <button
               onClick={handleClearFilters}
-              className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold hover:border-primary transition-colors"
+              className="px-4 py-2 rounded-lg border border-pink-100 dark:border-slate-700 text-sm font-bold"
             >
               Clear
             </button>
           </div>
-        </div>
+        </section>
 
-        {/* Active Filters Display */}
         {activeFilters.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mb-6 min-h-[40px]">
-            {activeFilters.map(filter => (
-              <span key={filter} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
+          <div className="mb-6 flex flex-wrap gap-2">
+            {activeFilters.map((filter) => (
+              <span key={filter} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
                 {filter}
               </span>
             ))}
           </div>
         )}
 
-        {/* RING GRID */}
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="loading-spinner mb-4"></div>
-            <p className="text-slate-600 dark:text-slate-400">Loading beautiful rings from our collection...</p>
+        <div className="flex items-center justify-between text-sm text-slate-500 mb-6">
+          <div>
+            <span className="font-bold text-slate-900 dark:text-white">{filteredRings.length}</span> ring models found
           </div>
-        ) : limit === 0 ? (
-          <div className="text-center py-20">
-            <span className="material-symbols-outlined text-5xl text-slate-400 mb-4">search_off</span>
-            <p className="text-slate-500 dark:text-slate-400">
-              {activeFilters.length > 0 ? 'No rings found matching your criteria.' : 'No rings available in the database yet.'}
-            </p>
-            <button 
-              onClick={handleClearFilters}
-              className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-            >
+          <div>
+            <span className="font-bold text-slate-900 dark:text-white">{availableRings}</span> available now
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="py-20 text-center">
+            <div className="mx-auto mb-4 w-10 h-10 rounded-full border-4 border-pink-100 border-t-primary animate-spin" />
+            <p className="text-slate-500">Loading ring models from the database...</p>
+          </div>
+        ) : displayedRings.length === 0 ? (
+          <div className="py-20 text-center rounded-3xl border border-dashed border-pink-200 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40">
+            <span className="material-symbols-outlined text-5xl text-slate-400 mb-3">search_off</span>
+            <p className="text-slate-500 mb-4">No ring models match your filters.</p>
+            <button onClick={handleClearFilters} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-bold">
               Clear Filters
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-9 gap-y-16">
-            {filteredRings.slice(0, limit).map((ring) => {
-              const newBadge = ring.isNew ? (
-                <div className="absolute top-4 right-16 bg-primary text-white text-[8px] font-bold px-3 py-3.5 rounded-full uppercase tracking-widest z-5">
-                  New
-                </div>
-              ) : null;
-              
-              const statusColor = ring.status === 'AVAILABLE' ? 'bg-green-500' : 
-                                 ring.status === 'RESERVED' ? 'bg-yellow-500' : 'bg-gray-500';
-
-              const isFav = getUserScopedLocalStorageItem(`favorite_ring_${ring.id}`) === 'true';
+          <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
+            {displayedRings.map((ring) => {
+              const isFav = localStorage.getItem(`fav-${ring.id}`) === 'true';
+              const stockLabel = `${ring.available_units} in stock`;
+              const statusLabel =
+                ring.available_units <= 0 ? 'Out of stock' : ring.available_units <= 5 ? 'Low stock' : 'In stock';
+              const serialText = ring.serial_number || `INV-${ring.id}-${ring.material.toUpperCase()}-${ring.size}`;
 
               return (
-                <div key={ring.id} className="ring-card group flex flex-col">
-                  <div className="relative aspect-[4/5] bg-white dark:bg-slate-800 rounded-xl overflow-hidden mb-6 shadow-lg">
-                    {ring.image_url || ring.img ? (
-                      <img 
-                        alt={ring.ring_name} 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                        src={ring.image_url || ring.img || undefined} 
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-slate-400 dark:bg-slate-900 dark:text-slate-500">
-                        No image in database
+                <article
+                  key={ring.id}
+                  className="group overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-2xl hover:shadow-pink-100/20 transition-all duration-300"
+                >
+                  <div className="relative aspect-[1.35/1] overflow-hidden bg-slate-100 dark:bg-slate-800">
+                    <img
+                      src={ring.image_url || ring.image || PLACEHOLDER_IMAGE}
+                      alt={ring.model_name}
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
+                      }}
+                    />
+
+                    <div className="absolute left-4 top-4 rounded-full bg-white/92 px-4 py-2 text-sm font-bold text-pink-600 shadow-lg backdrop-blur">
+                      {stockLabel}
+                    </div>
+                    {ring.isNew && (
+                      <div className="absolute left-4 top-16 rounded-full bg-primary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-white shadow-lg">
+                        New
                       </div>
                     )}
-                    
-                    {/* Status Badge */}
-                    <div className="absolute top-4 left-4">
-                      <div className="relative group">
-                        <span className={`w-3 h-3 rounded-full ${statusColor} inline-block`}></span>
-                        <span className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
-                          {ring.status}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="absolute top-4 right-4">
-                      <button 
-                        className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-slate-900 hover:text-primary transition-colors favorite-btn z-10"
-                        onClick={(e) => toggleFavorite(ring.id, e)}
+                    <button
+                      type="button"
+                      onClick={(e) => toggleFavorite(ring.id, e)}
+                      className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur hover:text-primary"
+                    >
+                      <span
+                        className={`material-symbols-outlined ${isFav ? 'text-primary' : ''}`}
+                        style={{ fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0" }}
                       >
-                        <span 
-                          className={`material-symbols-outlined text-xl ${isFav ? 'text-primary' : ''}`}
-                          style={{ fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0" }}
-                        >
-                          favorite
-                        </span>
-                      </button>
-                    </div>
-                    {newBadge}
-                    
-                    {/* Battery level (if exists) */}
-                    {ring.battery_level && (
-                      <div className="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm z-10">
-                        <span className="material-symbols-outlined text-xs align-middle">battery_full</span> {ring.battery_level}%
-                      </div>
-                    )}
+                        favorite
+                      </span>
+                    </button>
                   </div>
-                  
-                  <div className="flex flex-col gap-1 px-2">
-                    <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">{ring.ring_name}</h3>
-                      <span className="text-xs text-slate-400">#{ring.ring_identifier}</span>
+
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h2 className="text-2xl font-black tracking-tight truncate">{ring.model_name}</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Size {ring.size} - {ring.material}
+                        </p>
+                      </div>
+                      <div className="shrink-0 rounded-full bg-pink-50 px-4 py-2 text-sm font-bold text-pink-600">
+                        {stockLabel}
+                      </div>
                     </div>
-                    
-                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                      {[ring.material, ring.size ? `Size ${ring.size}` : ''].filter(Boolean).join(' • ')}
+
+                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
+                      SKU: {ring.sku}
                     </p>
-                    
-                    <p className="text-xl font-bold text-primary mt-2">${ring.price.toLocaleString()}</p>
-                    
-                    {/* Location info (if exists) */}
-                    {ring.location_label && (
-                      <p className="text-xs text-slate-400 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">location_on</span>
-                        {ring.location_label}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center gap-2 mt-4">
-                      <button 
-                        className={`flex-1 py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all shadow-lg ${
-                          ring.representative_ring_id
-                            ? 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
-                            : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none dark:bg-slate-800 dark:text-slate-400'
-                        }`}
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                      Serial: {serialText}
+                    </p>
+                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">
+                      Status: {statusLabel} • {ring.material}
+                    </p>
+                    <p className="mt-3 text-xl font-black text-primary">
+                      ${ring.price.toLocaleString()}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                        {ring.currency_code}
+                      </span>
+                      {ring.isNew && (
+                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                          Fresh
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                      <button
                         onClick={() => addToCart(ring)}
-                        disabled={!ring.representative_ring_id}
+                        disabled={!ring.representative_ring_id || ring.available_units <= 0}
+                        className="rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
                       >
-                        {ring.representative_ring_id ? 'Add to Cart' : 'Out of Stock'}
+                        Add to Cart
                       </button>
-                      <button 
-                        className="flex-1 border border-primary/20 hover:border-primary py-3 rounded-lg text-sm font-bold tracking-widest uppercase transition-all text-primary"
+                      <button
                         onClick={() => viewRingDetail(ring)}
+                        className="rounded-2xl border border-pink-100 dark:border-slate-700 px-4 py-3 text-sm font-bold transition-colors hover:border-primary hover:text-primary"
                       >
                         See More
                       </button>
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>
         )}
 
-        {/* LOAD MORE */}
-        {!isLoading && filteredRings.length > 0 && limit < filteredRings.length && (
-          <div className="mt-24 flex flex-col items-center gap-6">
-            <p className="text-sm text-slate-500 uppercase tracking-[0.2em]">
-              Showing {limit} of {filteredRings.length} pieces
+        {!isLoading && filteredRings.length > visibleCount && (
+          <div className="mt-12 text-center">
+            <p className="text-sm uppercase tracking-[0.3em] text-slate-400 mb-4">
+              Showing {displayedRings.length} of {filteredRings.length}
             </p>
-            <div className="w-full max-w-xs h-1 bg-slate-20 dark:bg-slate-200 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-500" 
-                style={{ width: `${percent}%` }}
-              ></div>
-            </div>
-            <button 
+            <button
               onClick={handleDiscoverMore}
-              className="px-12 py-4 bg-white dark:bg-pink-600 border border-slate-200 dark:border-white-700 rounded-lg text-sm font-bold tracking-widest uppercase hover:border-primary transition-all flex items-center gap-3 group"
+              className="px-8 py-3 rounded-full border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold uppercase tracking-[0.2em]"
             >
-              <span style={{ color: 'white' }}>Discover More</span>
-              <span className="material-symbols-outlined text-lg group-hover:translate-y-1 transition-transform color: 'white'">
-                expand_more
-              </span>
+              Discover More
             </button>
-          </div>
-        )}
-
-        {!isLoading && filteredRings.length > 0 && limit >= filteredRings.length && limit > 18 && (
-          <div className="mt-16 text-center text-sm text-slate-400">
-            You've viewed all {filteredRings.length} rings
           </div>
         )}
       </main>
 
-      {/* Custom Pink Notification */}
       {notification && (
-        <div 
-          className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
-            ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
-            text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+        <div
+          className={`fixed bottom-6 left-1/2 z-50 flex min-w-[280px] -translate-x-1/2 items-center gap-3 rounded-full px-5 py-3 text-white shadow-2xl ${
+            notification.type === 'success'
+              ? 'bg-emerald-500'
+              : notification.type === 'error'
+                ? 'bg-rose-500'
+                : 'bg-primary'
+          }`}
         >
           <span className="material-symbols-outlined text-sm">
             {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
           </span>
-          <p className="text-sm font-medium flex-1">{notification.message}</p>
-          <button 
-            className="hover:bg-white/20 rounded-full p-1 transition-colors"
-            onClick={() => setNotification(null)}
-          >
+          <p className="flex-1 text-sm font-medium">{notification.message}</p>
+          <button onClick={() => setNotification(null)}>
             <span className="material-symbols-outlined text-sm">close</span>
           </button>
         </div>
       )}
 
-      {/* FOOTER */}
-      <footer className="bg-white dark:bg-background-dark border-t border-primary/10 pt-20 pb-10 mt-20">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
-          <div className="col-span-1 md:col-span-1">
-            <div className="flex items-center gap-2 mb-6">
-              <span className="material-symbols-outlined text-primary">diamond</span>
-              <h2 className="text-lg font-extrabold tracking-widest uppercase">Lumina Luxe</h2>
-            </div>
-            <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Redefining luxury through ethical craftsmanship and timeless design. Every ring tells a story.</p>
-            <div className="flex gap-4">
-              <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
-                <span className="material-symbols-outlined text-lg">share</span>
-              </a>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Experience</h4>
-            <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
-              <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
-              <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
-              <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
-              <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Support</h4>
-            <ul className="flex flex-col gap-4 text-sm">
-              <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
-              <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
-              <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
-              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold uppercase tracking-widest text-xs mb-6">Mailing List</h4>
-            <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
-            <div className="flex gap-2">
-              <input className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
-              <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest">Join</button>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
-          <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
-            <Link to="/privacy" className="hover:text-primary">Privacy</Link>
-            <Link to="/terms" className="hover:text-primary">Terms</Link>
+      <footer className="mt-20 border-t border-pink-100 dark:border-slate-800 bg-white/60 dark:bg-slate-950/60">
+        <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+          <p>BondKeeper · Ring model catalog backed by `ring_models`.</p>
+          <div className="flex gap-5">
+            <Link to="/dashboard" className="hover:text-primary">
+              Dashboard
+            </Link>
+            <Link to="/myring" className="hover:text-primary">
+              My Ring
+            </Link>
+            <Link to="/ring-view" className="hover:text-primary">
+              Ring View
+            </Link>
           </div>
         </div>
       </footer>
-
-      {/* Add animations */}
-      <style>{`
-        @keyframes slideUpBottom {
-          from {
-            transform: translate(-50%, 100%);
-            opacity: 0;
-          }
-          to {
-            transform: translate(-50%, 0);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes slideDownBottom {
-          from {
-            transform: translate(-50%, 0);
-            opacity: 1;
-          }
-          to {
-            transform: translate(-50%, 100%);
-            opacity: 0;
-          }
-        }
-        
-        .animate-slide-up-bottom {
-          animation: slideUpBottom 0.3s ease-out forwards;
-        }
-        
-        .animate-slide-down-bottom {
-          animation: slideDownBottom 0.3s ease-out forwards;
-        }
-
-        .loading-spinner {
-          border: 3px solid rgba(255,42,162,0.1);
-          border-top: 3px solid #ff2aa2;
-          border-radius: 50%;
-          width: 40px;
-          height: 40px;
-          animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };

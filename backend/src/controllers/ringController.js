@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const coupleShopController = require('./coupleShopController');
 
 function mapModelRowToShopItem(row) {
   return {
@@ -51,132 +52,10 @@ const getAllRings = async (req, res) => {
 };
 
 // Get rings for shop (with filters)
-const getShopRings = async (req, res) => {
-  try {
-    const { material, minPrice, maxPrice, limit = 50, offset = 0 } = req.query;
-    
-    let whereClause = 'WHERE 1=1';
-    const filterParams = [];
-    
-    if (material) {
-      whereClause += ' AND rm.material LIKE ?';
-      filterParams.push(`%${material}%`);
-    }
-    
-    if (minPrice) {
-      whereClause += ' AND rm.base_price >= ?';
-      filterParams.push(parseFloat(minPrice));
-    }
-    
-    if (maxPrice) {
-      whereClause += ' AND rm.base_price <= ?';
-      filterParams.push(parseFloat(maxPrice));
-    }
-
-    const groupedQuery = `
-      SELECT
-        rm.id AS id,
-        CONCAT('MODEL-', rm.id) AS ring_identifier,
-        rm.model_name AS ring_name,
-        rm.id AS model_id,
-        NULL AS batch_id,
-        COALESCE(stock.sample_size, '') AS size,
-        rm.material AS material,
-        CASE WHEN COALESCE(stock.available_units, 0) > 0 THEN 'AVAILABLE' ELSE 'UNAVAILABLE' END AS status,
-        'WAREHOUSE' AS location_type,
-        NULL AS location_label,
-        NULL AS battery_level,
-        NULL AS last_seen_at,
-        NULL AS last_seen_lat,
-        NULL AS last_seen_lng,
-        rm.base_price AS price,
-        NULLIF(rm.image_url, '') AS image_url,
-        rm.created_at AS created_at,
-        rm.updated_at AS updated_at,
-        rm.model_name,
-        rm.collection_name,
-        COALESCE(stock.available_units, 0) AS available_units,
-        stock.representative_ring_id
-      FROM ring_models rm
-      LEFT JOIN (
-        SELECT
-          r.model_id,
-          COUNT(*) AS available_units,
-          MIN(r.id) AS representative_ring_id,
-          MIN(COALESCE(NULLIF(r.size, ''), '')) AS sample_size
-        FROM rings r
-        WHERE r.status = 'AVAILABLE'
-        GROUP BY r.model_id
-      ) stock ON stock.model_id = rm.id
-      ${whereClause}
-    `;
-
-    const query = `
-      ${groupedQuery}
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `;
-
-    const [rows] = await pool.execute(query, [...filterParams, parseInt(limit), parseInt(offset)]);
-    const [countResult] = await pool.execute(
-      `SELECT COUNT(*) AS total FROM (${groupedQuery}) grouped_models`,
-      filterParams
-    );
-    
-    res.json({
-      success: true,
-      data: rows.map(mapModelRowToShopItem),
-      pagination: {
-        total: countResult[0].total,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        returned: rows.length
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching shop rings:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Database error',
-      error: error.message 
-    });
-  }
-};
+const getShopRings = async (req, res) => coupleShopController.getShopRings(req, res);
 
 // Get filter options
-const getFilterOptions = async (req, res) => {
-  try {
-    const [materials] = await pool.execute(`
-      SELECT DISTINCT rm.material
-      FROM ring_models rm
-      WHERE rm.material IS NOT NULL
-        AND rm.material != ''
-    `);
-    
-    const [priceRange] = await pool.execute(`
-      SELECT MIN(rm.base_price) as min_price, MAX(rm.base_price) as max_price
-      FROM ring_models rm
-    `);
-    
-    res.json({ 
-      success: true, 
-      data: {
-        materials: materials.map(m => m.material).filter(Boolean),
-        priceRange: {
-          min_price: Number(priceRange[0]?.min_price || 0),
-          max_price: Number(priceRange[0]?.max_price || 0),
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching filter options:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Database error',
-      error: error.message 
-    });
-  }
-};
+const getFilterOptions = async (req, res) => coupleShopController.getFilterOptions(req, res);
 
 // Get ring by identifier
 const getRingByIdentifier = async (req, res) => {

@@ -128,7 +128,7 @@ const RingInformation: React.FC = () => {
       }
 
       setRingData(null);
-      setError('You do not own a ring yet. Buy a ring first, then your ring information will appear here.');
+      setError(null);
       setLoading(false);
     } catch (error) {
       console.error('Error loading ring:', error);
@@ -259,7 +259,7 @@ const RingInformation: React.FC = () => {
     );
   }
 
-  if (error || !ringData) {
+  if (error) {
     return (
       <div className="min-h-screen bg-cream dark:bg-charcoal">
         {/* STICKY HEADER */}
@@ -342,6 +342,105 @@ const RingInformation: React.FC = () => {
     );
   }
 
+  if (!ringData) {
+    return (
+      <div className="min-h-screen bg-cream dark:bg-charcoal">
+        {/* STICKY HEADER */}
+        <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+          <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+            <div className="flex items-center gap-12">
+              <Link to="/dashboard" className="flex items-center gap-2 group">
+                <span className="material-symbols-outlined text-primary text-3xl">diamond</span>
+                <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+              </Link>
+              <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+                <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
+                <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
+                <Link to="/myring" className="text-primary border-b border-primary/40 pb-1">My Ring</Link>
+                <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+                <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+              </nav>
+            </div>
+            <div className="flex items-center gap-6">
+              <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+                <span className="material-symbols-outlined">notifications_none</span>
+              </button>
+              <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+                <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
+              </button>
+              <Link to="/cart" className="relative">
+                <button className="text-charcoal/60 hover:text-primary">
+                  <span className="material-symbols-outlined">shopping_cart</span>
+                </button>
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+              <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
+                <span className="text-sm font-medium hidden sm:inline">{coupleName}</span>
+                <Link to="/profile">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+                    <span className="material-symbols-outlined">favorite</span>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-4 py-16 md:py-24">
+          <div className="rounded-[2rem] border border-primary/15 bg-white/80 dark:bg-charcoal/50 backdrop-blur-sm shadow-[0_24px_60px_rgba(236,19,128,0.08)] p-8 md:p-12 text-center">
+            <div className="mx-auto mb-5 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <span className="material-symbols-outlined text-3xl">diamond</span>
+            </div>
+            <p className="text-[11px] tracking-[0.22em] uppercase font-bold text-primary/60 mb-3">My Ring</p>
+            <h1 className="heading-serif text-3xl md:text-5xl font-bold text-primary leading-tight">
+              Your ring will appear here after purchase
+            </h1>
+            <p className="mt-4 text-charcoal/70 dark:text-cream/70 text-base md:text-lg max-w-2xl mx-auto leading-7">
+              You have not purchased a ring yet. Once you buy one from Couple Shop, this page will automatically show your ring details, images, and care information.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                to="/shop"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-primary text-white font-medium shadow-md hover:bg-primary-dark transition-colors"
+              >
+                Browse Couple Shop
+              </Link>
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center justify-center px-6 py-3 rounded-full border border-primary/20 text-primary font-medium hover:bg-primary/5 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        </main>
+
+        {notification && (
+          <div 
+            className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up-bottom
+              ${notification.type === 'success' ? 'bg-primary' : notification.type === 'error' ? 'bg-red-500' : 'bg-primary'}
+              text-white px-5 py-3 rounded-full shadow-lg flex items-center gap-3 min-w-[280px] max-w-md`}
+          >
+            <span className="material-symbols-outlined text-sm">
+              {notification.type === 'success' ? 'check_circle' : notification.type === 'error' ? 'error' : 'info'}
+            </span>
+            <p className="text-sm font-medium flex-1">{notification.message}</p>
+            <button 
+              className="hover:bg-white/20 rounded-full p-1 transition-colors"
+              onClick={() => setNotification(null)}
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Derived data
   const ringName = ringData.ring_name || ringData.name || 'Owned Ring';
   const ringIdentifier = ringData.ring_identifier || ringData.identifier || 'N/A';
@@ -365,7 +464,7 @@ const RingInformation: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-cream dark:bg-charcoal">
+    <div className="min-h-screen bg-cream dark:bg-white">
       {/* STICKY HEADER */}
       <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
@@ -492,11 +591,11 @@ const RingInformation: React.FC = () => {
               <span className="material-symbols-outlined text-primary">history</span>
               <h3 className="heading-serif text-xl font-bold text-primary">History & Provenance</h3>
             </div>
-            <p id="historyText" className="text-charcoal/70 dark:text-cream/70 leading-7 mb-3 text-[15px]">
+            <p id="historyText" className="text-charcoal/70 dark:text-cream/70 leading-7 mb-3 text-[15px] ">
               The "{ringName}" collection was inspired by timeless love stories spanning generations. This particular piece features a {material} ring hand-selected by our master craftsmen for its exceptional quality and beauty.
             </p>
             <div id="certification" className="bg-primary/5 border border-primary/20 p-3 rounded-xl inline-block">
-              <p className="text-sm flex items-center gap-2">
+              <p className="text-sm flex items-center gap-2 text-pink-900">
                 <span className="material-symbols-outlined text-primary text-sm">verified</span>
                 Certified by International Gemological Institute (IGI #{certNumber}-2024)
               </p>
@@ -529,7 +628,7 @@ const RingInformation: React.FC = () => {
               <h3 className="heading-serif text-xl font-bold text-primary">How to Wear & Care</h3>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 ">
               {/* Wear Instructions */}
               <div className="rounded-2xl border border-primary/10 bg-white/70 dark:bg-charcoal/40 p-4">
                 <p className="font-medium mb-3 flex items-center gap-2 text-primary">
@@ -537,15 +636,15 @@ const RingInformation: React.FC = () => {
                   Daily Wear
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-2 text-green-700">
                     <span className="material-symbols-outlined text-primary text-sm">circle</span>
                     <span className="dark:text-cream/80">Perfect for everyday elegance</span>
                   </li>
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-2 text-amber-600">
                     <span className="material-symbols-outlined text-primary text-sm">circle</span>
                     <span className="dark:text-cream/80">Traditional left ring finger</span>
                   </li>
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-2 text-blue-600">
                     <span className="material-symbols-outlined text-primary text-sm">circle</span>
                     <span className="dark:text-cream/80">Keep in original box when not wearing</span>
                   </li>
@@ -555,7 +654,9 @@ const RingInformation: React.FC = () => {
                   <span className="material-symbols-outlined text-sm">warning</span>
                   Avoid
                 </p>
-                <p id="avoidList" className="text-sm dark:text-cream/80">Heavy sports, gardening, swimming, harsh chemicals</p>
+                <p id="avoidList" className="text-sm dark:text-cream/80 text-red-500">
+                  Heavy sports, gardening, swimming, harsh chemicals
+                </p>
               </div>
               
               {/* Care Instructions */}
@@ -565,19 +666,19 @@ const RingInformation: React.FC = () => {
                   Cleaning
                 </p>
                 <ul className="space-y-2 text-sm">
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-2 text-green-700">
                     <span className="material-symbols-outlined text-primary text-sm">circle</span>
                     <span className="dark:text-cream/80">Wipe with soft lint-free cloth after wearing</span>
                   </li>
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-2 text-amber-600">
                     <span className="material-symbols-outlined text-primary text-sm">circle</span>
                     <span className="dark:text-cream/80">Remove when applying lotions or perfumes</span>
                   </li>
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-2 text-blue-600">
                     <span className="material-symbols-outlined text-primary text-sm">circle</span>
                     <span className="dark:text-cream/80">Professional cleaning every 6 months</span>
                   </li>
-                  <li className="flex items-start gap-2">
+                  <li className="flex items-start gap-2 text-purple-600">
                     <span className="material-symbols-outlined text-primary text-sm">circle</span>
                     <span className="dark:text-cream/80">Annual inspection and prong tightening</span>
                   </li>
@@ -587,7 +688,7 @@ const RingInformation: React.FC = () => {
                   <span className="material-symbols-outlined text-sm">error</span>
                   Do NOT Use
                 </p>
-                <p id="doNotUseList" className="text-sm bg-red-500/90 dark:bg-red-900/30 p-3 rounded-xl text-white dark:text-orange-200">
+                <p id="doNotUseList" className="text-sm bg-red-200 dark:bg-red-900/30 p-3 rounded-xl text-orange-800 dark:text-orange-400">
                   Ultrasonic cleaners, harsh chemicals, toothpaste, baking soda, or abrasive materials
                 </p>
               </div>
@@ -647,48 +748,57 @@ const RingInformation: React.FC = () => {
         </div>
       )}
 
-      {/* FOOTER */}
-      <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-28 pt-16 pb-12">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <span className="material-symbols-outlined text-primary">diamond</span>
-              <span className="heading-serif text-xl font-semibold">BondKeeper</span>
-            </div>
-            <p className="text-sm text-charcoal/60 dark:text-cream/60 leading-relaxed">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Experience</h4>
-            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
-              <li><Link to="/shop" className="hover:text-primary transition-colors">Browse rings</Link></li>
-              <li><Link to="/myring" className="hover:text-primary transition-colors">My ring</Link></li>
-              <li><Link to="/profile" className="hover:text-primary transition-colors">Couple profile</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Support</h4>
-            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
-              <li><Link to="/sizing" className="hover:text-primary transition-colors">Sizing guide</Link></li>
-              <li><Link to="/returns" className="hover:text-primary transition-colors">Shipping & returns</Link></li>
-              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQ / help</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Mailing list</h4>
-            <div className="flex gap-2">
-              <input className="flex-1 bg-transparent border border-primary/20 rounded-full px-5 py-2.5 text-sm placeholder:text-charcoal/40 dark:placeholder:text-cream/40 focus:border-primary/70" placeholder="your@email.com" />
-              <button className="bg-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-primary-dark transition-colors">join</button>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 mt-16 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-charcoal/40 dark:text-cream/40">
-          <p>© BondKeeper · Eternal Rings. All rights reserved.</p>
-          <div className="flex gap-6">
-            <Link to="/privacy" className="hover:text-primary transition">Privacy</Link>
-            <Link to="/terms" className="hover:text-primary transition">Terms</Link>
-          </div>
-        </div>
-      </footer>
+     {/* FOOTER */}
+           <footer className="bg-white dark:bg-black  border-t border-primary/10 pt-20 pb-10 mt-20">
+             <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
+               <div className="col-span-1 md:col-span-1">
+                 <div className="flex items-center gap-2 mb-6">
+                   <span className="material-symbols-outlined text-primary">diamond</span>
+                   <h2 className="text-lg font-extrabold tracking-widest uppercase text-pink-300 dark:text-pink-300">BondKeeper</h2>
+                 </div>
+                 <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
+                 <div className="flex gap-4">
+                   <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
+                     <span className="material-symbols-outlined text-lg">share</span>
+                   </a>
+                 </div>
+               </div>
+               <div>
+                 <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Experience</h4>
+                 <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+                   <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
+                   <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
+                   <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
+                   <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
+                 </ul>
+               </div>
+               <div>
+                 <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Support</h4>
+                 <ul className="flex flex-col gap-4 text-sm">
+                   <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
+                   <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
+                   <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
+                   <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
+                 </ul>
+               </div>
+               <div>
+                 <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Mailing List</h4>
+                 <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
+                 <div className="flex gap-2">
+                   <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+                   <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest text-pink-400 dark:text-pink-300">Join</button>
+                 </div>
+               </div>
+             </div>
+             <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+               <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
+               <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
+                 <Link to="/privacy" className="hover:text-primary text-pink-400 dark:text-pink-300">Privacy</Link>
+                 <Link to="/terms" className="hover:text-primary text-pink-400 dark:text-pink-300">Terms</Link>
+               </div>
+             </div>
+           </footer>
+     
 
       {/* Add animations */}
       <style>{`

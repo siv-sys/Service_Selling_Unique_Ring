@@ -20,7 +20,6 @@ interface CatalogFormState {
   ringNamePrefix: string;
   ringIdentifierPrefix: string;
   stockCount: string;
-  startingNumber: string;
   defaultSize: string;
   locationLabel: string;
 }
@@ -57,7 +56,6 @@ const INITIAL_FORM: CatalogFormState = {
   ringNamePrefix: '',
   ringIdentifierPrefix: '',
   stockCount: '1',
-  startingNumber: '1',
   defaultSize: '',
   locationLabel: '',
 };
@@ -118,7 +116,6 @@ const AdminSeedView: React.FC = () => {
 
     const basePrice = Number(form.basePrice);
     const stockCount = Number(form.stockCount);
-    const startingNumber = Number(form.startingNumber);
 
     if (!form.modelName.trim() || !form.material.trim() || !Number.isFinite(basePrice)) {
       setIsInserting(false);
@@ -144,7 +141,6 @@ const AdminSeedView: React.FC = () => {
         ringNamePrefix: form.ringNamePrefix.trim() || null,
         ringIdentifierPrefix: form.ringIdentifierPrefix.trim() || null,
         stockCount,
-        startingNumber: Number.isFinite(startingNumber) ? startingNumber : 1,
         defaultSize: form.defaultSize.trim() || null,
         locationLabel: form.locationLabel.trim() || null,
       });
@@ -190,7 +186,6 @@ const AdminSeedView: React.FC = () => {
               </div>
               <input className={inputClassName} placeholder="Base Price (USA)" type="number" value={form.basePrice} onChange={(e) => updateForm('basePrice', e.target.value)} />
               <input className={inputClassName} placeholder="Stock Count" type="number" value={form.stockCount} onChange={(e) => updateForm('stockCount', e.target.value)} />
-              <input className={inputClassName} placeholder="Starting Number" type="number" value={form.startingNumber} onChange={(e) => updateForm('startingNumber', e.target.value)} />
               <input className={inputClassName} placeholder="Default Size" value={form.defaultSize} onChange={(e) => updateForm('defaultSize', e.target.value)} />
               <input className={inputClassName} placeholder="Location Label" value={form.locationLabel} onChange={(e) => updateForm('locationLabel', e.target.value)} />
             </div>
