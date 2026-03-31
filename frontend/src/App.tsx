@@ -1,9 +1,9 @@
 import type { ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import Layout from './components/Layout';
-import UserShell from './components/UserShell';
-import { GoogleAccountSelector } from './components/GoogleAccountSelector';
+import Layout from './components/Layout.tsx';
+import UserShell from './components/UserShell.tsx';
+import { GoogleAccountSelector } from './components/GoogleAccountSelector.tsx';
 import { api, type AuthUser } from './lib/api';
 import { THEME_EVENT, syncStoredTheme } from './lib/theme';
 import AdminSeedView from './views/AdminSeedView';
