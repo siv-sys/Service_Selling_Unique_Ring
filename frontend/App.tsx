@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+﻿import type { ReactElement } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -9,7 +9,7 @@ import { api, type AuthUser } from './lib/api';
 import { THEME_EVENT, syncStoredTheme } from './lib/theme';
 import AdminSeedView from './views/AdminSeedView';
 import AdminDashboardView from './views/AdminDashboardView';
-import CartView from './views/cardView';
+import CartView from './views/Cart';
 import CoupleProfileView from './views/CoupleProfileView';
 import CoupleShopView from './views/CoupleShopView';
 import DashboardView from './views/DashboardView';
@@ -323,7 +323,9 @@ function AppRoutes() {
           )
         }
       />
-
+      <Route path="/cart" element={userLayout(<CartView />)} />
+      <Route path="/purchase" element={userLayout(<PurchaseView />)} />  // ADD THIS LINE
+      <Route path={ADMIN_HOME_PATH} element={adminLayout(<AdminDashboardView />)} />
       <Route
         path="/reset-password"
         element={

@@ -164,6 +164,37 @@ const ProfileView = ({
     [normalizedDraftHandle]
   );
 
+  // Load dark mode preference
+  React.useEffect(() => {
+    setIsDarkMode(isStoredDarkModeEnabled());
+  }, []);
+
+  React.useEffect(() => {
+    const syncTheme = () => setIsDarkMode(isStoredDarkModeEnabled());
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener(THEME_EVENT, syncTheme);
+    return () => {
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener(THEME_EVENT, syncTheme);
+    };
+  }, []);
+
+  // Load cart count
+  React.useEffect(() => {
+    const syncCartCount = () => {
+      try {
+        const cart = JSON.parse(getUserScopedLocalStorageItem('cart') || '[]');
+        setCartCount(cart.length);
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    syncCartCount();
+    window.addEventListener('cartUpdated', syncCartCount);
+    return () => window.removeEventListener('cartUpdated', syncCartCount);
+  }, []);
+
   const readPersistedProfile = React.useCallback(() => {
     try {
       const raw = getUserScopedLocalStorageItem(PROFILE_STORAGE_KEY);
@@ -177,9 +208,9 @@ const ProfileView = ({
 
   const persistProfile = React.useCallback((data: ProfileData) => {
     try {
-      setUserScopedLocalStorageItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
     } catch {
-      // Ignore local storage write errors (private mode or quota limits).
+      // Ignore local storage write errors
     }
   }, []);
 
@@ -206,13 +237,13 @@ const ProfileView = ({
   const persistUserAvatar = React.useCallback((nextAvatarUrl: string) => {
     try {
       if (nextAvatarUrl) {
-        setUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY, nextAvatarUrl);
+        localStorage.setItem(USER_AVATAR_STORAGE_KEY, nextAvatarUrl);
       } else {
-        removeUserScopedLocalStorageItem(USER_AVATAR_STORAGE_KEY);
+        localStorage.removeItem(USER_AVATAR_STORAGE_KEY);
       }
       window.dispatchEvent(new Event(USER_AVATAR_UPDATED_EVENT));
     } catch {
-      // Ignore local storage write errors (private mode or quota limits).
+      // Ignore local storage write errors
     }
   }, []);
 
@@ -471,7 +502,7 @@ const ProfileView = ({
     try {
       await api.post('/auth/logout', {});
     } catch {
-      // Clear client auth state even if the server-side session record is unavailable.
+      // Clear client auth state
     } finally {
       ['auth_user_id', 'auth_roles', 'auth_session_token'].forEach((key) => {
         sessionStorage.removeItem(key);
@@ -1571,6 +1602,9 @@ const ProfileView = ({
           <span className="material-symbols-outlined brand-logo">diamond</span>
           <span className="brand-text">BondKeeper</span>
         </div>
+      </div>
+    );
+  }
 
         <nav className="main-nav" aria-label="Main">
           <button type="button" onClick={onNavigateDashboard}>Dashboard</button>
@@ -1579,24 +1613,53 @@ const ProfileView = ({
           <button type="button" onClick={onNavigateCoupleProfile}>Couple Profile</button>
         </nav>
 
-        <div className="top-actions">
-          <button type="button" className="top-icon-btn" aria-label="Notifications">
-            <span className="material-symbols-outlined">notifications_none</span>
-          </button>
-          <button type="button" className="top-icon-btn" aria-label="Theme">
-            <span className="material-symbols-outlined">bedtime</span>
-          </button>
-          <button type="button" className="top-icon-btn" aria-label="Shopping cart">
-            <span className="material-symbols-outlined">shopping_cart</span>
-          </button>
-          <span className="divider" />
-          <span className="profile-name">{profile.title || DEFAULT_PROFILE_NAME}</span>
-          <span className="material-symbols-outlined profile-chevron" aria-hidden="true">expand_more</span>
-          <img
-            className="mini-avatar"
-            src={resolveApiAssetUrl(avatarUrl) || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&q=80'}
-            alt={profile.title || DEFAULT_PROFILE_NAME}
-          />
+      {/* STICKY HEADER */}
+      <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
+        <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-12">
+            <Link to="/dashboard" className="flex items-center gap-2 group">
+              <span className="material-symbols-outlined text-primary text-3xl">diamond</span>
+              <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+              <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
+              <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
+              <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
+              <Link to="/profile" className="text-primary border-b border-primary/40 pb-1">Couple Profile</Link>
+              <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+              <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => setIsHistoryModalOpen(true)} 
+              className="relative text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors group"
+            >
+              <span className="material-symbols-outlined">history</span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+            </button>
+            <button onClick={handleThemeToggle} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
+              <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
+            </button>
+            <Link to="/cart" className="relative">
+              <button className="text-charcoal/60 hover:text-primary">
+                <span className="material-symbols-outlined">shopping_cart</span>
+              </button>
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+            <div className="flex items-center gap-3 pl-2 border-l border-primary/20 text-pink-500">
+              <span className="text-sm font-medium hidden sm:inline">{profile.title || DEFAULT_PROFILE_NAME}</span>
+              <Link to="/profile">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
+                  <span className="material-symbols-outlined">favorite</span>
+                </div>
+              </Link>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -1699,7 +1762,9 @@ const ProfileView = ({
                   placeholder="your_shared_name"
                 />
               ) : (
-                <strong>{profile.handle}</strong>
+                <div className="w-full h-full bg-gradient-to-br from-primary/30 to-primary flex items-center justify-center text-pink-300">
+                  <span className="material-symbols-outlined text-5xl text-white">person</span>
+                </div>
               )}
             </div>
             <div className="link-meta">
@@ -1772,32 +1837,78 @@ const ProfileView = ({
                 </button>
               ) : null}
             </div>
-          </article>
-        </section>
+          ) : (
+            <div className="text-center">
+              <h1 className="heading-serif text-4xl md:text-5xl font-light mb-2 text-pink-500">{profile.title}</h1>
+              <p className="text-primary text-lg mb-4">{profile.togetherSince}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 text-left">
+                <div className="bg-pink-50 dark:bg-pink-80 rounded-2xl p-5">
+                  <span className="material-symbols-outlined text-primary text-2xl mb-2">link</span>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Shared Link</p>
+                  <p className="font-mono text-sm text-pink-500">eternalrings.app/u/{profile.handle}</p>
+                </div>
+                <div className="bg-pink-50 dark:bg-pink-80 rounded-2xl p-5">
+                  <span className="material-symbols-outlined text-primary text-2xl mb-2">phone</span>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Phone Number</p>
+                  <p className="text-lg font-bold">{profile.phone}</p>
+                  <p className="text-xs text-green-600 mt-1">✓ Verified</p>
+                </div>
+              </div>
+              <button className="mt-8 px-8 py-3 bg-primary text-orange-700 rounded-xl font-bold hover:bg-primary/80 transition-all" onClick={handleStartEdit}>
+                Edit Profile
+              </button>
+            </div>
+          )}
+        </div>
 
-        <section className="signout" role="button" tabIndex={0} onClick={handleSignOut} onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            handleSignOut();
-          }
-        }}>
-          <div className="signout-left">
-            <div className="signout-icon">{'\u21AA'}</div>
-            <div>
-              <h4>Sign Out</h4>
-              <p>Leave this device safely and keep your account protected.</p>
+        {/* Days Together Card */}
+        <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-3xl p-8 border border-primary/10 mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-primary text-3xl">favorite</span>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-slate-500">Shared Journey</p>
+                <p className="text-3xl font-bold text-primary">{profile.daysTogether} Days</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-2xl mb-2">
+                <span>👨</span>
+                <span className="text-primary">❤️</span>
+                <span>👩</span>
+              </div>
+              <p className="text-sm text-slate-500">{profile.linkedPartnerLabel}</p>
             </div>
           </div>
-          <span className="signout-arrow">{'\u203A'}</span>
-        </section>
+        </div>
 
-        <footer className="footer">
-          <div className="footer-links">
-            <button type="button">Privacy Policy</button>
-            <button type="button">Terms of Service</button>
-            <button type="button">Help Center</button>
+        {/* Sign Out Button */}
+        <button 
+          className="w-full bg-white dark:bg-surface-dark/80 border border-red-200 dark:border-red-800 rounded-2xl p-5 flex items-center justify-between hover:border-red-300 transition-all group"
+          onClick={handleSignOut}
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-red-500">logout</span>
+            </div>
+            <div className="text-left">
+              <h4 className="font-bold text-lg text-red-500">Sign Out</h4>
+              <p className="text-sm text-slate-500">Leave this device safely</p>
+            </div>
           </div>
-          <p>{'\u00A9'} 2025 Eternal Rings. Crafted for couples who stay connected.</p>
+          <span className="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
+        </button>
+
+        {/* Footer */}
+        <footer className="mt-16 text-center">
+          <div className="flex justify-center gap-6 mb-4">
+            <button className="text-xs text-slate-400 hover:text-primary transition-colors">Privacy Policy</button>
+            <button className="text-xs text-slate-400 hover:text-primary transition-colors">Terms of Service</button>
+            <button className="text-xs text-slate-400 hover:text-primary transition-colors">Help Center</button>
+          </div>
+          <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. Crafted for couples who stay connected.</p>
         </footer>
 
         <ConfirmDialog
@@ -1812,6 +1923,46 @@ const ProfileView = ({
           onClose={() => setIsSignOutConfirmOpen(false)}
         />
       </main>
+
+      <style>{`
+        .loading-spinner {
+          border: 3px solid rgba(255,42,162,0.1);
+          border-top: 3px solid #ff2aa2;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .premium-blur {
+          backdrop-filter: blur(12px);
+        }
+
+        .love-pattern-bg {
+          position: relative;
+        }
+
+        .love-pattern-bg::before {
+          content: '';
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+          background-image: radial-gradient(circle at 20% 40%, rgba(255,42,162,0.03) 0%, transparent 50%);
+          z-index: 0;
+        }
+
+        .heading-serif {
+          font-family: 'Times New Roman', Georgia, serif;
+        }
+      `}</style>
     </div>
   );
 };

@@ -104,9 +104,11 @@ const ThankYou: React.FC = () => {
     setSimulateDisabled(true);
   };
 
-  // Close modal
+  // Close modal and navigate to couple profile
   const closeModal = () => {
     setShowModal(false);
+    // Navigate to couple profile after modal closes
+    navigate('/couple-profile');
   };
 
   // Handle backdrop click
@@ -211,15 +213,15 @@ const ThankYou: React.FC = () => {
               “Every great love story starts with a single step.<br /> Yours is now etched in eternity.”
             </div>
 
-            {/* action button */}
+            {/* action button - now goes to couple profile */}
             <div className="mt-8 flex justify-center">
-              <Link 
-                to="/profile" 
+              <button 
+                onClick={closeModal}
                 className="bg-primary text-white px-8 py-4 rounded-full font-bold hover:bg-primary/80 transition-all flex items-center gap-2 shadow-lg"
               >
                 <span>View your couple profile</span>
                 <span className="material-symbols-outlined">favorite</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -305,6 +307,11 @@ setUserScopedSessionStorageItem('newStock', newStock.toString());
 // Redirect to ThankYou page
 navigate('/thank-you');`}
             </pre>
+            <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/10">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                💡 <strong>Note:</strong> After the modal closes, users will be automatically redirected to the Couple Profile page (<code>/couple-profile</code>).
+              </p>
+            </div>
           </div>
         </div>
       </main>

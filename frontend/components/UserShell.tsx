@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { api, API_BASE_URL, resolveApiAssetUrl } from '../lib/api';
 import {
   getStoredAuthValue,
@@ -12,18 +12,13 @@ const USER_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
 const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
 const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
 
-type NavItem = {
-  label: string;
-  to: string;
-};
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', to: '/dashboard' },
-  { label: 'Couple Shop', to: '/shop' },
-  { label: 'My Ring', to: '/myring' },
-  { label: 'Couple Profile', to: '/couple-profile' },
-  { label: 'Relationship', to: '/relationship' },
-  { label: 'Settings', to: '/settings' },
+const NAV_ITEMS = [
+  { name: 'Dashboard', path: '/dashboard' },
+  { name: 'Couple Shop', path: '/shop' },
+  { name: 'My Ring', path: '/myring' },
+  { name: 'Couple Profile', path: '/couple-profile' },
+  { name: 'Relationship', path: '/relationship' },
+  { name: 'Settings', path: '/settings' },
 ];
 
 function readStoredUserAvatar() {
@@ -31,6 +26,7 @@ function readStoredUserAvatar() {
 }
 
 export default function UserShell({ children }: PropsWithChildren) {
+  const location = useLocation();
   const [cartCount, setCartCount] = useState(0);
   const [displayName, setDisplayName] = useState('Alex & Jamie');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => readStoredUserAvatar());
@@ -139,20 +135,20 @@ export default function UserShell({ children }: PropsWithChildren) {
               <span className="heading-serif text-2xl font-semibold tracking-tight">BondKeeper</span>
             </Link>
 
-            <nav className="hidden items-center gap-7 text-sm font-medium text-slate-700 dark:text-slate-100 lg:flex">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    [
-                      'border-b pb-1 transition-colors',
-                      isActive ? 'border-primary/40 text-slate-950 dark:text-white' : 'border-transparent hover:text-primary dark:hover:text-pink-300',
-                    ].join(' ')
-                  }
+            {/* Navigation Links - Desktop */}
+            <nav className="hidden lg:flex items-center gap-5">
+              {NAV_ITEMS.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    location.pathname === item.path
+                      ? 'text-primary border-b-2 border-primary pb-1'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
                 >
-                  {item.label}
-                </NavLink>
+                  {item.name}
+                </Link>
               ))}
             </nav>
           </div>
@@ -194,6 +190,25 @@ export default function UserShell({ children }: PropsWithChildren) {
           </div>
         </div>
       </header>
+
+      {/* Mobile Navigation Menu */}
+      <nav className="lg:hidden bg-white dark:bg-slate-900 border-b border-primary/10 dark:border-slate-700/70 overflow-x-auto">
+        <div className="flex px-4 py-2 space-x-4 min-w-max">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`text-sm font-medium transition-colors hover:text-primary px-2 py-1 ${
+                location.pathname === item.path
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
+      </nav>
 
       <div className="user-shell-content">
         {children}
