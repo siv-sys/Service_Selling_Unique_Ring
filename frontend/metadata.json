@@ -1,6 +1,0 @@
-
-{
-  "name": "BondKeeper - Couple Rings & Relationship Registry",
-  "description": "A sophisticated admin and user dashboard for managing connected couple rings, relationship certificates, and security logs with integrated AI insights.",
-  "requestFramePermissions": ["camera"]
-}
