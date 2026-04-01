@@ -116,6 +116,7 @@ const PurchaseView: React.FC = () => {
   const [paymentProofTimestamp, setPaymentProofTimestamp] = useState<number>(0);
   const [proofError, setProofError] = useState<string>('');
   const [isConfirmingPayment, setIsConfirmingPayment] = useState<boolean>(false);
+  const [useQrImage, setUseQrImage] = useState<boolean>(true);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
 
@@ -210,6 +211,7 @@ const PurchaseView: React.FC = () => {
     setPaymentProofTimestamp(0);
     setProofError('');
     setIsConfirmingPayment(false);
+    setUseQrImage(true);
   }, [modalData, showModal]);
 
   useEffect(() => {
@@ -581,6 +583,8 @@ const PurchaseView: React.FC = () => {
     return buildQrMatrix(seed);
   }, [modalData]);
 
+  const paymentQrImageSrc = '/payment-qr.png';
+
   return (
     <div className="min-h-screen bg-cream dark:bg-charcoal">
       <HistoryModal 
@@ -944,24 +948,31 @@ const PurchaseView: React.FC = () => {
                 <div className="mt-6 flex justify-center">
                   <div className="w-full max-w-sm rounded-[2rem] bg-white border border-slate-200 shadow-xl p-5">
                     <div className="rounded-[1.5rem] overflow-hidden border border-slate-100 bg-white p-4 relative">
-                      <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-[11px] uppercase tracking-[0.3em] font-bold text-slate-900">
-                        <span>KHQR</span>
-                        <span className="text-primary">BondKeeper</span>
-                      </div>
                       <div className="mt-8 rounded-2xl bg-slate-50 p-4">
-                        <div
-                          className="grid aspect-square gap-1"
-                          style={{ gridTemplateColumns: `repeat(${qrMatrix.length}, minmax(0, 1fr))` }}
-                        >
-                          {qrMatrix.map((row, rowIndex) =>
-                            row.map((filled, colIndex) => (
-                              <div
-                                key={`${rowIndex}-${colIndex}`}
-                                className={filled ? 'bg-black rounded-[2px]' : 'bg-white'}
-                              />
-                            ))
-                          )}
-                        </div>
+                        {useQrImage ? (
+                          <div className="relative aspect-square">
+                            <img
+                              src={paymentQrImageSrc}
+                              alt="Payment QR"
+                              className="h-full w-full object-contain"
+                              onError={() => setUseQrImage(false)}
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="grid aspect-square gap-1"
+                            style={{ gridTemplateColumns: `repeat(${qrMatrix.length}, minmax(0, 1fr))` }}
+                          >
+                            {qrMatrix.map((row, rowIndex) =>
+                              row.map((filled, colIndex) => (
+                                <div
+                                  key={`${rowIndex}-${colIndex}`}
+                                  className={filled ? 'bg-black rounded-[2px]' : 'bg-white'}
+                                />
+                              ))
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="mt-4 text-center">
                         <p className="font-semibold text-slate-900">{modalData.customerName}</p>

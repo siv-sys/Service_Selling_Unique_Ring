@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { API_BASE_URL } from '../lib/api';
+import { API_BASE_URL, resolveApiAssetUrl } from '../lib/api';
 import { getStoredAuthValue, getUserScopedLocalStorageItem, setUserScopedSessionStorageItem } from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
@@ -11,6 +11,7 @@ interface RecentlyViewedRing {
   name: string;
   material: string;
   image: string;
+  price: number;
 }
 
 const Dashboard: React.FC = () => {
@@ -24,38 +25,12 @@ const Dashboard: React.FC = () => {
     return 'Member';
   });
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
+  const [featuredRings, setFeaturedRings] = useState<RecentlyViewedRing[]>([]);
+  const [ringsLoading, setRingsLoading] = useState<boolean>(true);
   const cartCount = 0;
   const isDarkMode = false;
   const hasPurchasedRing =
     typeof window !== 'undefined' && Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY));
-
-  // Sample recently viewed rings data
-  const recentlyViewedRings: RecentlyViewedRing[] = [
-    {
-      id: 1,
-      name: 'Elysian Halo',
-      material: '18k white gold',
-      image: 'https://jewelemarket.com/cdn/shop/products/1506902.jpg?v=1749642089&width=900'
-    },
-    {
-      id: 2,
-      name: 'Midnight Sapphire',
-      material: 'platinum',
-      image: 'https://loforay.com/cdn/shop/products/O1CN01yJYHgs1uzyLnogHKq__3222026109-0-cib.jpg?v=1677245225'
-    },
-    {
-      id: 3,
-      name: 'Rose Pavé',
-      material: 'rose gold',
-      image: 'https://esdomera.com/cdn/shop/files/classic-pink-morganite-leaf-floral-engagement-his-and-hers-wedding-ring-pink-yellow-gold-promise-couple-rings-esdomera-2_1800x1800.png?v=1743672938'
-    },
-    {
-      id: 4,
-      name: 'Platinum Solitaire',
-      material: '950 platinum',
-      image: 'https://m.media-amazon.com/images/I/61btVGnRO6L._AC_UF894,1000_QL80_.jpg'
-    }
-  ];
 
   // Auto-hide notification
   useEffect(() => {
@@ -82,6 +57,59 @@ const Dashboard: React.FC = () => {
     syncMemberName();
     window.addEventListener('storage', syncMemberName);
     return () => window.removeEventListener('storage', syncMemberName);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFeaturedRings = async () => {
+      setRingsLoading(true);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/couple-shop?sort=price&order=desc&limit=4&offset=0`);
+
+        if (!response.ok) {
+          throw new Error(`Failed to load rings (${response.status})`);
+        }
+
+        const payload = await response.json().catch(() => null);
+        const rows = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : [];
+
+        const nextRings = rows
+          .map((ring: any) => ({
+            id: Number(ring?.id || 0),
+            name: String(ring?.name || ring?.model_name || ring?.ring_name || 'Ring'),
+            material: String(ring?.material || ring?.collection_name || 'Unknown'),
+            image: resolveApiAssetUrl(ring?.image_url || ring?.image || ring?.img || ''),
+            price: Number(ring?.price || ring?.base_price || 0),
+          }))
+          .filter((ring: RecentlyViewedRing) => ring.id > 0)
+          .sort((a: RecentlyViewedRing, b: RecentlyViewedRing) => b.price - a.price);
+
+        if (!cancelled) {
+          setFeaturedRings(nextRings);
+        }
+      } catch (error) {
+        console.error('Error loading featured rings:', error);
+        if (!cancelled) {
+          setFeaturedRings([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setRingsLoading(false);
+        }
+      }
+    };
+
+    void loadFeaturedRings();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Show notification function
@@ -241,46 +269,64 @@ const Dashboard: React.FC = () => {
         <div className="border-t border-primary/10 pt-12">
           <div className="flex items-center justify-between mb-10">
             <h3 className="heading-serif text-3xl font-light flex items-center gap-3 text-pink-600 dark:text-pink-600">
-              <span className="w-8 h-px bg-primary text-pink"></span>Recently admired
+              <span className="w-8 h-px bg-primary text-pink"></span>Highest priced rings
             </h3>
             <Link to="/shop" className="text-black flex items-center gap-1 text-sm border-b border-transparent hover:border-primary/50 pb-0.5 transition-all text-pink-400 dark:text-pink-300">
               explore all rings →
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 lg:gap-7 text-sm text-pink-700 dark:text-pink-700">
-            {recentlyViewedRings.map((ring) => (
-              <Link 
-                key={ring.id} 
-                to={`/shop?ring=${ring.id}`}
-                onClick={() => {
-                  // Store the selected ring in sessionStorage
-                  sessionStorage.setItem('currentRing', JSON.stringify({
-                    name: ring.name,
-                    metal: ring.material,
-                    img: ring.image
-                  }));
-                }}
-                className="group ring-image-premium"
-              >
-                <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-primary/5 shadow-card">
-                  <img 
-                    src={ring.image} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" 
-                    alt={ring.name}
-                    loading="lazy"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=800&fit=crop';
-                    }}
-                  />
-                </div>
-                <div className="mt-4 flex justify-between items-start">
-                  <div>
-                    <p className="font-medium heading-serif text-xl text-pink-400 dark:text-pink-300">{ring.name}</p>
-                    <p className="text-xs text-charcoal/50 dark:text-cream/50">{ring.material}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8 text-sm text-pink-700 dark:text-pink-700">
+            {ringsLoading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="group">
+                  <div className="aspect-square overflow-hidden rounded-[24px] bg-primary/5 animate-pulse" />
+                  <div className="mt-4 space-y-2">
+                    <div className="h-5 w-3/4 rounded bg-pink-100 dark:bg-slate-700 animate-pulse" />
+                    <div className="h-3 w-1/2 rounded bg-slate-100 dark:bg-slate-700 animate-pulse" />
+                    <div className="h-3 w-2/3 rounded bg-slate-100 dark:bg-slate-700 animate-pulse" />
                   </div>
                 </div>
-              </Link>
-            ))}
+              ))
+            ) : featuredRings.length > 0 ? (
+              featuredRings.map((ring) => (
+                <Link
+                  key={ring.id}
+                  to={`/shop?ring=${ring.id}`}
+                  onClick={() => {
+                    sessionStorage.setItem('currentRing', JSON.stringify({
+                      name: ring.name,
+                      metal: ring.material,
+                      img: ring.image,
+                      price: ring.price,
+                    }));
+                  }}
+                  className="group"
+                >
+                  <div className="aspect-square overflow-hidden rounded-[24px] bg-white shadow-[0_14px_35px_rgba(15,23,42,0.08)] ring-1 ring-pink-100/60 transition-transform duration-500 group-hover:-translate-y-1">
+                    <img
+                      src={ring.image}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      alt={ring.name}
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600&h=800&fit=crop';
+                      }}
+                    />
+                  </div>
+                  <div className="mt-4 px-1">
+                    <div>
+                      <p className="heading-serif text-[18px] font-medium leading-tight text-pink-400 dark:text-pink-300">{ring.name}</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-cream/50">{ring.material}</p>
+                      <p className="mt-1 text-sm font-medium text-primary">${ring.price.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="col-span-2 md:col-span-4 rounded-2xl border border-pink-200 bg-white/70 p-6 text-center text-slate-500">
+                No ring data found in the database.
+              </div>
+            )}
           </div>
         </div>
       </main>

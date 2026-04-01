@@ -86,6 +86,8 @@ async function getShopRings(req, res) {
       maxPrice,
       search,
       collection,
+      sort,
+      order,
       limit = 50,
       offset = 0,
     } = req.query;
@@ -122,6 +124,17 @@ async function getShopRings(req, res) {
     }
 
     const whereClause = `WHERE ${filters.join(' AND ')}`;
+    const normalizedSort = String(sort || '').toLowerCase();
+    const normalizedOrder = String(order || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    let orderByClause = 'ORDER BY rm.updated_at DESC, rm.id DESC';
+
+    if (normalizedSort === 'price') {
+      orderByClause = `ORDER BY rm.base_price ${normalizedOrder}, rm.updated_at DESC, rm.id DESC`;
+    } else if (normalizedSort === 'created') {
+      orderByClause = `ORDER BY rm.created_at ${normalizedOrder}, rm.id DESC`;
+    } else if (normalizedSort === 'updated') {
+      orderByClause = `ORDER BY rm.updated_at ${normalizedOrder}, rm.id DESC`;
+    }
 
     const [rows] = await pool.execute(
       `
@@ -152,9 +165,9 @@ async function getShopRings(req, res) {
             MIN(NULLIF(material, '')) AS sample_material
           FROM rings
           GROUP BY model_id
-        ) stock ON stock.model_id = rm.id
+          ) stock ON stock.model_id = rm.id
         ${whereClause}
-        ORDER BY rm.updated_at DESC, rm.id DESC
+        ${orderByClause}
         LIMIT ? OFFSET ?
       `,
       [...params, Number(limit), Number(offset)]
