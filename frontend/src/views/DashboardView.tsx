@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
-import { getUserScopedLocalStorageItem, setUserScopedSessionStorageItem } from '../lib/userStorage';
+import { getStoredAuthValue, getUserScopedLocalStorageItem, setUserScopedSessionStorageItem } from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 
@@ -14,7 +14,15 @@ interface RecentlyViewedRing {
 }
 
 const Dashboard: React.FC = () => {
-  const [memberName, setMemberName] = useState<string>('Member');
+  const [memberName, setMemberName] = useState<string>(() => {
+    const storedName = getStoredAuthValue('auth_name')?.trim();
+    if (storedName) return storedName;
+
+    const storedEmail = getStoredAuthValue('auth_email')?.trim();
+    if (storedEmail) return storedEmail.split('@')[0] || storedEmail;
+
+    return 'Member';
+  });
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   const cartCount = 0;
   const isDarkMode = false;
@@ -74,6 +82,23 @@ const Dashboard: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [notification]);
+
+  useEffect(() => {
+    const syncMemberName = () => {
+      const storedName = getStoredAuthValue('auth_name')?.trim();
+      if (storedName) {
+        setMemberName(storedName);
+        return;
+      }
+
+      const storedEmail = getStoredAuthValue('auth_email')?.trim();
+      setMemberName(storedEmail ? storedEmail.split('@')[0] || storedEmail : 'Member');
+    };
+
+    syncMemberName();
+    window.addEventListener('storage', syncMemberName);
+    return () => window.removeEventListener('storage', syncMemberName);
+  }, []);
 
   // Show notification function
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -155,8 +180,8 @@ const Dashboard: React.FC = () => {
               <span className="rounded-full bg-white/80 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.38em] text-primary/80 shadow-sm ring-1 ring-primary/10">Eternal membership</span>
               <span className="h-px w-14 bg-gradient-to-r from-primary/50 to-primary/0"></span>
             </div>
-            <h1 className="heading-serif text-5xl font-light tracking-tight leading-[0.95] md:text-6xl lg:text-7xl">
-              Welcome back, <span className="font-bold text-primary drop-shadow-[0_8px_24px_rgba(236,19,128,0.18)]">{memberName}</span>
+            <h1 className="heading-serif text-5xl md:text-6xl font-light tracking-tight text-pink-400 dark:text-pink-400">
+              Welcome back, <span className="font-bold text-primary">{memberName}</span>
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-charcoal/65 dark:text-cream/60">
               Your bond, your rings, your story — curated with timeless elegance.
@@ -173,81 +198,53 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           {/* quick settings with refined style */}
-          <div className="flex flex-col gap-4 lg:items-end">
-            <a 
-              href="#" 
-              onClick={(e) => handleNavClick(e, 'Account preferences')}
-              className="group flex items-center gap-3 rounded-full border border-primary/15 bg-white/80 px-6 py-4 text-sm shadow-lg shadow-primary/5 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-xl"
-            >
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-white">
-                <span className="material-symbols-outlined">tune</span>
-              </span>
-              <span>
-                <span className="block text-[11px] uppercase tracking-[0.25em] text-charcoal/35">Dashboard control</span>
-                <span className="block text-base font-semibold text-charcoal/85">Account preferences</span>
-              </span>
-            </a>
-            <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-[26rem]">
-              <div className="rounded-3xl border border-primary/10 bg-white/75 p-4 shadow-sm backdrop-blur-sm">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Mood</p>
-                <p className="mt-2 heading-serif text-2xl text-charcoal">Romantic minimal</p>
-              </div>
-              <div className="rounded-3xl border border-primary/10 bg-primary/[0.06] p-4 shadow-sm backdrop-blur-sm">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-primary/60">Next step</p>
-                <p className="mt-2 text-sm font-semibold text-charcoal/80">Explore your couple space</p>
-              </div>
-            </div>
-          </div>
-          </div>
-        </section>
+          <a 
+            href="#" 
+            onClick={(e) => handleNavClick(e, 'Account preferences')}
+            className="flex items-center gap-3 text-sm bg-white/70 dark:bg-charcoal/50 backdrop-blur-sm border border-primary/20 px-6 py-4 rounded-full hover:border-primary/70 transition-all shadow-premium group text-pink-600 dark:text-pink-600"
+          >
+            <span className="material-symbols-outlined text-pink-500 group-hover:rotate-45 transition-transform duration-300">tune</span>
+            <span className="font-medium text-black-200 dark:text-pink-300">Account preferences</span>
+          </a>
+        </div>
 
         {/* ACCESS GRID: elevated cards linking to shop/ring/profile/settings (premium style) */}
-        <div className="mb-8 flex items-center justify-between gap-4">
-          <h2 className="heading-serif text-3xl font-light flex items-center gap-4">
-            <span className="w-12 h-px bg-primary/40"></span>Quick access
-          </h2>
-          <p className="hidden md:block text-sm uppercase tracking-[0.24em] text-charcoal/35">Choose your next moment</p>
-        </div>
+        <h2 className="heading-serif text-3xl font-light mb-8 flex items-center gap-4 text-pink-900 dark:text-pink-900">
+          <span className="w-8 h-px text-pink-900 dark:text-pink-900"></span>Quick access
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
           {/* couple shop card */}
-          <Link to="/shop" className="group relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_60px_rgba(236,19,128,0.12)]">
-            <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
-            <div className="relative w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
+          <Link to="/shop" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-pink-200 dark:border-pink-700 hover:border-primary/20 transition-all shadow-premium">
+            <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">storefront</span>
             </div>
-            <p className="relative mb-3 text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Curated boutique</p>
-            <h3 className="relative heading-serif text-2xl font-semibold mb-2">Couple shop</h3>
-            <p className="relative text-sm text-charcoal/60 dark:text-cream/60 mb-6">Discover matching bands, gifts &amp; certificates with a softer luxury flow.</p>
-            <span className="relative text-primary flex items-center gap-1 text-sm font-medium">
+            <h3 className="heading-serif text-2xl font-semibold mb-2 text-black-200 dark:text-pink-300">Couple shop</h3>
+            <p className="text-sm text-charcoal/60 dark:text-slate-400 mb-4">Discover matching bands, gifts &amp; certificates</p>
+            <span className="text-primary flex items-center gap-1 text-sm font-medium">
               enter boutique <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </span>
           </Link>
           
-          {hasPurchasedRing ? (
-            <Link to="/myring" className="group relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_60px_rgba(236,19,128,0.12)]">
-              <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
-              <div className="relative w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
-                <span className="material-symbols-outlined text-3xl">diamond</span>
-              </div>
-              <p className="relative mb-3 text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Private vault</p>
-              <h3 className="relative heading-serif text-2xl font-semibold mb-2">My Ring</h3>
-              <p className="relative text-sm text-charcoal/60 dark:text-cream/60 mb-6">Open your certification, resizing details, and the story behind your piece.</p>
-              <span className="relative text-primary flex items-center gap-1 text-sm font-medium">
-                inspect <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
-              </span>
-            </Link>
-          ) : null}
+          {/* my ring card */}
+          <Link to="/myring" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-pink-200 dark:border-pink-700 hover:border-primary/20 transition-all shadow-premium">
+            <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
+              <span className="material-symbols-outlined text-3xl">diamond</span>
+            </div>
+            <h3 className="heading-serif text-2xl font-semibold mb-2 text-black-200 dark:text-pink-300">My Ring</h3>
+            <p className="text-sm text-charcoal/60 dark:text-slate-400 mb-4">View certification, resizing, story</p>
+            <span className="text-primary flex items-center gap-1 text-sm font-medium">
+              inspect <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
+            </span>
+          </Link>
           
           {/* couple profile card */}
-          <Link to="/couple-profile" className="group relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_60px_rgba(236,19,128,0.12)]">
-            <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
-            <div className="relative w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
+          <Link to="/profile" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-pink-200 dark:border-pink-700 hover:border-primary/20 transition-all shadow-premium">
+            <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">people</span>
             </div>
-            <p className="relative mb-3 text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Shared story</p>
-            <h3 className="relative heading-serif text-2xl font-semibold mb-2">Couple profile</h3>
-            <p className="relative text-sm text-charcoal/60 dark:text-cream/60 mb-6">Shape your anniversary timeline, story, and partner details in one elegant space.</p>
-            <span className="relative text-primary flex items-center gap-1 text-sm font-medium">
+            <h3 className="heading-serif text-2xl font-semibold mb-2 text-black-200 dark:text-pink-300">Couple profile</h3>
+            <p className="text-sm text-charcoal/60 dark:text-slate-400 mb-4">Anniversary, story, partner details</p>
+            <span className="text-primary flex items-center gap-1 text-sm font-medium">
               manage <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </span>
           </Link>
@@ -256,16 +253,15 @@ const Dashboard: React.FC = () => {
           <a 
             href="#" 
             onClick={(e) => handleNavClick(e, 'Settings')}
-            className="group relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_60px_rgba(236,19,128,0.12)]"
+            className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-pink-200 dark:border-pink-700 hover:border-primary/20 transition-all shadow-premium"
           >
             <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-all duration-300 group-hover:bg-primary/20" />
             <div className="relative w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">settings</span>
             </div>
-            <p className="relative mb-3 text-[11px] uppercase tracking-[0.28em] text-charcoal/35">Fine tuning</p>
-            <h3 className="relative heading-serif text-2xl font-semibold mb-2">Settings</h3>
-            <p className="relative text-sm text-charcoal/60 dark:text-cream/60 mb-6">Refine notifications, privacy, and linked accounts with a calmer control center.</p>
-            <span className="relative text-primary flex items-center gap-1 text-sm font-medium">
+            <h3 className="heading-serif text-2xl font-semibold mb-2 text-black-200 dark:text-pink-300">Settings</h3>
+            <p className="text-sm text-charcoal/60 dark:text-slate-400 mb-4">Notifications, privacy, linked accounts</p>
+            <span className="text-primary flex items-center gap-1 text-sm font-medium">
               configure <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </span>
           </a>
@@ -274,21 +270,21 @@ const Dashboard: React.FC = () => {
         {/* CURATED RINGS / RECENTLY VIEWED (premium gallery) */}
         <div className="border-t border-primary/10 pt-12">
           <div className="flex items-center justify-between mb-10">
-            <h3 className="heading-serif text-3xl font-light flex items-center gap-3">
-              <span className="w-8 h-px bg-primary/30"></span>Recently admired
+            <h3 className="heading-serif text-3xl font-light flex items-center gap-3 text-pink-600 dark:text-pink-600">
+              <span className="w-8 h-px bg-primary text-pink"></span>Recently admired
             </h3>
-            <Link to="/shop" className="text-primary flex items-center gap-1 text-sm border-b border-transparent hover:border-primary/50 pb-0.5 transition-all">
+            <Link to="/shop" className="text-black flex items-center gap-1 text-sm border-b border-transparent hover:border-primary/50 pb-0.5 transition-all text-pink-400 dark:text-pink-300">
               explore all rings →
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 lg:gap-7">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 lg:gap-7 text-sm text-pink-700 dark:text-pink-700">
             {recentlyViewedRings.map((ring) => (
               <Link 
                 key={ring.id} 
                 to={`/shop?ring=${ring.id}`}
                 onClick={() => {
-                  // You can store the selected ring in sessionStorage if needed
-                  setUserScopedSessionStorageItem('currentRing', JSON.stringify({
+                  // Store the selected ring in sessionStorage
+                  sessionStorage.setItem('currentRing', JSON.stringify({
                     name: ring.name,
                     metal: ring.material,
                     img: ring.image
@@ -309,10 +305,9 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="mt-4 flex justify-between items-start">
                   <div>
-                    <p className="font-medium heading-serif text-xl">{ring.name}</p>
+                    <p className="font-medium heading-serif text-xl text-pink-400 dark:text-pink-300">{ring.name}</p>
                     <p className="text-xs text-charcoal/50 dark:text-cream/50">{ring.material}</p>
                   </div>
-                  <span className="material-symbols-outlined text-primary/60">visibility</span>
                 </div>
               </Link>
             ))}
@@ -340,77 +335,53 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* FOOTER – elegant, minimal, with functional links */}
-      <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-28 pt-16 pb-12">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
-          <div>
+      {/* FOOTER */}
+      <footer className="bg-white dark:bg-black  border-t border-primary/10 pt-20 pb-10 mt-20">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
+          <div className="col-span-1 md:col-span-1">
             <div className="flex items-center gap-2 mb-6">
               <span className="material-symbols-outlined text-primary">diamond</span>
-              <span className="heading-serif text-xl font-semibold">BondKeeper</span>
+              <h2 className="text-lg font-extrabold tracking-widest uppercase text-pink-300 dark:text-pink-300">BondKeeper</h2>
             </div>
-            <p className="text-sm text-charcoal/60 dark:text-cream/60 leading-relaxed">
-              Eternal rings, eternal story. Crafted for bonds that last beyond time.
-            </p>
+            <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
+            <div className="flex gap-4">
+              <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
+                <span className="material-symbols-outlined text-lg">share</span>
+              </a>
+            </div>
           </div>
           <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Experience</h4>
-            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
-              <li>
-                <a href="#" onClick={(e) => handleNavClick(e, 'Bespoke atelier')} className="hover:text-primary transition-colors">
-                  Bespoke atelier
-                </a>
-              </li>
-              <li>
-                <a href="#" onClick={(e) => handleNavClick(e, 'Ring concierge')} className="hover:text-primary transition-colors">
-                  Ring concierge
-                </a>
-              </li>
-              <li>
-                <a href="#" onClick={(e) => handleNavClick(e, 'Private consultation')} className="hover:text-primary transition-colors">
-                  Private consultation
-                </a>
-              </li>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Experience</h4>
+            <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+              <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
+              <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
+              <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
+              <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
             </ul>
           </div>
           <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Support</h4>
-            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
-              <li>
-                <Link to="/sizing-guide" className="hover:text-primary transition-colors">
-                  Sizing guide
-                </Link>
-              </li>
-              <li>
-                <Link to="/shipping-returns" className="hover:text-primary transition-colors">
-                  Shipping & returns
-                </Link>
-              </li>
-              <li>
-                <Link to="/faq" className="hover:text-primary transition-colors">
-                  FAQ / help
-                </Link>
-              </li>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Support</h4>
+            <ul className="flex flex-col gap-4 text-sm">
+              <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
+              <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
+              <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
+              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
             </ul>
           </div>
           <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Mailing list</h4>
+            <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Mailing List</h4>
+            <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
             <div className="flex gap-2">
-              <input 
-                type="email"
-                placeholder="your@email.com" 
-                className="flex-1 bg-transparent border border-primary/20 rounded-full px-5 py-2.5 text-sm placeholder:text-charcoal/40 dark:placeholder:text-cream/40 focus:border-primary/70 focus:outline-none"
-              />
-              <button className="bg-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-primary-dark transition-colors">
-                join
-              </button>
+              <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+              <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest text-pink-400 dark:text-pink-300">Join</button>
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-6 mt-16 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-charcoal/40 dark:text-cream/40">
-          <p>© BondKeeper · Eternal Rings. All rights reserved.</p>
-          <div className="flex gap-6">
-            <Link to="/privacy" className="hover:text-primary transition">Privacy</Link>
-            <Link to="/terms" className="hover:text-primary transition">Terms</Link>
+        <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
+          <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
+            <Link to="/privacy" className="hover:text-primary text-pink-400 dark:text-pink-300">Privacy</Link>
+            <Link to="/terms" className="hover:text-primary text-pink-400 dark:text-pink-300">Terms</Link>
           </div>
         </div>
       </footer>

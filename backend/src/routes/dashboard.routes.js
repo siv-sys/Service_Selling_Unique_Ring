@@ -197,7 +197,7 @@ router.get('/', async (_req, res) => {
       query("SELECT COUNT(*) AS total FROM relationship_pairs WHERE status IN ('CONNECTED', 'SYNCING')"),
     ]);
 
-    const [usersRows, ringSalesRows, pairRows, invitationRows] = await Promise.all([
+    const [usersRows, ringSalesRows, pairRows, invitationRows, paymentAlertRows] = await Promise.all([
       query(`
         SELECT
           u.id,
@@ -253,6 +253,23 @@ router.get('/', async (_req, res) => {
         LEFT JOIN ring_models rm ON rm.id = rg.model_id
         ORDER BY pi.created_at DESC
         LIMIT 10
+      `),
+      query(`
+        SELECT
+          id,
+          type,
+          icon,
+          icon_class,
+          action_key,
+          title,
+          message,
+          unread,
+          metadata,
+          created_at
+        FROM notifications
+        WHERE type IN ('payment_received', 'support_message')
+        ORDER BY unread DESC, created_at DESC, id DESC
+        LIMIT 6
       `),
     ]);
 
@@ -317,6 +334,27 @@ router.get('/', async (_req, res) => {
       },
     ];
 
+    const paymentAlerts = paymentAlertRows.map((row) => ({
+      id: `pay-${row.id}`,
+      title: row.title || 'Payment received',
+      description: row.message || 'A payment has been completed.',
+      time: row.created_at ? new Date(row.created_at).toLocaleString() : 'just now',
+      type: 'payment_received',
+      icon: row.icon || '$',
+      iconClass: row.icon_class || 'payment',
+      actionKey: row.action_key || null,
+      unread: Boolean(row.unread),
+      metadata: typeof row.metadata === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(row.metadata);
+            } catch {
+              return null;
+            }
+          })()
+        : row.metadata || null,
+    }));
+
     const weeklyConnectivity = await loadWeeklyConnectivity();
 
     res.json({
@@ -335,6 +373,7 @@ router.get('/', async (_req, res) => {
       relationshipFollows,
       pairingRequests,
       relationshipUserAlerts,
+      adminNotifications: paymentAlerts,
       weeklyConnectivity,
       generatedAt: new Date().toISOString(),
     });

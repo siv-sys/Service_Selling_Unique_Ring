@@ -2,74 +2,142 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
 
-// Simple in-memory cart store
-const carts = {};
+function normalizeIdHeader(value) {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return null;
+  }
 
-// Helper to get session ID
-const getSessionId = (req) => {
-  let sessionId = req.headers['x-session-id'];
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function getCartOwner(req) {
+  const userId = normalizeIdHeader(req.headers['x-auth-user-id']);
+  const sessionIdHeader = String(req.headers['x-session-id'] || '').trim();
+
+  if (userId) {
+    return {
+      userId,
+      sessionId: sessionIdHeader || null,
+      ownerWhere: 'user_id = ?',
+      ownerParams: [userId],
+      sessionIdForClient: String(userId),
+    };
+  }
+
+  let sessionId = sessionIdHeader;
   if (!sessionId) {
     sessionId = `session_${Date.now()}`;
-    console.log('Generated new session ID:', sessionId);
+    console.log('Generated new cart session ID:', sessionId);
   }
-  return sessionId;
-};
+
+  return {
+    userId: null,
+    sessionId,
+    ownerWhere: 'session_id = ?',
+    ownerParams: [sessionId],
+    sessionIdForClient: sessionId,
+  };
+}
+
+async function mergeGuestCartIntoUserCart(userId, sessionId) {
+  if (!userId || !sessionId || sessionId === String(userId)) {
+    return;
+  }
+
+  const [guestRows] = await pool.execute(
+    `
+      SELECT id, ring_id, quantity, size, material
+      FROM cart
+      WHERE session_id = ?
+      ORDER BY added_at ASC, id ASC
+    `,
+    [sessionId],
+  );
+
+  if (guestRows.length === 0) {
+    return;
+  }
+
+  for (const row of guestRows) {
+    const [existingRows] = await pool.execute(
+      `
+        SELECT id, quantity
+        FROM cart
+        WHERE user_id = ?
+          AND ring_id = ?
+          AND COALESCE(size, '') = COALESCE(?, '')
+          AND COALESCE(material, '') = COALESCE(?, '')
+        LIMIT 1
+      `,
+      [userId, row.ring_id, row.size || null, row.material || null],
+    );
+
+    if (existingRows.length > 0) {
+      await pool.execute(
+        'UPDATE cart SET quantity = quantity + ? WHERE id = ?',
+        [row.quantity, existingRows[0].id],
+      );
+      await pool.execute('DELETE FROM cart WHERE id = ?', [row.id]);
+    } else {
+      await pool.execute(
+        'UPDATE cart SET user_id = ?, session_id = NULL WHERE id = ?',
+        [userId, row.id],
+      );
+    }
+  }
+}
+
+async function fetchCartItemsByOwner(ownerWhere, ownerParams) {
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        c.id,
+        c.user_id,
+        c.session_id,
+        c.ring_id AS ringId,
+        c.quantity,
+        c.size,
+        c.material,
+        c.added_at AS addedAt,
+        r.ring_name,
+        r.ring_identifier,
+        r.image_url,
+        r.material AS ring_material,
+        r.price
+      FROM cart c
+      JOIN rings r ON r.id = c.ring_id
+      WHERE ${ownerWhere}
+      ORDER BY c.added_at DESC, c.id DESC
+    `,
+    ownerParams,
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    material: row.material || row.ring_material || null,
+  }));
+}
 
 // GET /api/cart - Get cart items with ring details
 router.get('/', async (req, res) => {
   try {
-    const sessionId = getSessionId(req);
-    console.log('📦 GET cart for session:', sessionId);
-    
-    const cart = carts[sessionId] || [];
-    console.log(`Cart has ${cart.length} items`);
-    
-    if (cart.length === 0) {
-      console.log('Cart is empty');
-      return res.json({ 
-        success: true, 
-        data: [] 
-      });
-    }
-    
-    // Fetch ring details for each item in cart
-    const cartWithDetails = await Promise.all(cart.map(async (item) => {
-      try {
-        console.log('Fetching details for ring ID:', item.ringId);
-        const [rows] = await pool.execute(
-          'SELECT id, ring_name, ring_identifier, price, image_url, material FROM rings WHERE id = ?',
-          [item.ringId]
-        );
-        
-        if (rows.length > 0) {
-          const ring = rows[0];
-          return {
-            ...item,
-            ring_name: ring.ring_name,
-            ring_identifier: ring.ring_identifier,
-            price: parseFloat(ring.price),
-            image_url: ring.image_url,
-            material: ring.material || item.material
-          };
-        }
-        return item;
-      } catch (err) {
-        console.error('Error fetching ring details:', err);
-        return item;
-      }
-    }));
-    
-    console.log('Sending cart with details:', cartWithDetails.length, 'items');
-    res.json({ 
-      success: true, 
-      data: cartWithDetails 
+    const owner = getCartOwner(req);
+    await mergeGuestCartIntoUserCart(owner.userId, owner.sessionId);
+    const cartItems = await fetchCartItemsByOwner(owner.ownerWhere, owner.ownerParams);
+
+    res.json({
+      success: true,
+      sessionId: owner.sessionIdForClient,
+      data: cartItems,
     });
   } catch (error) {
-    console.error('❌ Error getting cart:', error);
+    console.error('Error getting cart:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -78,176 +146,198 @@ router.get('/', async (req, res) => {
 router.post('/add', async (req, res) => {
   try {
     const { ringId, quantity = 1, size, material } = req.body;
-    let sessionId = req.headers['x-session-id'];
-    
-    console.log('🛒 POST add to cart:', { ringId, quantity, size, material, sessionId });
-    
+    const owner = getCartOwner(req);
+    await mergeGuestCartIntoUserCart(owner.userId, owner.sessionId);
+
     if (!ringId) {
       return res.status(400).json({
         success: false,
-        message: 'ringId is required'
+        message: 'ringId is required',
       });
     }
-    
-    // If no session ID provided, create one
-    if (!sessionId) {
-      sessionId = `session_${Date.now()}`;
-      console.log('Created new session ID:', sessionId);
-    }
-    
-    // Verify ring exists and get its details
-    console.log('Verifying ring ID:', ringId);
-    const [rows] = await pool.execute(
+
+    const [ringRows] = await pool.execute(
       'SELECT id, ring_name, ring_identifier, price, image_url, material FROM rings WHERE id = ?',
-      [ringId]
+      [ringId],
     );
-    
-    if (rows.length === 0) {
-      console.log('Ring not found for ID:', ringId);
+
+    if (ringRows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Ring not found'
+        message: 'Ring not found',
       });
     }
-    
-    const ring = rows[0];
-    console.log('Found ring:', ring.ring_name);
-    
-    if (!carts[sessionId]) {
-      carts[sessionId] = [];
-      console.log('Created new cart for session:', sessionId);
-    }
-    
-    // Check if item exists
-    const existingItemIndex = carts[sessionId].findIndex(item => item.ringId === ringId);
-    
-    if (existingItemIndex >= 0) {
-      // Update quantity
-      carts[sessionId][existingItemIndex].quantity += quantity;
-      console.log('Updated existing item:', carts[sessionId][existingItemIndex]);
+
+    const ring = ringRows[0];
+
+    const [existingRows] = await pool.execute(
+      `
+        SELECT id, quantity
+        FROM cart
+        WHERE ${owner.ownerWhere}
+          AND ring_id = ?
+          AND COALESCE(size, '') = COALESCE(?, '')
+          AND COALESCE(material, '') = COALESCE(?, '')
+        LIMIT 1
+      `,
+      [...owner.ownerParams, ringId, size || null, material || null],
+    );
+
+    if (existingRows.length > 0) {
+      await pool.execute(
+        'UPDATE cart SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [quantity, existingRows[0].id],
+      );
     } else {
-      // Add new item with ring details
-      const newItem = {
-        id: Date.now(),
-        ringId,
-        quantity,
-        size: size || '7',
-        material: material || ring.material,
+      await pool.execute(
+        `
+          INSERT INTO cart (user_id, session_id, ring_id, quantity, size, material, added_at)
+          VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `,
+        [
+          owner.userId,
+          owner.sessionId,
+          ringId,
+          quantity,
+          size || '7',
+          material || ring.material,
+        ],
+      );
+    }
+
+    const updatedCart = await fetchCartItemsByOwner(owner.ownerWhere, owner.ownerParams);
+
+    res.json({
+      success: true,
+      message: 'Item added to cart',
+      sessionId: owner.sessionIdForClient,
+      data: updatedCart,
+      ring: {
+        id: ring.id,
         ring_name: ring.ring_name,
         ring_identifier: ring.ring_identifier,
         price: parseFloat(ring.price),
         image_url: ring.image_url,
-        addedAt: new Date().toISOString()
-      };
-      carts[sessionId].push(newItem);
-      console.log('Added new item:', newItem);
-    }
-    
-    console.log('Current cart for session has', carts[sessionId].length, 'items');
-    
-    // Return the session ID in the response so frontend can save it
-    res.json({ 
-      success: true, 
-      message: 'Item added to cart',
-      sessionId: sessionId,
-      data: carts[sessionId]
+        material: ring.material,
+      },
     });
   } catch (error) {
-    console.error('❌ Error adding to cart:', error);
+    console.error('Error adding to cart:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // PUT /api/cart/:id - Update quantity
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { quantity } = req.body;
-    const sessionId = getSessionId(req);
-    
-    console.log('PUT update item:', { id, quantity, sessionId });
-    
-    const cart = carts[sessionId] || [];
-    const itemIndex = cart.findIndex(item => item.id == id);
-    
-    if (itemIndex >= 0) {
-      cart[itemIndex].quantity = quantity;
-      console.log('Updated item:', cart[itemIndex]);
-      res.json({ 
-        success: true, 
-        message: 'Cart updated',
-        data: cart
-      });
-    } else {
-      console.log('Item not found:', id);
-      res.status(404).json({ 
-        success: false, 
-        message: 'Item not found' 
+    const owner = getCartOwner(req);
+
+    const [rows] = await pool.execute(
+      `
+        SELECT id
+        FROM cart
+        WHERE id = ?
+          AND ${owner.ownerWhere}
+        LIMIT 1
+      `,
+      [id, ...owner.ownerParams],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Item not found',
       });
     }
+
+    if (quantity <= 0) {
+      await pool.execute('DELETE FROM cart WHERE id = ?', [id]);
+    } else {
+      await pool.execute(
+        'UPDATE cart SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [quantity, id],
+      );
+    }
+
+    const updatedCart = await fetchCartItemsByOwner(owner.ownerWhere, owner.ownerParams);
+
+    res.json({
+      success: true,
+      message: 'Cart updated',
+      data: updatedCart,
+    });
   } catch (error) {
     console.error('Error updating cart:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // DELETE /api/cart/:id - Remove item
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const sessionId = getSessionId(req);
-    
-    console.log('DELETE remove item:', { id, sessionId });
-    
-    if (carts[sessionId]) {
-      const beforeCount = carts[sessionId].length;
-      carts[sessionId] = carts[sessionId].filter(item => item.id != id);
-      console.log(`Removed item. Before: ${beforeCount}, After: ${carts[sessionId].length}`);
+    const owner = getCartOwner(req);
+
+    const [rows] = await pool.execute(
+      `
+        SELECT id
+        FROM cart
+        WHERE id = ?
+          AND ${owner.ownerWhere}
+        LIMIT 1
+      `,
+      [id, ...owner.ownerParams],
+    );
+
+    if (rows.length > 0) {
+      await pool.execute('DELETE FROM cart WHERE id = ?', [id]);
     }
-    
-    res.json({ 
-      success: true, 
+
+    const updatedCart = await fetchCartItemsByOwner(owner.ownerWhere, owner.ownerParams);
+
+    res.json({
+      success: true,
       message: 'Item removed',
-      data: carts[sessionId] || []
+      data: updatedCart,
     });
   } catch (error) {
     console.error('Error removing from cart:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // DELETE /api/cart - Clear cart
-router.delete('/', (req, res) => {
+router.delete('/', async (req, res) => {
   try {
-    const sessionId = getSessionId(req);
-    
-    console.log('DELETE clear cart for session:', sessionId);
-    
-    carts[sessionId] = [];
-    
-    res.json({ 
-      success: true, 
+    const owner = getCartOwner(req);
+
+    await pool.execute(`DELETE FROM cart WHERE ${owner.ownerWhere}`, owner.ownerParams);
+
+    res.json({
+      success: true,
       message: 'Cart cleared',
-      data: []
+      data: [],
     });
   } catch (error) {
     console.error('Error clearing cart:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: error.message
+      error: error.message,
     });
   }
 });

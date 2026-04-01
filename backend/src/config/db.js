@@ -1,17 +1,36 @@
 const mysql = require('mysql2/promise');
 const env = require('./env');
 
-const pool = mysql.createPool({
-  host: env.db.host,
-  port: env.db.port,
-  user: env.db.user,
-  password: env.db.password,
-  database: env.db.database,
-  waitForConnections: true,
-  connectionLimit: env.db.connectionLimit,
-  queueLimit: 0,
-  namedPlaceholders: true,
-});
+let connectionPromise = null;
+
+function getConnection() {
+  if (!connectionPromise) {
+    connectionPromise = mysql.createConnection({
+      host: env.db.host,
+      port: env.db.port,
+      user: env.db.user,
+      password: env.db.password,
+      database: env.db.database,
+    }).catch((error) => {
+      connectionPromise = null;
+      throw error;
+    });
+  }
+
+  return connectionPromise;
+}
+
+const pool = {
+  getConnection: getConnection,
+  execute: async (sql, params = []) => {
+    const connection = await getConnection();
+    return connection.execute(sql, params);
+  },
+  query: async (sql, params = []) => {
+    const connection = await getConnection();
+    return connection.query(sql, params);
+  },
+};
 
 async function query(sql, params = []) {
   const [rows] = await pool.execute(sql, params);
@@ -24,12 +43,8 @@ async function execute(sql, params = []) {
 }
 
 async function ping() {
-  const conn = await pool.getConnection();
-  try {
-    await conn.ping();
-  } finally {
-    conn.release();
-  }
+  const conn = await getConnection();
+  await conn.ping();
 }
 
 async function tableExists(tableName) {
@@ -336,11 +351,26 @@ async function initializeCoreTables() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       user_id ${userIdType} NOT NULL,
       system_updates BOOLEAN DEFAULT TRUE,
+      security_alerts BOOLEAN DEFAULT FALSE,
+      order_placement BOOLEAN DEFAULT FALSE,
+      push_notifications BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE KEY uq_notification_user (user_id)
     ) ENGINE=InnoDB
   `);
   await execute(`ALTER TABLE notification_preferences MODIFY COLUMN user_id ${userIdType} NOT NULL`);
+  await execute(`
+    ALTER TABLE notification_preferences
+    ADD COLUMN IF NOT EXISTS security_alerts BOOLEAN DEFAULT FALSE AFTER system_updates
+  `).catch(() => {});
+  await execute(`
+    ALTER TABLE notification_preferences
+    ADD COLUMN IF NOT EXISTS order_placement BOOLEAN DEFAULT FALSE AFTER security_alerts
+  `).catch(() => {});
+  await execute(`
+    ALTER TABLE notification_preferences
+    ADD COLUMN IF NOT EXISTS push_notifications BOOLEAN DEFAULT FALSE AFTER order_placement
+  `).catch(() => {});
   await execute(
     `
       ALTER TABLE notification_preferences
@@ -485,6 +515,35 @@ async function initializeCoreTables() {
     `
       ALTER TABLE rings
       ADD CONSTRAINT fk_rings_batch FOREIGN KEY (batch_id) REFERENCES ring_batches(id) ON DELETE SET NULL
+    `,
+  ).catch(() => {});
+
+  await execute(`
+    CREATE TABLE IF NOT EXISTS cart (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id ${userIdType} NULL,
+      session_id VARCHAR(128) NULL,
+      ring_id BIGINT NOT NULL,
+      quantity INT NOT NULL DEFAULT 1,
+      size VARCHAR(20) NULL,
+      material VARCHAR(80) NULL,
+      added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_cart_user_id (user_id),
+      KEY idx_cart_session_id (session_id),
+      KEY idx_cart_ring_id (ring_id)
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE cart
+      ADD CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      ALTER TABLE cart
+      ADD CONSTRAINT fk_cart_ring FOREIGN KEY (ring_id) REFERENCES rings(id) ON DELETE CASCADE
     `,
   ).catch(() => {});
 

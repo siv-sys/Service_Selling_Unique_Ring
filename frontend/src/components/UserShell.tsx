@@ -1,6 +1,6 @@
-import type { PropsWithChildren } from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import type { ChangeEvent, PropsWithChildren } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { api, API_BASE_URL, resolveApiAssetUrl } from '../lib/api';
 import {
   getStoredAuthValue,
@@ -8,23 +8,17 @@ import {
   setUserScopedLocalStorageItem,
   removeUserScopedLocalStorageItem,
 } from '../lib/userStorage';
-const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
 const USER_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
 const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
 const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
 
-type NavItem = {
-  label: string;
-  to: string;
-};
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', to: '/dashboard' },
-  { label: 'Couple Shop', to: '/shop' },
-  { label: 'My Ring', to: '/myring' },
-  { label: 'Couple Profile', to: '/couple-profile' },
-  { label: 'Relationship', to: '/relationship' },
-  { label: 'Settings', to: '/settings' },
+const NAV_ITEMS = [
+  { name: 'Dashboard', path: '/dashboard' },
+  { name: 'Couple Shop', path: '/shop' },
+  { name: 'My Ring', path: '/myring' },
+  { name: 'Couple Profile', path: '/couple-profile' },
+  { name: 'Relationship', path: '/relationship' },
+  { name: 'Settings', path: '/settings' },
 ];
 
 function readStoredUserAvatar() {
@@ -32,28 +26,24 @@ function readStoredUserAvatar() {
 }
 
 export default function UserShell({ children }: PropsWithChildren) {
+  const location = useLocation();
   const [cartCount, setCartCount] = useState(0);
   const [displayName, setDisplayName] = useState('Alex & Jamie');
-  const [hasPurchasedRing, setHasPurchasedRing] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => readStoredUserAvatar());
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
+  const [messageDraft, setMessageDraft] = useState(
+    'Hi Admin, I have completed my payment and would like to send my receipt for verification.',
+  );
+  const [receiptPreview, setReceiptPreview] = useState<string>('');
+  const [receiptName, setReceiptName] = useState<string>('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [messageFeedback, setMessageFeedback] = useState('');
+  const messagePanelRef = useRef<HTMLDivElement>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const authName = sessionStorage.getItem('auth_name')?.trim();
     setDisplayName(authName || 'Member');
-    setHasPurchasedRing(Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY)));
-  }, []);
-
-  useEffect(() => {
-    const syncPurchasedRingState = () => {
-      setHasPurchasedRing(Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY)));
-    };
-
-    window.addEventListener('storage', syncPurchasedRingState);
-    window.addEventListener('focus', syncPurchasedRingState);
-    return () => {
-      window.removeEventListener('storage', syncPurchasedRingState);
-      window.removeEventListener('focus', syncPurchasedRingState);
-    };
   }, []);
 
   useEffect(() => {
@@ -109,6 +99,18 @@ export default function UserShell({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (messagePanelRef.current && !messagePanelRef.current.contains(target)) {
+        setIsMessageOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     const updateCartCount = async () => {
       try {
         const sessionId = getUserScopedLocalStorageItem('sessionId');
@@ -143,10 +145,104 @@ export default function UserShell({ children }: PropsWithChildren) {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
 
-  const navItems = useMemo(
-    () => NAV_ITEMS.filter((item) => item.to !== '/myring' || hasPurchasedRing),
-    [hasPurchasedRing],
-  );
+  const navItems = useMemo(() => NAV_ITEMS, []);
+
+  const handleMessageAdmin = () => {
+    setIsMessageOpen((current) => !current);
+    setMessageFeedback('');
+  };
+
+  const handleReceiptUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setMessageFeedback('Please upload an image receipt.');
+      event.target.value = '';
+      return;
+    }
+
+    const maxSizeBytes = 4 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      setMessageFeedback('Receipt image must be 4 MB or smaller.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        setMessageFeedback('Could not read the uploaded image.');
+        return;
+      }
+
+      setReceiptPreview(reader.result);
+      setReceiptName(file.name);
+      setMessageFeedback('');
+    };
+    reader.onerror = () => {
+      setMessageFeedback('Could not read the uploaded image.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const sendMessageToAdmin = async () => {
+    const text = messageDraft.trim();
+    if (!text && !receiptPreview) {
+      setMessageFeedback('Please type a message or attach a receipt image.');
+      return;
+    }
+
+    setIsSendingMessage(true);
+    setMessageFeedback('');
+
+    try {
+      const payload = {
+        subject: 'Receipt verification request',
+        message: text,
+        attachment: receiptPreview || undefined,
+        attachmentName: receiptName || undefined,
+      };
+
+      const sendSupportMessage = async (path: string) =>
+        api.post<{ created?: number; totalAdmins?: number }>(path, payload);
+
+      let response;
+      try {
+        response = await sendSupportMessage('/notifications/support-message');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
+        if (errorMessage.includes('route not found')) {
+          response = await sendSupportMessage('/support-message');
+        } else {
+          throw error;
+        }
+      }
+
+      const created = Number(response?.created || 0);
+      const totalAdmins = Number(response?.totalAdmins || 0);
+      setMessageFeedback(
+        created > 0
+          ? `Sent to ${created}${totalAdmins > 1 ? ' admin accounts' : ' admin account'}.`
+          : 'Message sent.',
+      );
+      setMessageDraft(
+        'Hi Admin, I have completed my payment and would like to send my receipt for verification.',
+      );
+      setReceiptPreview('');
+      setReceiptName('');
+      if (receiptInputRef.current) {
+        receiptInputRef.current.value = '';
+      }
+      window.dispatchEvent(new Event('bondkeeper:support-message-sent'));
+    } catch (error) {
+      setMessageFeedback(error instanceof Error ? error.message : 'Failed to send message.');
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-charcoal dark:text-white">
@@ -158,32 +254,96 @@ export default function UserShell({ children }: PropsWithChildren) {
               <span className="heading-serif text-2xl font-semibold tracking-tight">BondKeeper</span>
             </Link>
 
-            <nav className="hidden items-center gap-7 text-sm font-medium text-slate-700 dark:text-slate-100 lg:flex">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    [
-                      'border-b pb-1 transition-colors',
-                      isActive ? 'border-primary/40 text-slate-950 dark:text-white' : 'border-transparent hover:text-primary dark:hover:text-pink-300',
-                    ].join(' ')
-                  }
+            {/* Navigation Links - Desktop */}
+            <nav className="hidden lg:flex items-center gap-5">
+              {NAV_ITEMS.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    location.pathname === item.path
+                      ? 'text-primary border-b-2 border-primary pb-1'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
                 >
-                  {item.label}
-                </NavLink>
+                  {item.name}
+                </Link>
               ))}
             </nav>
           </div>
 
           <div className="flex shrink-0 items-center gap-3 md:gap-5">
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="text-slate-500 transition-colors hover:text-primary dark:text-slate-200"
-            >
-              <span className="material-symbols-outlined">notifications_none</span>
-            </button>
+            <div className="relative" ref={messagePanelRef}>
+              <button
+                type="button"
+                aria-label="Message admin"
+                className="flex items-center gap-2 rounded-full border border-[#ece7ed] px-4 py-2 text-[#27272a] transition-colors hover:border-[#f542a7] hover:text-[#f542a7] dark:border-slate-700 dark:text-slate-200"
+                onClick={handleMessageAdmin}
+              >
+                <span className="material-symbols-outlined text-[22px] leading-none">chat_bubble</span>
+                <span className="text-sm font-medium">Message admin</span>
+              </button>
+
+              {isMessageOpen && (
+                <div className="absolute right-0 top-14 z-50 w-[360px] rounded-2xl border border-[#ece7ed] bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                <div className="mb-3">
+                  <p className="text-sm font-bold text-[#27272a] dark:text-slate-100">Send a receipt message</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    This will appear in the admin inbox for verification.
+                  </p>
+                </div>
+                <textarea
+                    className="min-h-[140px] w-full resize-none rounded-xl border border-[#ece7ed] bg-white px-3 py-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#f542a7] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    value={messageDraft}
+                    onChange={(event) => setMessageDraft(event.target.value)}
+                    placeholder="Write your message to the admin..."
+                  />
+                  <div className="mt-3">
+                    <input
+                      ref={receiptInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleReceiptUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => receiptInputRef.current?.click()}
+                      className="w-full rounded-xl border border-dashed border-[#ece7ed] px-3 py-3 text-left text-sm font-semibold text-slate-600 transition-colors hover:border-[#f542a7] hover:text-[#f542a7] dark:border-slate-700 dark:text-slate-300"
+                    >
+                      {receiptName ? `Attached receipt: ${receiptName}` : 'Attach receipt image'}
+                    </button>
+                    {receiptPreview && (
+                      <div className="mt-3 overflow-hidden rounded-xl border border-[#ece7ed] dark:border-slate-700">
+                        <img src={receiptPreview} alt="Receipt preview" className="h-40 w-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMessageDraft(
+                          'Hi Admin, I have completed my payment and would like to send my receipt for verification.',
+                        )
+                      }
+                      className="text-xs font-semibold text-slate-500 hover:text-[#f542a7]"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void sendMessageToAdmin()}
+                      disabled={isSendingMessage}
+                      className="rounded-full bg-[#f542a7] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#e11d76] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSendingMessage ? 'Sending...' : 'Send'}
+                    </button>
+                  </div>
+                  {messageFeedback && <p className="mt-2 text-xs text-slate-500">{messageFeedback}</p>}
+                </div>
+              )}
+            </div>
 
             <Link to="/cart" className="relative text-slate-500 transition-colors hover:text-primary dark:text-slate-200">
               <span className="material-symbols-outlined">shopping_cart</span>
@@ -213,6 +373,25 @@ export default function UserShell({ children }: PropsWithChildren) {
           </div>
         </div>
       </header>
+
+      {/* Mobile Navigation Menu */}
+      <nav className="lg:hidden bg-white dark:bg-slate-900 border-b border-primary/10 dark:border-slate-700/70 overflow-x-auto">
+        <div className="flex px-4 py-2 space-x-4 min-w-max">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`text-sm font-medium transition-colors hover:text-primary px-2 py-1 ${
+                location.pathname === item.path
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
+      </nav>
 
       <div className="user-shell-content">
         {children}

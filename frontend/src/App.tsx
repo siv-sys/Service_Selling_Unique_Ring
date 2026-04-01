@@ -1,14 +1,15 @@
-import type { ReactElement } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+﻿﻿import type { ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import Layout from './components/Layout.tsx';
-import UserShell from './components/UserShell.tsx';
-import { GoogleAccountSelector } from './components/GoogleAccountSelector.tsx';
+import ConfirmDialog from './components/ConfirmDialog';
+import Layout from './components/Layout';
+import UserShell from './components/UserShell';
+import { GoogleAccountSelector } from './components/GoogleAccountSelector';
 import { api, type AuthUser } from './lib/api';
 import { THEME_EVENT, syncStoredTheme } from './lib/theme';
 import AdminSeedView from './views/AdminSeedView';
 import AdminDashboardView from './views/AdminDashboardView';
-import CartView from './views/cardView';
+import CartView from './views/Cart';
 import CoupleProfileView from './views/CoupleProfileView';
 import CoupleShopView from './views/CoupleShopView';
 import DashboardView from './views/DashboardView';
@@ -17,17 +18,17 @@ import { LoginScreen } from './views/LoginView';
 import MemoriesView from './views/MemoriesView';
 import MyRingView from './views/MyRingView';
 import ProfileView from './views/ProfileView';
+import PublicProfileView from './views/PublicProfileView';
+import PurchaseView from './views/Purchase';
 import { RegisterScreen } from './views/RegisterView';
 import RelationshipView from './views/RelationshipView';
 import RingInformationView from './views/RingInformation';
 import { ResetPasswordScreen } from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
-import { getUserScopedLocalStorageItem } from './lib/userStorage';
 
 const USER_HOME_PATH = '/dashboard';
-const ADMIN_HOME_PATH = '/AdminDashboard';
-const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
+const ADMIN_HOME_PATH = '/admindashboard';
 
 function normalizeRole(role: string | null | undefined): AuthUser['role'] {
   return String(role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
@@ -62,16 +63,12 @@ function getStoredAccessToken(): string | null {
   return sessionStorage.getItem('auth_access_token') || localStorage.getItem('auth_access_token');
 }
 
-function hasPurchasedRing() {
-  if (typeof window === 'undefined') return false;
-  return Boolean(getUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY));
-}
-
 function persistAuth(user: AuthUser, accessToken: string, remember: boolean, rememberToken?: string | null) {
+  const displayName = user.name?.trim() || user.email.split('@')[0] || user.email;
   sessionStorage.setItem('auth_user_id', String(user.id));
   sessionStorage.setItem('auth_roles', user.role);
   sessionStorage.setItem('auth_email', user.email);
-  sessionStorage.setItem('auth_name', user.name || '');
+  sessionStorage.setItem('auth_name', displayName);
   sessionStorage.setItem('auth_access_token', accessToken);
 
   if (remember) {
@@ -109,12 +106,14 @@ function AppRoutes() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isHydratingAuth, setIsHydratingAuth] = useState(true);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   const role = authUser?.role || null;
   const isAdmin = role === 'admin';
   const isUser = role === 'user';
   const isAuthenticated = role !== null;
   const roleHomePath = isAuthenticated ? getRoleHomePath(role) : '/login';
+  const isPublicProfileRoute = /^\/u\/[^/]+\/?$/.test(location.pathname);
 
   useEffect(() => {
     syncStoredTheme(role);
@@ -235,7 +234,16 @@ function AppRoutes() {
     }
   };
 
-  const handleLogout = async () => {
+  const requestLogout = useCallback(() => {
+    setIsLogoutConfirmOpen(true);
+  }, []);
+
+  const closeLogoutConfirm = useCallback(() => {
+    setIsLogoutConfirmOpen(false);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    setIsLogoutConfirmOpen(false);
     try {
       await api.logout();
     } catch {
@@ -245,13 +253,13 @@ function AppRoutes() {
     clearAuth();
     setAuthUser(null);
     navigate('/login', { replace: true });
-  };
+  }, [navigate]);
 
   const adminLayout = useMemo(
     () =>
       (view: ReactElement) =>
-        isAdmin ? <Layout onLogout={handleLogout}>{view}</Layout> : <Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />,
-    [handleLogout, isAdmin, isAuthenticated, roleHomePath],
+        isAdmin ? <Layout onLogout={requestLogout}>{view}</Layout> : <Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />,
+    [requestLogout, isAdmin, isAuthenticated, roleHomePath],
   );
   const userLayout = useMemo(
     () =>
@@ -260,13 +268,15 @@ function AppRoutes() {
     [isAuthenticated, isUser, roleHomePath],
   );
 
-  if (isHydratingAuth) {
+  if (isHydratingAuth && !isPublicProfileRoute) {
     return null;
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
+    <>
+      <Routes>
+        <Route path="/" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
+        <Route path="/u/:handle" element={<PublicProfileView />} />
 
       <Route
         path="/login"
@@ -315,7 +325,9 @@ function AppRoutes() {
           )
         }
       />
-
+      <Route path="/cart" element={userLayout(<CartView />)} />
+      <Route path="/purchase" element={userLayout(<PurchaseView />)} />  // ADD THIS LINE
+      <Route path={ADMIN_HOME_PATH} element={adminLayout(<AdminDashboardView />)} />
       <Route
         path="/reset-password"
         element={
@@ -339,10 +351,7 @@ function AppRoutes() {
       <Route path="/shop" element={userLayout(<CoupleShopView />)} />
       <Route path="/shop/rings/:ringId" element={userLayout(<RingInformationView />)} />
       <Route path="/couple-shop" element={<Navigate to="/shop" replace />} />
-      <Route
-        path="/myring"
-        element={hasPurchasedRing() ? userLayout(<MyRingView />) : <Navigate to="/shop" replace />}
-      />
+      <Route path="/myring" element={userLayout(<MyRingView />)} />
       <Route path="/ring-view" element={userLayout(<RingInformationView />)} />
       <Route path="/ring-view/:ringId" element={userLayout(<RingInformationView />)} />
       <Route path="/profile" element={userLayout(<ProfileView />)} />
@@ -364,8 +373,21 @@ function AppRoutes() {
       />
       <Route path="/memories" element={userLayout(<MemoriesView />)} />
 
-      <Route path="*" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to={isAuthenticated ? roleHomePath : '/login'} replace />} />
+      </Routes>
+
+      <ConfirmDialog
+        isOpen={isLogoutConfirmOpen}
+        title="Log Out?"
+        message="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Stay Here"
+        onConfirm={() => {
+          void handleLogout();
+        }}
+        onClose={closeLogoutConfirm}
+      />
+    </>
   );
 }
 

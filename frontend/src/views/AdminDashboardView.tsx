@@ -74,6 +74,18 @@ type RelationshipUserAlert = {
   time: string;
   type: 'new' | 'returning' | 'active' | 'anniversary';
 };
+type DashboardNotification = {
+  id: string;
+  type: string;
+  icon?: string;
+  iconClass?: string | null;
+  actionKey?: string | null;
+  title: string;
+  message: string;
+  unread: boolean;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+};
 type DashboardResponse = {
   stats: {
     totalUsers: number;
@@ -90,6 +102,7 @@ type DashboardResponse = {
   relationshipFollows: RelationshipFollow[];
   pairingRequests: PairingRequest[];
   relationshipUserAlerts: RelationshipUserAlert[];
+  adminNotifications?: DashboardNotification[];
   weeklyConnectivity: WeeklyConnectivityPoint[];
 };
 const AdminDashboardView = () => {
@@ -116,6 +129,7 @@ const AdminDashboardView = () => {
   const activeRelationshipsValue = String(dashboardStats.activeRelationships);
   const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([]);
   const [relationshipUserAlerts, setRelationshipUserAlerts] = useState<RelationshipUserAlert[]>([]);
+  const [adminNotifications, setAdminNotifications] = useState<DashboardNotification[]>([]);
 
   const getErrorMessage = (error: unknown, fallback: string) => {
     if (error instanceof Error && error.message) {
@@ -144,6 +158,9 @@ const AdminDashboardView = () => {
     if (Array.isArray(response.relationshipUserAlerts)) {
       setRelationshipUserAlerts(response.relationshipUserAlerts);
     }
+    if (Array.isArray(response.adminNotifications)) {
+      setAdminNotifications(response.adminNotifications);
+    }
   };
 
   const reloadDashboardFromBackend = async () => {
@@ -171,13 +188,55 @@ const AdminDashboardView = () => {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const refreshDashboard = () => {
+      void reloadDashboardFromBackend().catch(() => {});
+    };
+
+    const intervalId = window.setInterval(refreshDashboard, 30000);
+    window.addEventListener('focus', refreshDashboard);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshDashboard);
+    };
+  }, []);
+
   const recentAlerts = useMemo<RecentAlert[]>(() => {
+    const paymentAlerts = adminNotifications
+      .filter((item) => item.type === 'payment_received' || item.type === 'support_message')
+      .slice(0, 3)
+      .map((item, index) => {
+        const metadata = item.metadata && typeof item.metadata === 'object' ? item.metadata : null;
+        const customerName = metadata && typeof metadata.customerName === 'string' ? metadata.customerName : 'A customer';
+        const senderName = metadata && typeof metadata.senderName === 'string' ? metadata.senderName : 'A member';
+        const ringName = metadata && typeof metadata.ringName === 'string' ? metadata.ringName : 'a ring';
+        const sku = metadata && typeof metadata.sku === 'string' ? metadata.sku : '';
+        const total = metadata && typeof metadata.total === 'number' ? metadata.total : null;
+        const attachmentName = metadata && typeof metadata.attachmentName === 'string' ? metadata.attachmentName : '';
+        const amountText = typeof total === 'number' && Number.isFinite(total) ? ` totaling $${total}` : '';
+        const ringText = sku ? `${ringName} (${sku})` : ringName;
+        const isSupportMessage = item.type === 'support_message';
+
+        return {
+          id: item.id || `payment-${index}`,
+          title: item.title || (isSupportMessage ? 'Receipt message received' : 'Payment received'),
+          desc: isSupportMessage
+            ? `${senderName} sent a receipt message${attachmentName ? ` with ${attachmentName}` : ''}.`
+            : item.message || `${customerName} paid for ${ringText}${amountText}.`,
+          time: item.createdAt ? new Date(item.createdAt).toLocaleString() : 'just now',
+          color: isSupportMessage ? 'primary' : 'green',
+          icon: isSupportMessage ? 'info' : 'check',
+        };
+      });
     const pendingRequests = pairingRequests.filter((item) => item.status === 'Pending');
     const approvedRequests = pairingRequests.filter((item) => item.status === 'Approved');
     const activeUsers = relationshipUserAlerts.filter((item) => item.type === 'active').length;
     const anniversaryCount = relationshipUserAlerts.filter((item) => item.type === 'anniversary').length;
 
     return [
+      ...paymentAlerts,
       pendingRequests.length
         ? {
           id: 'pending-pairing',
@@ -215,7 +274,30 @@ const AdminDashboardView = () => {
         icon: 'info'
       }
     ].filter(Boolean) as RecentAlert[];
-  }, [pairingRequests, relationshipUserAlerts]);
+  }, [adminNotifications, pairingRequests, relationshipUserAlerts]);
+
+  const headerNotifications = useMemo(
+    () =>
+      adminNotifications.map((item) => ({
+        id: item.id,
+        title: item.title,
+        description: item.message,
+        imageUrl:
+          item.type === 'support_message' && item.metadata && typeof item.metadata === 'object'
+            ? typeof item.metadata.attachment === 'string'
+              ? item.metadata.attachment
+              : ''
+            : '',
+        imageName:
+          item.type === 'support_message' && item.metadata && typeof item.metadata === 'object'
+            ? typeof item.metadata.attachmentName === 'string'
+              ? item.metadata.attachmentName
+              : ''
+            : '',
+        time: item.createdAt ? new Date(item.createdAt).toLocaleString() : 'just now',
+      })),
+    [adminNotifications],
+  );
 
   const getTimestamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
@@ -372,7 +454,7 @@ const AdminDashboardView = () => {
         subtitle={`Platform performance and key metrics at a glance ${dbConnected ? '🟢 Database Connected' : '🔴 Database Offline'}`}
         onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
-        notifications={relationshipUserAlerts}
+        notifications={headerNotifications}
         showExportButton
       />
 

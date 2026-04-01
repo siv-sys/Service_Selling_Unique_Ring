@@ -6,6 +6,8 @@ import { ResetPasswordScreen } from '../views/ResetPasswordView';
 import AdminDashboardView from '../views/AdminDashboardView';
 import { GoogleAccountSelector } from './GoogleAccountSelector';
 import { api, type AuthUser } from '../lib/api';
+import PurchaseView from '../views/Purchase';
+
 
 export default function App() {
   const [screen, setScreen] = useState<AuthScreen>('login');

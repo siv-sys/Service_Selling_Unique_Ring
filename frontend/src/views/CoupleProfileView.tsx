@@ -43,15 +43,15 @@ const CoupleProfileView: React.FC = () => {
 
   // Ring data
   const [ringData, setRingData] = useState<RingData>({
-    id: 'TSS-002',
-    name: 'Twin Souls Silver B',
+    id: 'BK-102',
+    name: 'Twin Souls Silver',
     material: 'Sterling Silver',
     size: '7',
-    identifier: 'SHOP-TSS-002',
-    status: 'SYSTEM ONLINE',
+    identifier: 'BondKeeper ring set',
+    status: 'Ready to Wear',
     batteryLevel: 88,
-    lastPing: '2m ago',
-    location: 'WAREHOUSE: Main WH'
+    lastPing: 'Just now',
+    location: 'BondKeeper studio'
   });
 
   // Show notification function
@@ -74,7 +74,7 @@ const CoupleProfileView: React.FC = () => {
     }
 
     // Show certification notification (replacing alert)
-    if (ringData?.id === 'TSS-002') {
+    if (ringData?.id === 'BK-102') {
       showCertificationNotification();
     }
   }, [ringData?.id]);
@@ -91,7 +91,7 @@ const CoupleProfileView: React.FC = () => {
 
   // Certification notification function
   const showCertificationNotification = () => {
-    showNotification('Ring certification in progress. Estimated completion: 2 weeks', 'info');
+    showNotification('Your ring is being prepared and checked for quality. Estimated completion: 2 weeks', 'info');
   };
 
   // Load cart count
@@ -130,50 +130,45 @@ const CoupleProfileView: React.FC = () => {
     }
   };
 
-  // Handle notification click
-  const handleNotificationClick = () => {
-    showNotification('No new notifications', 'info');
-  };
-
-  // Handle navigation (for placeholder links)
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, page: string) => {
+  // Handle navigation
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
     e.preventDefault();
-    showNotification(`${page} page coming soon!`, 'info');
+    navigate(path);
   };
 
   // Handle search
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchEmail.trim()) {
-      showNotification(`Searching for partner with email: ${searchEmail}`, 'info');
+      showNotification(`Looking up partner email: ${searchEmail}`, 'info');
     }
   };
 
   // Handle emergency contact update
   const handleEmergencyContactUpdate = () => {
-    showNotification('Emergency contact updated successfully!', 'success');
+    showNotification('Emergency contact saved successfully.', 'success');
   };
 
   // Handle test connection
   const handleTestConnection = () => {
-    showNotification('Testing connection to your ring...', 'info');
+    showNotification('Checking your ring connection...', 'info');
   };
 
   // Handle unpair device
   const handleUnpairDevice = () => {
     showConfirm('Are you sure you want to unpair this device?', () => {
-      showNotification('Device unpaired successfully', 'success');
+      showNotification('Your ring has been unpaired.', 'success');
     });
   };
 
   // Handle initialize link
   const handleInitializeLink = () => {
-    showNotification('Initializing pair link...', 'info');
+    showNotification('Preparing your pair link...', 'info');
   };
 
   // Handle set reminder
   const handleSetReminder = () => {
-    showNotification('Reminder set for your anniversary!', 'success');
+    showNotification('Anniversary reminder saved.', 'success');
   };
 
   // Handle update contact
@@ -182,7 +177,7 @@ const CoupleProfileView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-cream dark:bg-charcoal">
+    <div className="min-h-screen bg-cream dark:bg-white-900">
       {/* STICKY HEADER - Full navbar with diamond logo */}
       <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-charcoal/80 premium-blur border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
@@ -193,21 +188,20 @@ const CoupleProfileView: React.FC = () => {
               <span className="heading-serif text-2xl font-semibold tracking-wide text-primary">BondKeeper</span>
             </Link>
             <nav className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
-              <Link to="/" className="hover:text-primary transition-colors">Dashboard</Link>
+              <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
               <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
               <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
               <Link to="/profile" className="text-primary border-b border-primary/40 pb-1">Couple Profile</Link>
               <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
+              <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
             </nav>
           </div>
           {/* right icons & member */}
           <div className="flex items-center gap-6">
-            <button onClick={handleNotificationClick} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
-              <span className="material-symbols-outlined">notifications_none</span>
-            </button>
             <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
               <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
             </button>
+            
             <Link to="/cart" className="relative">
               <button className="text-charcoal/60 hover:text-primary">
                 <span className="material-symbols-outlined">shopping_cart</span>
@@ -218,8 +212,9 @@ const CoupleProfileView: React.FC = () => {
                 </span>
               )}
             </Link>
+            
             <div className="flex items-center gap-3 pl-2 border-l border-primary/20">
-              <span className="text-sm font-medium hidden sm:inline">Alex & Jamie</span>
+              <span className="text-sm font-medium hidden sm:inline">{coupleName}</span>
               <Link to="/profile">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center text-white shadow-md">
                   <span className="material-symbols-outlined">favorite</span>
@@ -235,7 +230,7 @@ const CoupleProfileView: React.FC = () => {
         <section className="px-4 py-6">
           <div className="max-w-7xl mx-auto px-6 pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-black">Welcome back, {memberName}</h2>
+              <h2 className="text-3xl font-bold text-pink-500 dark:text-pink-400">Welcome back, {memberName}</h2>
               <p className="text-slate-400 dark:text-slate-500 mt-1">Everything looks great today.</p>
             </div>
             <div className="w-full max-w-md">
@@ -258,18 +253,18 @@ const CoupleProfileView: React.FC = () => {
           </div>
         </section>
 
-        {/* Relationship chronicle */}
+      {/* Relationship chronicle */}
         <section className="px-4 gap-4 mb-6">
           <div className="max-w-7xl mx-auto px-6">
             <div className="bg-gradient-to-br from-white to-primary/5 dark:from-surface-dark dark:to-primary/10 rounded-3xl p-9 border border-primary/10 shadow-premium mb-16">
               <div className="flex flex-wrap items-center justify-between gap-4 mb-9">
-                <h2 className="heading-serif text-4xl font-light flex items-center gap-3">
-                  <span className="text-primary">✦</span> Relationship chronicle
+                <h2 className="heading-serif text-4xl font-light flex items-center gap-3 text-pink-500 dark:text-pink-400">
+                  <span className="text-pink-500">✦</span> Relationship chronicle
                 </h2>
                 <a 
                   href="#" 
                   onClick={(e) => handleNavClick(e, 'Full Relationship Hub')}
-                  className="group flex items-center gap-2 text-primary border border-primary/30 rounded-full px-6 py-3 hover:bg-primary/5 transition-all"
+                  className="group flex items-center gap-2 border border-primary/30 rounded-full px-6 py-3 hover:bg-primary/5 transition-all text-sm font-bold text-pink-600 dark:text-pink-400 hover:text-primary"
                 >
                   <span>Open full hub</span>
                   <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">chevron_right</span>
@@ -291,7 +286,7 @@ const CoupleProfileView: React.FC = () => {
                     <p className="text-sm uppercase tracking-widest text-charcoal/40 dark:text-cream/40">Linked rings</p>
                     <p className="text-lg font-medium mt-1 dark:text-black">Hers: Elysian Halo</p>
                     <p className="text-lg font-medium dark:text-black">His: Midnight Sapphire</p>
-                    <p className="ring-ID text-xs text-primary mt-2">Ring ID: {ringData.id}</p>
+                    <p className="ring-ID text-xs text-primary mt-2">Ring reference: {ringData.id}</p>
                     <p className="text-xs text-primary/70 mt-2">both certified · bond active</p>
                   </div>
                 </div>
@@ -315,11 +310,12 @@ const CoupleProfileView: React.FC = () => {
           </div>
         </section>
 
+        
         {/* Ring Status Card + Pairing Management (two columns) */}
         <section className="max-w-7xl mx-auto px-6 my-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left large card: Ring Main */}
-            <div className="lg:col-span-2 bg-white dark:bg-pink-200 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
+            <div className="lg:col-span-2 bg-white dark:bg-pink-100 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-200">
               <div className="flex justify-between items-start mb-8">
                 <div className="flex items-center gap-4">
                   <div className="size-14 bg-slate-100 dark:bg-pink-700 rounded-2xl flex items-center justify-center">
@@ -374,7 +370,7 @@ const CoupleProfileView: React.FC = () => {
                     <span className="material-symbols-outlined text-green-500">battery_charging_80</span>
                     <p className="text-2xl font-bold dark:text-black">{ringData.batteryLevel}%</p>
                   </div>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Approx. 14 hours left</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Estimated 14 hours of use left</p>
                 </div>
                 <div className="bg-slate-50/50 dark:bg-white 400/50 p-4 rounded-3xl">
                   <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-4">Signal Strength</p>
@@ -382,120 +378,58 @@ const CoupleProfileView: React.FC = () => {
                     <span className="material-symbols-outlined text-primary rotate-45">signal_cellular_4_bar</span>
                     <p className="text-xl font-bold dark:text-black">Excellent</p>
                   </div>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Last ping: {ringData.lastPing}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Last update: {ringData.lastPing}</p>
                 </div>
               </div>
               {/* two action buttons */}
               <div className="grid grid-cols-2 gap-4">
                 <button 
                   onClick={handleTestConnection}
-                  className="w-full bg-primary/10 text-primary py-4 rounded-2xl font-bold text-sm hover:bg-primary/20 transition-colors border border-primary/30"
+                  className="w-full bg-primary/10 py-4 rounded-2xl font-bold text-sm hover:bg-primary/20 transition-colors border border-primary/30 text-pink-500 dark:text-pink-400"
                 >
                   Test Connection
                 </button>
                 <button 
                   onClick={handleUnpairDevice}
-                  className="w-full bg-primary/10 text-primary py-4 rounded-2xl font-bold text-sm hover:bg-primary/30 transition-colors border border-primary/30"
+                  className="w-full bg-primary/10  py-4 rounded-2xl font-bold text-sm hover:bg-primary/30 transition-colors border border-primary/30 text-red-500 dark:text-red-400"
                 >
                   Unpair Device
                 </button>
               </div>
             </div>
             {/* Right card: Pairing Management */}
-            <div className="bg-white dark:bg-pink-200 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-300">
+            <div className="bg-white dark:bg-pink-100 p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-pink-200">
               <h3 className="text-lg font-bold mb-6 text-primary text-primary">Pairing Management</h3>
               <div className="space-y-4 mb-10">
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
-                  <span className="text-sm text-slate-400 dark:text-slate-500">Pair Selection</span>
-                  <span className="text-sm font-bold text-primary text-primary">No pair linked</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Pair Status</span>
+                  <span className="text-sm font-bold text-primary text-primary">No partner linked yet</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
                   <span className="text-sm text-slate-400 dark:text-slate-500">Pair Code</span>
-                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
+                  <span className="text-sm font-bold text-primary text-primary">Available after pairing</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
-                  <span className="text-sm text-slate-400 dark:text-slate-500">Status</span>
-                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Connection</span>
+                  <span className="text-sm font-bold text-primary text-primary">Not connected</span>
                 </div>
                 <div className="flex justify-between items-center pb-4">
-                  <span className="text-sm text-slate-400 dark:text-slate-500">Established</span>
-                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Connected Since</span>
+                  <span className="text-sm font-bold text-primary text-primary">Not set</span>
                 </div>
               </div>
               <button 
                 onClick={handleInitializeLink}
-                className="w-full border-2 border-dashed border-primary/30 text-primary py-4 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors"
+                className="w-full border-2 border-dashed border-primary/30 py-4 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors text-pink-500 dark:text-pink-400"
               >
-                Initialize Link
+                Start Pairing
               </button>
             </div>
           </div>
         </section>
 
-        {/* SHARED SAFEGUARDS (single card) */}
-        <div className="max-w-7xl mx-auto px-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-primary text-primary">Shared Safeguards</h3>
-                <span className="material-symbols-outlined text-primary"></span>
-              </div>
-              <div className="bg-white dark:bg-white-200 p-6 rounded-3xl border border-slate-50 dark:border-black-300 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">Proximity Awareness</p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      defaultChecked 
-                      className="sr-only peer"
-                    />
-                    <div className="w-12 h-6 bg-slate-200 dark:bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Sensitivity Threshold</p>
-                    <span className="text-xs font-bold text-primary">{proximityThreshold}m</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="100" 
-                    value={proximityThreshold}
-                    onChange={(e) => setProximityThreshold(parseInt(e.target.value))}
-                    className="w-full h-1 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
-                </div>
-                <br />
-                <a 
-                  href="#" 
-                  onClick={(e) => handleNavClick(e, 'Pair New Device')}
-                  className="flex items-center gap-1 font-bold hover:underline text-slate-900 dark:text-white"
-                >
-                  <span className="material-symbols-outlined text-lg">add_circle</span>Pair New Device
-                </a>
-                <br />
-                <div className="w-full">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-[10px] font-bold text-pink-400 dark:text-slate-500 uppercase">Cloud Storage</p>
-                    <p className="text-[10px] font-bold text-primary">{cloudStorageUsed}GB / {cloudStorageTotal}GB</p>
-                  </div>
-                  <div className="w-full bg-pink-100 dark:bg-pink-70 rounded-full h-1.5">
-                    <div 
-                      className="bg-primary h-1.5 rounded-full" 
-                      style={{ width: `${(cloudStorageUsed / cloudStorageTotal) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Empty placeholder for symmetry */}
-            <div></div>
-          </div>
-        </div>
-
         {/* TWO COLUMN LAYOUT: EMERGENCY CONTACT (left) + VISIBILITY SETTINGS (right) */}
-        <div className="max-w-7xl mx-auto px-6 mb-8">
+        <div className="max-w-7xl mx-auto px-6 mb-8 mt-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* LEFT: Emergency Contact card */}
             <div className="space-y-4">
@@ -505,7 +439,7 @@ const CoupleProfileView: React.FC = () => {
                   <h3 className="text-lg font-bold text-primary text-primary">Emergency Contact</h3>
                 </div>
               </div>
-              <div className="bg-white dark:bg-white-800 p-8 rounded-[2rem] border border-slate-50 dark:border-slate-70 shadow-sm">
+              <div className="bg-white dark:bg-white-800 p-8 rounded-[2rem] border border-pink-50 dark:border-pink-70 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div>
                     <label className="text-[10px] font-black text-pink-400 dark:text-slate-500 uppercase tracking-widest mb-2 block">
@@ -515,7 +449,7 @@ const CoupleProfileView: React.FC = () => {
                       type="text" 
                       value={emergencyContact.name}
                       onChange={(e) => setEmergencyContact({...emergencyContact, name: e.target.value})}
-                      className="w-full bg-slate-50 dark:bg-pink-200 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20 text-slate-900 dark:text-black "
+                      className="w-full bg-slate-50 dark:bg-pink-200 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary/20 text-slate-900 dark:text-black"
                     />
                   </div>
                   <div>
@@ -533,7 +467,7 @@ const CoupleProfileView: React.FC = () => {
                 <div className="grid grid-cols-5 md:grid-cols-2 items-center gap-6">
                   <button 
                     onClick={handleUpdateContact}
-                    className="w-full border-2 border-primary text-primary py-3 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors"
+                    className="w-full border-2 border-primary  py-3 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors text-pink-500 dark:text-pink-400 col-span-5 md:col-span-1"
                   >
                     Update Contact
                   </button>
@@ -543,8 +477,8 @@ const CoupleProfileView: React.FC = () => {
 
             {/* RIGHT: Visibility Settings */}
             <div className="space-y-4">
-              <h3 className="text-lg font-bold text-primary text-primary">Visibility Settings</h3>
-              <div className="bg-white dark:bg-slate-80 rounded-3xl border border-slate-50 dark:border-black-700 overflow-hidden">
+                  <h3 className="text-lg font-bold text-primary text-primary">Privacy Settings</h3>
+              <div className="bg-white dark:bg-slate-80 rounded-3xl border border-pink-200 dark:border-pink-200 overflow-hidden">
                 <label className="flex items-center px-6 py-5 border-b border-slate-50 dark:border-slate-700 cursor-pointer">
                   <input 
                     type="radio" 
@@ -555,8 +489,8 @@ const CoupleProfileView: React.FC = () => {
                     className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
                   />
                   <div className="ml-4">
-                    <p className="text-sm font-bold text-slate-900 dark:text-black">Public Presence</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Visible to all users in range</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-black">Public Profile</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Visible to everyone who can find your profile</p>
                   </div>
                 </label>
                 <label className="flex items-center px-6 py-5 border-2 border-primary/20 bg-primary/[0.02] cursor-pointer">
@@ -570,7 +504,7 @@ const CoupleProfileView: React.FC = () => {
                   />
                   <div className="ml-4">
                     <p className="text-sm font-bold text-slate-900 dark:text-black">Partners Only</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Only your linked partner can see you</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Only your linked partner can view your profile</p>
                   </div>
                 </label>
                 <label className="flex items-center px-6 py-5 cursor-pointer">
@@ -583,8 +517,8 @@ const CoupleProfileView: React.FC = () => {
                     className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
                   />
                   <div className="ml-4">
-                    <p className="text-sm font-bold text-slate-900 dark:text-black">Private Ghost Mode</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Invisible to everyone, even your partner</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-black">Private Mode</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Hidden from the public, but still linked to your account</p>
                   </div>
                 </label>
               </div>
@@ -640,48 +574,57 @@ const CoupleProfileView: React.FC = () => {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="bg-white dark:bg-charcoal border-t border-primary/10 mt-20 pt-16 pb-12">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
-          <div>
-            <div className="flex items-center gap-2 mb-6">
-              <span className="material-symbols-outlined text-primary">diamond</span>
-              <span className="heading-serif text-xl font-semibold">BondKeeper</span>
-            </div>
-            <p className="text-sm text-charcoal/60 dark:text-cream/60 leading-relaxed">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Experience</h4>
-            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
-              <li><Link to="/shop" className="hover:text-primary transition-colors">Browse rings</Link></li>
-              <li><Link to="/myring" className="hover:text-primary transition-colors">My ring</Link></li>
-              <li><Link to="/profile" className="hover:text-primary transition-colors">Couple profile</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Support</h4>
-            <ul className="flex flex-col gap-3 text-sm text-charcoal/60 dark:text-cream/60">
-              <li><Link to="/sizing" className="hover:text-primary transition-colors">Sizing guide</Link></li>
-              <li><Link to="/returns" className="hover:text-primary transition-colors">Shipping & returns</Link></li>
-              <li><Link to="/faq" className="hover:text-primary transition-colors">FAQ / help</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="heading-serif text-lg font-medium mb-5">Mailing list</h4>
-            <div className="flex gap-2">
-              <input className="flex-1 bg-transparent border border-primary/20 rounded-full px-5 py-2.5 text-sm placeholder:text-charcoal/40 dark:placeholder:text-cream/40 focus:border-primary/70" placeholder="your@email.com" />
-              <button className="bg-primary text-white rounded-full px-6 py-2.5 text-sm font-medium hover:bg-primary-dark transition-colors">join</button>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 mt-16 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-charcoal/40 dark:text-cream/40">
-          <p>© BondKeeper · Eternal Rings. All rights reserved.</p>
-          <div className="flex gap-6">
-            <Link to="/privacy" className="hover:text-primary transition">Privacy</Link>
-            <Link to="/terms" className="hover:text-primary transition">Terms</Link>
-          </div>
-        </div>
-      </footer>
+     {/* FOOTER */}
+           <footer className="bg-white dark:bg-black  border-t border-primary/10 pt-20 pb-10 mt-20">
+             <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
+               <div className="col-span-1 md:col-span-1">
+                 <div className="flex items-center gap-2 mb-6">
+                   <span className="material-symbols-outlined text-primary">diamond</span>
+                   <h2 className="text-lg font-extrabold tracking-widest uppercase text-pink-300 dark:text-pink-300">BondKeeper</h2>
+                 </div>
+                 <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Eternal rings, eternal story. Crafted for bonds that last beyond time.</p>
+                 <div className="flex gap-4">
+                   <a className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-all" href="#">
+                     <span className="material-symbols-outlined text-lg">share</span>
+                   </a>
+                 </div>
+               </div>
+               <div>
+                 <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Experience</h4>
+                 <ul className="flex flex-col gap-4 text-sm text-slate-600 dark:text-slate-400">
+                   <li><Link to="/shop" className="hover:text-primary transition-colors">Our Showroom</Link></li>
+                   <li><Link to="/bespoke" className="hover:text-primary transition-colors">Bespoke Design</Link></li>
+                   <li><Link to="/consultation" className="hover:text-primary transition-colors">Book Consultation</Link></li>
+                   <li><Link to="/diamond-guide" className="hover:text-primary transition-colors">Diamond Guide</Link></li>
+                 </ul>
+               </div>
+               <div>
+                 <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Support</h4>
+                 <ul className="flex flex-col gap-4 text-sm">
+                   <li><Link to="/sizing" className="hover:text-primary transition-colors">Ring Sizing</Link></li>
+                   <li><Link to="/shipping" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
+                   <li><Link to="/warranty" className="hover:text-primary transition-colors">Lifetime Warranty</Link></li>
+                   <li><Link to="/faq" className="hover:text-primary transition-colors">FAQs</Link></li>
+                 </ul>
+               </div>
+               <div>
+                 <h4 className="font-bold uppercase tracking-widest text-xs mb-6 text-pink-400 dark:text-pink-300">Mailing List</h4>
+                 <p className="text-sm text-slate-500 mb-4">Be the first to hear about new collections.</p>
+                 <div className="flex gap-2">
+                   <input className="flex-1 bg-slate-50 dark:bg-slate-80 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-primary focus:border-primary" placeholder="Email address" type="email"/>
+                   <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest text-pink-400 dark:text-pink-300">Join</button>
+                 </div>
+               </div>
+             </div>
+             <div className="max-w-7xl mx-auto px-6 border-t border-slate-100 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+               <p className="text-xs text-slate-400">© 2025 BondKeeper · Eternal Rings. All Rights Reserved.</p>
+               <div className="flex gap-6 text-xs text-slate-400 uppercase tracking-widest">
+                 <Link to="/privacy" className="hover:text-primary text-pink-400 dark:text-pink-300">Privacy</Link>
+                 <Link to="/terms" className="hover:text-primary text-pink-400 dark:text-pink-300">Terms</Link>
+               </div>
+             </div>
+           </footer>
+     
 
       {/* Add animations */}
       <style>{`

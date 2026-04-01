@@ -115,7 +115,7 @@ const RingInventory = () => {
       setLastSyncedAt(new Date().toISOString());
       setError('');
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to load inventory from backend.'));
+      setError(getErrorMessage(err, 'Failed to load inventory data.'));
     } finally {
       setLoading(false);
     }
@@ -355,7 +355,7 @@ const RingInventory = () => {
       `}</style>
       <Header
         title="Ring Inventory"
-        subtitle="Database-backed view of rows stored in inventory_items."
+        subtitle="Live inventory overview for the products in your collection."
       />
 
       <main className="inventory-page flex-1 overflow-y-auto p-8 max-w-[1600px] w-full mx-auto">
@@ -363,7 +363,7 @@ const RingInventory = () => {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">Ring Inventory</h1>
-              <p className="text-slate-500 font-medium text-sm">Live inventory data from the `inventory_items` table.</p>
+              <p className="text-slate-500 font-medium text-sm">Track what is in stock, low on stock, or ready for replenishment.</p>
             </div>
             <div className="flex gap-2 relative">
               <button
@@ -392,37 +392,37 @@ const RingInventory = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <InventoryStatCard
-              title="Inventory Rows"
+              title="Products"
               value={String(totalRows)}
               change="+Live"
               icon={Package}
               color="primary"
               onClick={() => setActiveStatFilter((prev) => (prev === 'rows' ? 'all' : 'rows'))}
               active={activeStatFilter === 'rows'}
-              subtext={activeStatFilter === 'rows' ? 'Showing all inventory rows' : 'Click to show all rows'}
+              subtext={activeStatFilter === 'rows' ? 'Showing every product in the catalog' : 'Click to show all products'}
             />
             <InventoryStatCard
               title="Units In Stock"
               value={String(totalUnitsInStock)}
-              subtext={activeStatFilter === 'units' ? 'Showing rows with stock on hand' : 'Click to show stocked rows'}
+              subtext={activeStatFilter === 'units' ? 'Showing products with stock on hand' : 'Click to show stocked products'}
               icon={AlertTriangle}
               color="primary"
               onClick={() => setActiveStatFilter((prev) => (prev === 'units' ? 'all' : 'units'))}
               active={activeStatFilter === 'units'}
             />
             <InventoryStatCard
-              title="Low Stock Rows"
+              title="Low Stock"
               value={String(lowStockData.length)}
-              subtext={activeStatFilter === 'low' ? 'Showing low stock rows only' : 'Click to filter low stock rows'}
+              subtext={activeStatFilter === 'low' ? 'Showing low-stock products only' : 'Click to filter low-stock products'}
               icon={Link}
               color="primary"
               onClick={() => setActiveStatFilter((prev) => (prev === 'low' ? 'all' : 'low'))}
               active={activeStatFilter === 'low'}
             />
             <InventoryStatCard
-              title="Depleted Rows"
+              title="Out of Stock"
               value={String(depletedData.length)}
-              subtext={activeStatFilter === 'depleted' ? 'Showing depleted rows only' : 'Click to filter depleted rows'}
+              subtext={activeStatFilter === 'depleted' ? 'Showing out-of-stock products only' : 'Click to filter out-of-stock products'}
               icon={CheckCircle2}
               color="primary"
               onClick={() => setActiveStatFilter((prev) => (prev === 'depleted' ? 'all' : 'depleted'))}
@@ -495,7 +495,7 @@ const RingInventory = () => {
               <tbody className="divide-y divide-slate-300">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-sm text-slate-500">Loading inventory from backend...</td>
+                    <td colSpan={6} className="p-8 text-center text-sm text-slate-500">Loading inventory records...</td>
                   </tr>
                 ) : paginatedTableData.length ? (
                   paginatedTableData.map((item) => (
@@ -515,7 +515,7 @@ const RingInventory = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-sm text-slate-500">No inventory items matched the current filters.</td>
+                    <td colSpan={6} className="p-8 text-center text-sm text-slate-500">No products matched the current filters.</td>
                   </tr>
                 )}
               </tbody>
