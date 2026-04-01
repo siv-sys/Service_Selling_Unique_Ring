@@ -1,0 +1,39 @@
+{
+  "name": "service-selling-unique-ring-backend",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "description": "Backend API for Service Selling Unique Ring",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "db:init": "node scripts/database/init-db.js",
+    "db:seed": "node scripts/seedRings.js",
+    "db:setup": "npm run db:init && npm run db:seed",
+    "test:api": "node scripts/utilities/test-api.js",
+    "test:connection": "node scripts/utilities/test-connection.js",
+    "test:users": "node scripts/utilities/add-test-users.js",
+    "util:fix-notifications": "node scripts/utilities/fix-notifications-schema.js",
+    "util:check-invitations": "node scripts/utilities/check-invitation-status.js"
+  },
+  "keywords": [
+    "express",
+    "mysql",
+    "backend"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.19.0",
+    "redis": "^5.11.0",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
