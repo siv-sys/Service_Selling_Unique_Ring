@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE_URL, resolveApiAssetUrl } from '../lib/api';
-import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
+import { getCartRequestHeaders, getCartSessionId, setCartSessionId, setStoredCartItems } from '../lib/cartStorage';
 
 interface ShopRing {
   id: number;
@@ -346,11 +346,12 @@ const CoupleShopView: React.FC = () => {
         return;
       }
 
-      let sessionId = getUserScopedLocalStorageItem('sessionId');
+      let sessionId = getCartSessionId();
       const response = await fetch(`${API_BASE_URL}/cart/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...getCartRequestHeaders(),
           ...(sessionId ? { 'x-session-id': sessionId } : {}),
         },
         body: JSON.stringify({
@@ -367,11 +368,13 @@ const CoupleShopView: React.FC = () => {
         throw new Error(data.message || 'Failed to add ring to cart');
       }
 
-      if (data.sessionId && !sessionId) {
-        sessionId = data.sessionId;
-        setUserScopedLocalStorageItem('sessionId', data.sessionId);
-      } else if (data.sessionId && sessionId) {
-        setUserScopedLocalStorageItem('sessionId', sessionId);
+      if (data.sessionId) {
+        sessionId = String(data.sessionId);
+        setCartSessionId(sessionId);
+      }
+
+      if (Array.isArray(data.data)) {
+        setStoredCartItems(data.data);
       }
 
       showNotification(`${ring.name} added to cart.`, 'success');
@@ -389,10 +392,10 @@ const CoupleShopView: React.FC = () => {
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-primary font-bold mb-3">Ring Models</p>
             <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4">
-              Shop directly from the `ring_models` table.
+              Discover our ring collection.
             </h1>
             <p className="max-w-2xl text-slate-600 dark:text-slate-400 text-base md:text-lg leading-relaxed">
-              This catalog now shows only model-level data from the database, and each card keeps a slim session payload for detail pages.
+              Browse elegant designs, compare styles, and find the ring that feels right for your story.
             </p>
           </div>
           <div className="rounded-3xl border border-pink-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-6 shadow-xl shadow-pink-100/30">
@@ -668,7 +671,7 @@ const CoupleShopView: React.FC = () => {
 
       <footer className="mt-20 border-t border-pink-100 dark:border-slate-800 bg-white/60 dark:bg-slate-950/60">
         <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
-          <p>BondKeeper · Ring model catalog backed by `ring_models`.</p>
+          <p>BondKeeper · Curated ring collection for couples.</p>
           <div className="flex gap-5">
             <Link to="/dashboard" className="hover:text-primary">
               Dashboard

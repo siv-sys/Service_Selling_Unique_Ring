@@ -504,6 +504,35 @@ async function initializeCoreTables() {
   ).catch(() => {});
 
   await execute(`
+    CREATE TABLE IF NOT EXISTS cart (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id ${userIdType} NULL,
+      session_id VARCHAR(128) NULL,
+      ring_id BIGINT NOT NULL,
+      quantity INT NOT NULL DEFAULT 1,
+      size VARCHAR(20) NULL,
+      material VARCHAR(80) NULL,
+      added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_cart_user_id (user_id),
+      KEY idx_cart_session_id (session_id),
+      KEY idx_cart_ring_id (ring_id)
+    ) ENGINE=InnoDB
+  `);
+  await execute(
+    `
+      ALTER TABLE cart
+      ADD CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+  await execute(
+    `
+      ALTER TABLE cart
+      ADD CONSTRAINT fk_cart_ring FOREIGN KEY (ring_id) REFERENCES rings(id) ON DELETE CASCADE
+    `,
+  ).catch(() => {});
+
+  await execute(`
     CREATE TABLE IF NOT EXISTS ring_pair_links (
       id BIGINT AUTO_INCREMENT PRIMARY KEY,
       pair_id BIGINT NOT NULL,

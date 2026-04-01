@@ -2,7 +2,9 @@
 const cors = require('cors');
 const path = require('path');
 const env = require('./config/env');
+const { query } = require('./config/db');
 const { requireAdmin, requireAuth } = require('./middleware/auth.middleware');
+const { createNotification } = require('./services/notifications.service');
 
 const authRoutes = require('./routes/auth.routes');
 const loginRoutes = require('./routes/login.routes');
@@ -103,6 +105,71 @@ app.use('/api/admin/migrations', requireAuth, requireAdmin, adminRoutes);
 app.use('/api/admin/pairs', requireAuth, requireAdmin, adminPairsRoutes);
 app.use('/api/pair-invitations', requireAuth, pairInvitationsRoutes);
 app.use('/api/pairs', requireAuth, pairsRoutes);
+
+app.post('/api/support-message', requireAuth, async (req, res) => {
+  try {
+    const senderId = Number(req.auth?.user?.id || 0);
+    const senderName = String(req.auth?.user?.name || req.auth?.user?.email || 'Member').trim() || 'Member';
+    const subject = String(req.body?.subject || 'Receipt verification request').trim() || 'Receipt verification request';
+    const message = String(req.body?.message || '').trim();
+    const attachment = String(req.body?.attachment || '').trim();
+    const attachmentName = String(req.body?.attachmentName || '').trim();
+
+    if (!message && !attachment) {
+      return res.status(400).json({ message: 'Message or receipt image is required.' });
+    }
+
+    const adminRows = await query(
+      `
+        SELECT id
+        FROM users
+        WHERE COALESCE(role, 'user') = 'admin'
+          AND COALESCE(account_status, 'ACTIVE') = 'ACTIVE'
+      `
+    );
+
+    if (!adminRows.length) {
+      return res.status(404).json({ message: 'No admin users are available right now.' });
+    }
+
+    const title = `${senderName}: ${subject} #${Date.now()}`.slice(0, 160);
+    const body = `${senderName} sent a support message: ${message || 'Receipt attached.'}`.slice(0, 500);
+    const metadata = {
+      senderId: Number.isFinite(senderId) && senderId > 0 ? senderId : null,
+      senderName,
+      subject,
+      message,
+      attachment,
+      attachmentName,
+    };
+
+    const created = await Promise.all(
+      adminRows.map((row) =>
+        createNotification({
+          userId: row.id,
+          type: 'support_message',
+          icon: 'chat',
+          iconClass: 'message',
+          actionKey: 'support_message',
+          title,
+          message: attachment ? `${body} Receipt attached.` : body,
+          unread: true,
+          metadata,
+        }).catch((error) => ({
+          error: error.message,
+          userId: row.id,
+        })),
+      ),
+    );
+
+    return res.status(201).json({
+      created: created.filter((item) => item && !item.error).length,
+      totalAdmins: adminRows.length,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
 
 /*
 |--------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import HistoryModal from './HistoryModal';
-import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem } from '../lib/userStorage';
+import { getCartRequestHeaders, getCartSessionId, setCartSessionId, setStoredCartItems } from '../lib/cartStorage';
 
 interface RingData {
   id?: number;
@@ -52,17 +52,21 @@ const RingInformationView: React.FC = () => {
   // Fetch cart count from backend
   const fetchCartCount = async () => {
     try {
-      const sessionId = getUserScopedLocalStorageItem('sessionId');
+      const sessionId = getCartSessionId();
       if (!sessionId) return;
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
         headers: {
+          ...getCartRequestHeaders(),
           'x-session-id': sessionId
         }
       });
       if (response.ok) {
         const data = await response.json();
         setCartCount(data.data?.length || 0);
+        if (Array.isArray(data.data)) {
+          setStoredCartItems(data.data);
+        }
       }
     } catch (e) {
       console.error('Error fetching cart count:', e);
@@ -109,12 +113,13 @@ const RingInformationView: React.FC = () => {
     
     try {
       // Get existing session ID or null
-      let sessionId = getUserScopedLocalStorageItem('sessionId');
+      let sessionId = getCartSessionId();
       
       const response = await fetch(`${API_BASE_URL}/cart/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...getCartRequestHeaders(),
           ...(sessionId && { 'x-session-id': sessionId })
         },
         body: JSON.stringify({
@@ -130,12 +135,16 @@ const RingInformationView: React.FC = () => {
       
       if (response.ok) {
         // Save the session ID from server if it's new
-        if (data.sessionId && !sessionId) {
-          setUserScopedLocalStorageItem('sessionId', data.sessionId);
+        if (data.sessionId) {
+          sessionId = String(data.sessionId);
+          setCartSessionId(sessionId);
         }
         
         // Update cart count
-        setCartCount(data.data.length);
+        setCartCount(Array.isArray(data.data) ? data.data.length : 0);
+        if (Array.isArray(data.data)) {
+          setStoredCartItems(data.data);
+        }
         
         // Show success notification
         showBottomNotification(`${ringData.name} added to cart!`, 'success');

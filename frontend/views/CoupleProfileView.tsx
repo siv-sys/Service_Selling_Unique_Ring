@@ -34,7 +34,6 @@ const CoupleProfileView: React.FC = () => {
   const [cloudStorageTotal, setCloudStorageTotal] = useState<number>(10);
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'} | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{show: boolean; message: string; onConfirm: () => void} | null>(null);
-  const [notificationCount, setNotificationCount] = useState<number>(3);
   
   // Emergency contact state
   const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>({
@@ -44,15 +43,15 @@ const CoupleProfileView: React.FC = () => {
 
   // Ring data
   const [ringData, setRingData] = useState<RingData>({
-    id: 'TSS-002',
-    name: 'Twin Souls Silver B',
+    id: 'BK-102',
+    name: 'Twin Souls Silver',
     material: 'Sterling Silver',
     size: '7',
-    identifier: 'SHOP-TSS-002',
-    status: 'SYSTEM ONLINE',
+    identifier: 'BondKeeper ring set',
+    status: 'Ready to Wear',
     batteryLevel: 88,
-    lastPing: '2m ago',
-    location: 'WAREHOUSE: Main WH'
+    lastPing: 'Just now',
+    location: 'BondKeeper studio'
   });
 
   // Show notification function
@@ -75,7 +74,7 @@ const CoupleProfileView: React.FC = () => {
     }
 
     // Show certification notification (replacing alert)
-    if (ringData?.id === 'TSS-002') {
+    if (ringData?.id === 'BK-102') {
       showCertificationNotification();
     }
   }, [ringData?.id]);
@@ -92,7 +91,7 @@ const CoupleProfileView: React.FC = () => {
 
   // Certification notification function
   const showCertificationNotification = () => {
-    showNotification('Ring certification in progress. Estimated completion: 2 weeks', 'info');
+    showNotification('Your ring is being prepared and checked for quality. Estimated completion: 2 weeks', 'info');
   };
 
   // Load cart count
@@ -131,11 +130,6 @@ const CoupleProfileView: React.FC = () => {
     }
   };
 
-  // Handle notification click
-  const handleNotificationClick = () => {
-    navigate('/notifications');
-  };
-
   // Handle navigation
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
     e.preventDefault();
@@ -146,35 +140,35 @@ const CoupleProfileView: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchEmail.trim()) {
-      showNotification(`Searching for partner with email: ${searchEmail}`, 'info');
+      showNotification(`Looking up partner email: ${searchEmail}`, 'info');
     }
   };
 
   // Handle emergency contact update
   const handleEmergencyContactUpdate = () => {
-    showNotification('Emergency contact updated successfully!', 'success');
+    showNotification('Emergency contact saved successfully.', 'success');
   };
 
   // Handle test connection
   const handleTestConnection = () => {
-    showNotification('Testing connection to your ring...', 'info');
+    showNotification('Checking your ring connection...', 'info');
   };
 
   // Handle unpair device
   const handleUnpairDevice = () => {
     showConfirm('Are you sure you want to unpair this device?', () => {
-      showNotification('Device unpaired successfully', 'success');
+      showNotification('Your ring has been unpaired.', 'success');
     });
   };
 
   // Handle initialize link
   const handleInitializeLink = () => {
-    showNotification('Initializing pair link...', 'info');
+    showNotification('Preparing your pair link...', 'info');
   };
 
   // Handle set reminder
   const handleSetReminder = () => {
-    showNotification('Reminder set for your anniversary!', 'success');
+    showNotification('Anniversary reminder saved.', 'success');
   };
 
   // Handle update contact
@@ -204,22 +198,6 @@ const CoupleProfileView: React.FC = () => {
           </div>
           {/* right icons & member */}
           <div className="flex items-center gap-6">
-            {/* Notification Button with Badge */}
-            <button 
-              onClick={handleNotificationClick}
-              className="relative text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors group"
-            >
-              <span className="material-symbols-outlined">notifications_none</span>
-              {notificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
-                  {notificationCount}
-                </span>
-              )}
-              <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                Notifications
-              </span>
-            </button>
-            
             <button onClick={toggleDarkMode} className="text-charcoal/60 dark:text-cream/60 hover:text-primary transition-colors">
               <span className="material-symbols-outlined">{isDarkMode ? 'light_mode' : 'dark_mode'}</span>
             </button>
@@ -308,7 +286,7 @@ const CoupleProfileView: React.FC = () => {
                     <p className="text-sm uppercase tracking-widest text-charcoal/40 dark:text-cream/40">Linked rings</p>
                     <p className="text-lg font-medium mt-1 dark:text-black">Hers: Elysian Halo</p>
                     <p className="text-lg font-medium dark:text-black">His: Midnight Sapphire</p>
-                    <p className="ring-ID text-xs text-primary mt-2">Ring ID: {ringData.id}</p>
+                    <p className="ring-ID text-xs text-primary mt-2">Ring reference: {ringData.id}</p>
                     <p className="text-xs text-primary/70 mt-2">both certified · bond active</p>
                   </div>
                 </div>
@@ -392,7 +370,7 @@ const CoupleProfileView: React.FC = () => {
                     <span className="material-symbols-outlined text-green-500">battery_charging_80</span>
                     <p className="text-2xl font-bold dark:text-black">{ringData.batteryLevel}%</p>
                   </div>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Approx. 14 hours left</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Estimated 14 hours of use left</p>
                 </div>
                 <div className="bg-slate-50/50 dark:bg-white 400/50 p-4 rounded-3xl">
                   <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase mb-4">Signal Strength</p>
@@ -400,7 +378,7 @@ const CoupleProfileView: React.FC = () => {
                     <span className="material-symbols-outlined text-primary rotate-45">signal_cellular_4_bar</span>
                     <p className="text-xl font-bold dark:text-black">Excellent</p>
                   </div>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Last ping: {ringData.lastPing}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Last update: {ringData.lastPing}</p>
                 </div>
               </div>
               {/* two action buttons */}
@@ -424,27 +402,27 @@ const CoupleProfileView: React.FC = () => {
               <h3 className="text-lg font-bold mb-6 text-primary text-primary">Pairing Management</h3>
               <div className="space-y-4 mb-10">
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
-                  <span className="text-sm text-slate-400 dark:text-slate-500">Pair Selection</span>
-                  <span className="text-sm font-bold text-primary text-primary">No pair linked</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Pair Status</span>
+                  <span className="text-sm font-bold text-primary text-primary">No partner linked yet</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
                   <span className="text-sm text-slate-400 dark:text-slate-500">Pair Code</span>
-                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
+                  <span className="text-sm font-bold text-primary text-primary">Available after pairing</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
-                  <span className="text-sm text-slate-400 dark:text-slate-500">Status</span>
-                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Connection</span>
+                  <span className="text-sm font-bold text-primary text-primary">Not connected</span>
                 </div>
                 <div className="flex justify-between items-center pb-4">
-                  <span className="text-sm text-slate-400 dark:text-slate-500">Established</span>
-                  <span className="text-sm font-bold text-primary text-primary">N/A</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-500">Connected Since</span>
+                  <span className="text-sm font-bold text-primary text-primary">Not set</span>
                 </div>
               </div>
               <button 
                 onClick={handleInitializeLink}
                 className="w-full border-2 border-dashed border-primary/30 py-4 rounded-2xl font-bold text-sm hover:bg-primary/5 transition-colors text-pink-500 dark:text-pink-400"
               >
-                Initialize Link
+                Start Pairing
               </button>
             </div>
           </div>
@@ -499,7 +477,7 @@ const CoupleProfileView: React.FC = () => {
 
             {/* RIGHT: Visibility Settings */}
             <div className="space-y-4">
-              <h3 className="text-lg font-bold text-primary text-primary">Visibility Settings</h3>
+                  <h3 className="text-lg font-bold text-primary text-primary">Privacy Settings</h3>
               <div className="bg-white dark:bg-slate-80 rounded-3xl border border-pink-200 dark:border-pink-200 overflow-hidden">
                 <label className="flex items-center px-6 py-5 border-b border-slate-50 dark:border-slate-700 cursor-pointer">
                   <input 
@@ -511,8 +489,8 @@ const CoupleProfileView: React.FC = () => {
                     className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
                   />
                   <div className="ml-4">
-                    <p className="text-sm font-bold text-slate-900 dark:text-black">Public Presence</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Visible to all users in range</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-black">Public Profile</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Visible to everyone who can find your profile</p>
                   </div>
                 </label>
                 <label className="flex items-center px-6 py-5 border-2 border-primary/20 bg-primary/[0.02] cursor-pointer">
@@ -526,7 +504,7 @@ const CoupleProfileView: React.FC = () => {
                   />
                   <div className="ml-4">
                     <p className="text-sm font-bold text-slate-900 dark:text-black">Partners Only</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Only your linked partner can see you</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Only your linked partner can view your profile</p>
                   </div>
                 </label>
                 <label className="flex items-center px-6 py-5 cursor-pointer">
@@ -539,8 +517,8 @@ const CoupleProfileView: React.FC = () => {
                     className="text-primary focus:ring-primary h-4 w-4 border-slate-200 rounded-full"
                   />
                   <div className="ml-4">
-                    <p className="text-sm font-bold text-slate-900 dark:text-black">Private Ghost Mode</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Invisible to everyone, even your partner</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-black">Private Mode</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Hidden from the public, but still linked to your account</p>
                   </div>
                 </label>
               </div>

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import HistoryModal from './HistoryModal';
+import { api } from '../lib/api';
 import { getUserScopedLocalStorageItem, setUserScopedLocalStorageItem, removeUserScopedLocalStorageItem } from '../lib/userStorage';
 
 const PURCHASED_RING_STORAGE_KEY = 'bondKeeper_purchased_ring';
@@ -501,6 +502,20 @@ const PurchaseView: React.FC = () => {
       }));
 
       setUserScopedLocalStorageItem(PURCHASED_RING_STORAGE_KEY, JSON.stringify(buildPurchasedRingPayload()));
+
+      try {
+        await api.post('/notifications/payment-received', {
+          customerName,
+          ringName: ringData.name,
+          sku: ringData.sku,
+          total,
+          orderNumber: `BK-${Date.now()}`,
+          paymentMethod: 'Bank transfer',
+          paidAt: new Date().toISOString(),
+        });
+      } catch (notificationError) {
+        console.warn('Payment alert could not be saved:', notificationError);
+      }
 
       removeUserScopedLocalStorageItem('cart');
       const sessionId = getUserScopedLocalStorageItem('sessionId');

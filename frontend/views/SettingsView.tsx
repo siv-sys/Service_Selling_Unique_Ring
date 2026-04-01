@@ -396,8 +396,17 @@ const SettingsView = ({
 
     loadNotifications();
 
+    const refreshNotifications = () => {
+      void loadNotifications();
+    };
+
+    const intervalId = window.setInterval(refreshNotifications, 30000);
+    window.addEventListener('focus', refreshNotifications);
+
     return () => {
       active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshNotifications);
     };
   }, [isAdminView]);
 
@@ -673,6 +682,12 @@ const SettingsView = ({
     setAdminNotificationPreferences(savedAdminNotificationPreferences);
     setAdminSystemSettings(savedAdminSystemSettings);
     setNavAvatar(savedAdminProfileSettings.avatarUrl || DEFAULT_AVATAR);
+    if (savedAdminProfileSettings.avatarUrl) {
+      setUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY, savedAdminProfileSettings.avatarUrl);
+    } else {
+      removeUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY);
+    }
+    window.dispatchEvent(new Event(USER_AVATAR_UPDATED_EVENT));
     setAdminSettingsError('');
     showSaveMessage('Discarded');
   };
@@ -905,12 +920,14 @@ const SettingsView = ({
       return;
     }
 
-    if (item.actionKey === 'help_support') {
-      setActiveMenu('Help & Support');
-    } else if (item.actionKey === 'general') {
-      setActiveMenu('General');
-    } else if (item.iconClass === 'calendar') {
-      setActiveMenu('Help & Support');
+        if (item.actionKey === 'help_support') {
+          setActiveMenu('Help & Support');
+        } else if (item.actionKey === 'support_message') {
+          setActiveMenu('Help & Support');
+        } else if (item.actionKey === 'general') {
+          setActiveMenu('General');
+        } else if (item.iconClass === 'calendar') {
+          setActiveMenu('Help & Support');
     } else {
       setActiveMenu('General');
     }
@@ -1396,7 +1413,19 @@ const SettingsView = ({
           }
 
           .admin-page-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
             margin-bottom: 18px;
+          }
+
+          .admin-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 22px;
           }
 
           .admin-page-kicker {
@@ -1530,6 +1559,12 @@ const SettingsView = ({
             background: #fff;
             color: var(--text);
             padding: 0 18px;
+          }
+
+          .admin-avatar-btn-logout {
+            border-color: rgba(236, 72, 153, 0.26);
+            color: #be185d;
+            background: linear-gradient(180deg, #fff 0%, #fff5fb 100%);
           }
 
           .admin-avatar-btn:hover,
@@ -1841,15 +1876,27 @@ const SettingsView = ({
 
         <div className="admin-settings-shell">
           <header className="admin-page-head">
-            <p className="admin-page-kicker">Admin Settings</p>
-            <h1 className="admin-page-title">Profile & Notification Center</h1>
-            <p className="admin-page-subtitle">
-              Manage your admin identity, alert preferences, and BondKeeper store configuration from one place.
-            </p>
+            <div>
+              <p className="admin-page-kicker">Admin Settings</p>
+              <h1 className="admin-page-title">Profile & Notification Center</h1>
+              <p className="admin-page-subtitle">
+                Manage your admin identity, alert preferences, and BondKeeper store configuration from one place.
+              </p>
+            </div>
           </header>
 
           <section className="admin-panel">
-            <h2 className="admin-section-title">Profile</h2>
+            <div className="admin-panel-head">
+              <h2 className="admin-section-title">Profile</h2>
+              <button
+                type="button"
+                className="admin-avatar-btn admin-avatar-btn-logout"
+                onClick={handleLogout}
+                disabled={adminSettingsLoading || isAdminSaving}
+              >
+                Log out
+              </button>
+            </div>
             <div className="admin-profile-layout">
               <div className="admin-avatar-column">
                 <button
@@ -2456,6 +2503,11 @@ const SettingsView = ({
         .notification-icon.system {
           background: #e9edf3;
           color: #556c87;
+        }
+
+        .notification-icon.message {
+          background: #fce7f3;
+          color: #db2777;
         }
 
         .notification-item-title {
@@ -5147,17 +5199,17 @@ const SettingsView = ({
             <button
               type="button"
               className="notification-btn"
-              aria-label="Open notifications"
+              aria-label="Open messages"
               aria-expanded={isNotificationOpen}
               onClick={() => setIsNotificationOpen((open) => !open)}
             >
-              <span className="material-symbols-outlined">notifications_none</span>
+              <span className="material-symbols-outlined">chat_bubble</span>
               {unreadCount > 0 ? <span className="notification-btn-badge" /> : null}
             </button>
             {isNotificationOpen ? (
               <section className="notification-panel" role="dialog" aria-label="Notifications">
                 <header className="notification-head">
-                  <h2 className="notification-title">Notifications</h2>
+                  <h2 className="notification-title">Messages</h2>
                   <button type="button" className="notification-mark" onClick={markAllNotificationsAsRead}>
                     Mark all as read
                   </button>
@@ -5173,6 +5225,15 @@ const SettingsView = ({
                       <div style={{ flex: 1 }}>
                         <h3 className="notification-item-title">{item.title}</h3>
                         <p className="notification-item-copy">{item.message}</p>
+                        {item.actionKey === 'support_message' && item.metadata?.attachment ? (
+                          <div className="mt-2 overflow-hidden rounded-lg border border-pink-100">
+                            <img
+                              src={item.metadata.attachment}
+                              alt={item.metadata.attachmentName || 'Receipt attachment'}
+                              style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
+                            />
+                          </div>
+                        ) : null}
                         <div className="notification-time">{item.createdAt ? formatNotificationDate(item.createdAt) : item.time}</div>
                         {item.actionKey === 'pair_invitation_accept_reject' && (
                           <div className="pair-invitation-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
@@ -5494,6 +5555,14 @@ const SettingsView = ({
                       {activeSessions.length === 0 ? (
                         <p className="session-meta">No active sessions.</p>
                       ) : null}
+                    </article>
+
+                    <article className="card">
+                      <h3>Account</h3>
+                      <p>End this session and return to the sign-in screen.</p>
+                      <button type="button" className="sidebar-logout-btn" onClick={handleLogout}>
+                        Log Out
+                      </button>
                     </article>
                   </div>
 

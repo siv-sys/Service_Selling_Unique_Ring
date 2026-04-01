@@ -516,7 +516,7 @@ const RingInformation: React.FC = () => {
         <div className="mb-7 md:mb-8 rounded-3xl border border-primary/15 bg-white/70 dark:bg-charcoal/40 backdrop-blur-sm p-5 md:p-7 shadow-[0_20px_50px_rgba(236,19,128,0.08)]">
           <p className="text-[11px] tracking-[0.2em] uppercase font-bold text-primary/60 mb-2">Your Signature Ring</p>
           <h1 className="heading-serif text-4xl md:text-5xl font-bold text-primary leading-[1.05]">{ringName}</h1>
-          <p className="text-primary/70 dark:text-primary/60 mt-2 text-sm md:text-base">Ring ID: {ringIdentifier}</p>
+          <p className="text-primary/70 dark:text-primary/60 mt-2 text-sm md:text-base">Ring reference: {ringIdentifier}</p>
         </div>
 
         {/* Image Gallery - Main Image */}

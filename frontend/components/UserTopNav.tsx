@@ -25,6 +25,7 @@ const PROFILE_AVATAR_STORAGE_KEY = 'bondkeeper_user_avatar_url';
 const USER_AVATAR_UPDATED_EVENT = 'bondkeeper:user-avatar-updated';
 const USER_PROFILE_UPDATED_EVENT = 'bondkeeper:user-profile-updated';
 const DEFAULT_PROFILE_NAME = 'Member';
+const DEFAULT_SUPPORT_EMAIL = 'support@bondkeeper.com';
 
 function readStoredAvatar() {
   return getUserScopedLocalStorageItem(PROFILE_AVATAR_STORAGE_KEY);
@@ -35,6 +36,7 @@ const UserTopNav: React.FC<UserTopNavProps> = ({ currentView, setView, onSignOut
     fullName: DEFAULT_PROFILE_NAME,
     avatarUrl: readStoredAvatar(),
   });
+  const [supportEmail, setSupportEmail] = useState(DEFAULT_SUPPORT_EMAIL);
 
   useEffect(() => {
     let active = true;
@@ -77,6 +79,20 @@ const UserTopNav: React.FC<UserTopNavProps> = ({ currentView, setView, onSignOut
 
     void syncProfile();
 
+    const syncSupportEmail = async () => {
+      try {
+        const data = await api.get<{ settings?: { support_email?: string } }>('/settings/system');
+        const nextEmail = data?.settings?.support_email;
+        if (typeof nextEmail === 'string' && nextEmail.trim()) {
+          setSupportEmail(nextEmail.trim());
+        }
+      } catch {
+        setSupportEmail(DEFAULT_SUPPORT_EMAIL);
+      }
+    };
+
+    void syncSupportEmail();
+
     window.addEventListener('focus', syncProfile);
     window.addEventListener('storage', syncProfile);
     window.addEventListener(USER_AVATAR_UPDATED_EVENT, syncProfile);
@@ -97,6 +113,14 @@ const UserTopNav: React.FC<UserTopNavProps> = ({ currentView, setView, onSignOut
     { id: AppView.MY_RING, label: 'My Ring' },
     { id: AppView.COUPLE_PROFILE, label: 'Couple Profile' },
   ];
+
+  const handleMessageAdmin = () => {
+    const subject = encodeURIComponent('Receipt verification request');
+    const body = encodeURIComponent(
+      `Hello Admin,\n\nI have uploaded my payment receipt and would like to request verification for my ring purchase.\n\nName: ${profile.fullName}\n\nPlease let me know if you need any additional details.\n`,
+    );
+    window.location.href = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
+  };
 
   return (
     <nav className="h-[72px] bg-white border-b border-[#ece7ed] px-6 md:px-12 flex items-center justify-between sticky top-0 z-50">
@@ -124,8 +148,12 @@ const UserTopNav: React.FC<UserTopNavProps> = ({ currentView, setView, onSignOut
       </div>
 
       <div className="flex items-center gap-5 md:gap-6">
-        <button className="hidden sm:flex text-[#27272a] hover:text-[#27272a] transition-colors" title="Notifications">
-          <span className="material-symbols-outlined text-[25px] leading-none">notifications_none</span>
+        <button
+          className="hidden sm:flex text-[#27272a] hover:text-[#27272a] transition-colors"
+          title="Message admin"
+          onClick={handleMessageAdmin}
+        >
+          <span className="material-symbols-outlined text-[25px] leading-none">chat_bubble</span>
         </button>
         <button 
           onClick={toggleTheme}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../lib/api';
-import { getUserScopedLocalStorageItem } from '../lib/userStorage';
+import { getCartRequestHeaders, getCartSessionId, getStoredCartItems, setStoredCartItems } from '../lib/cartStorage';
 import HistoryModal from './HistoryModal';
 
 // Types
@@ -37,7 +37,43 @@ const Cart: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
 
   const getSessionId = () => {
-    return getUserScopedLocalStorageItem('sessionId') || 'guest';
+    return getCartSessionId() || 'guest';
+  };
+
+  const syncStoredCartToBackend = async (sessionId: string, storedCart: CartItem[]) => {
+    if (!storedCart.length || sessionId === 'guest') {
+      return [];
+    }
+
+    const syncedCart: CartItem[] = [];
+
+    for (const item of storedCart) {
+      const response = await fetch(`${API_BASE_URL}/cart/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCartRequestHeaders(),
+          'x-session-id': sessionId
+        },
+        body: JSON.stringify({
+          ringId: item.ringId,
+          quantity: item.quantity || 1,
+          size: item.size,
+          material: item.material
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to restore cart');
+      }
+
+      const payload = await response.json();
+      if (Array.isArray(payload.data)) {
+        syncedCart.splice(0, syncedCart.length, ...payload.data);
+      }
+    }
+
+    return syncedCart;
   };
 
   // Upsell items
@@ -79,6 +115,7 @@ const Cart: React.FC = () => {
 
   // Load cart from backend on mount
   useEffect(() => {
+    setCartItems(getStoredCartItems<CartItem>());
     fetchCart();
 
     // Listen for cart updates from shop
@@ -106,9 +143,11 @@ const Cart: React.FC = () => {
     try {
       setIsLoading(true);
       const sessionId = getSessionId();
+      const fallbackCart = getStoredCartItems<CartItem>();
       
       const response = await fetch(`${API_BASE_URL}/cart`, {
         headers: {
+          ...getCartRequestHeaders(),
           'x-session-id': sessionId
         }
       });
@@ -120,10 +159,31 @@ const Cart: React.FC = () => {
       const data = await response.json();
       console.log('Cart loaded from backend:', data);
       
-      setCartItems(data.data || []);
-      setCartCount(data.data?.length || 0);
+      const backendCart = Array.isArray(data.data) ? data.data : [];
+      const nextCart = backendCart.length > 0 ? backendCart : fallbackCart;
+
+      if (backendCart.length === 0 && fallbackCart.length > 0) {
+        try {
+          const restoredCart = await syncStoredCartToBackend(sessionId, fallbackCart);
+          if (restoredCart.length > 0) {
+            setCartItems(restoredCart);
+            setCartCount(restoredCart.length);
+            setStoredCartItems(restoredCart);
+            return;
+          }
+        } catch (restoreError) {
+          console.error('Error restoring cart from local cache:', restoreError);
+        }
+      }
+
+      setCartItems(nextCart);
+      setCartCount(nextCart.length);
+      setStoredCartItems(nextCart);
     } catch (e) {
       console.error('Error loading cart:', e);
+      const fallbackCart = getStoredCartItems<CartItem>();
+      setCartItems(fallbackCart);
+      setCartCount(fallbackCart.length);
       showNotification('Error loading cart', 'error');
     } finally {
       setIsLoading(false);
@@ -141,6 +201,7 @@ const Cart: React.FC = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...getCartRequestHeaders(),
           'x-session-id': sessionId
         },
         body: JSON.stringify({ quantity: newQuantity })
@@ -150,6 +211,10 @@ const Cart: React.FC = () => {
         throw new Error('Failed to update quantity');
       }
       
+      const data = await response.json();
+      if (Array.isArray(data.data)) {
+        setStoredCartItems(data.data);
+      }
       await fetchCart(); // Refresh cart
       showNotification('Cart updated', 'success');
     } catch (e) {
@@ -166,6 +231,7 @@ const Cart: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/cart/${itemId}`, {
         method: 'DELETE',
         headers: {
+          ...getCartRequestHeaders(),
           'x-session-id': sessionId
         }
       });
@@ -174,6 +240,10 @@ const Cart: React.FC = () => {
         throw new Error('Failed to remove item');
       }
       
+      const data = await response.json();
+      if (Array.isArray(data.data)) {
+        setStoredCartItems(data.data);
+      }
       await fetchCart(); // Refresh cart
       showNotification('Item removed from cart', 'success');
     } catch (e) {

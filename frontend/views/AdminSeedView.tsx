@@ -165,7 +165,7 @@ const AdminSeedView: React.FC = () => {
           >
             <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">Insert Custom Catalog Data</h4>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Only products inserted here will be stored in the database and shown in Couple Shop.
+              Only products added here will appear in Couple Shop for customers to browse.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input className={inputClassName} placeholder="Model Name" value={form.modelName} onChange={(e) => updateForm('modelName', e.target.value)} />
@@ -227,7 +227,7 @@ const AdminSeedView: React.FC = () => {
               <p>{result.message}</p>
               <p className="mt-1">Created Models: {result.createdModels}</p>
               <p>Created Rings: {result.createdRings}</p>
-              {typeof result.syncedInventoryItems === 'number' ? <p>Synced Inventory Items: {result.syncedInventoryItems}</p> : null}
+              {typeof result.syncedInventoryItems === 'number' ? <p>Updated Inventory Items: {result.syncedInventoryItems}</p> : null}
             </div>
           )}
 
@@ -240,9 +240,9 @@ const AdminSeedView: React.FC = () => {
           <section className="rounded-3xl border border-pink-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-8">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
-                <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">Database Inventory Preview</h4>
+                <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">Product Preview</h4>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Admin catalog now reads live inventory rows from MySQL.
+                  Preview how new products and stock updates will appear in the shop.
                 </p>
               </div>
               <button
@@ -257,15 +257,15 @@ const AdminSeedView: React.FC = () => {
             </div>
 
             {previewLoading ? (
-              <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">Loading inventory from database...</p>
+              <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">Loading product preview...</p>
             ) : inventoryPreview.length === 0 ? (
               <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
-                No catalog or inventory data exists in the database yet.
+                No product or stock entries are available yet.
               </p>
             ) : (
               <>
                 <p className="mt-5 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                  Showing {inventoryPreview.length} of {previewTotal} inventory item(s).
+                  Showing {inventoryPreview.length} of {previewTotal} products.
                 </p>
                 <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {inventoryPreview.map((item) => (
