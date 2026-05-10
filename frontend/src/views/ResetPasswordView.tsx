@@ -1,10 +1,25 @@
-﻿import { useState } from 'react';
+import { type FormEvent, useState } from 'react';
 
-export default function ResetPasswordScreen({ onBackToLogin, onResetPassword, isSubmitting, errorMessage, successMessage }) {
+interface ResetPasswordScreenProps {
+  onBackToLogin: () => void | Promise<void>;
+  onGoogleLogin?: () => void | Promise<void>;
+  onResetPassword: (payload: { email: string; newPassword: string }) => void | Promise<void>;
+  isSubmitting?: boolean;
+  errorMessage?: string | null;
+  successMessage?: string | null;
+}
+
+export default function ResetPasswordScreen({
+  onBackToLogin,
+  onResetPassword,
+  isSubmitting,
+  errorMessage,
+  successMessage,
+}: ResetPasswordScreenProps) {
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onResetPassword({ email, newPassword });
   };

@@ -1,9 +1,5 @@
 import { useEffect } from 'react';
-<<<<<<< HEAD:frontend/src/hooks/useSocket.ts
 import { io, type Socket } from 'socket.io-client';
-=======
-import { io, Socket } from 'socket.io-client';
->>>>>>> deployment:frontend/hooks/useSocket.ts
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001';
 let activeSocket: Socket | null = null;
@@ -62,12 +58,8 @@ export function useSocket(options: UseSocketOptions = {}) {
       console.error('Socket error:', error);
     });
 
-<<<<<<< HEAD:frontend/src/hooks/useSocket.ts
-=======
     activeSocket = socket;
 
-    // Cleanup on unmount
->>>>>>> deployment:frontend/hooks/useSocket.ts
     return () => {
       socket.removeAllListeners();
       socket.disconnect();
@@ -81,19 +73,11 @@ export function useSocket(options: UseSocketOptions = {}) {
     };
   }, [userId, onNotification, onConnectionEstablished]);
 
-<<<<<<< HEAD:frontend/src/hooks/useSocket.ts
-  return sharedSocket;
-=======
   return activeSocket;
->>>>>>> deployment:frontend/hooks/useSocket.ts
 }
 
 export function getSocket(): Socket | null {
-<<<<<<< HEAD:frontend/src/hooks/useSocket.ts
-  return sharedSocket;
-=======
   return activeSocket;
->>>>>>> deployment:frontend/hooks/useSocket.ts
 }
 
 export default useSocket;

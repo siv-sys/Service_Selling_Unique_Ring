@@ -1,15 +1,18 @@
 {
-  "name": "service-selling-unique-ring-backend",
+  "name": "bondkeeper-backend",
   "version": "1.0.0",
+  "private": true,
   "type": "commonjs",
-  "description": "Backend API for Service Selling Unique Ring",
+  "description": "Backend API for Bondkeeper",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "check": "node --check src/server.js && node --check src/app.js",
     "db:init": "node scripts/database/init-db.js",
     "db:seed": "node scripts/seedRings.js",
     "db:setup": "npm run db:init && npm run db:seed",
+    "test": "npm run check",
     "test:api": "node scripts/utilities/test-api.js",
     "test:connection": "node scripts/utilities/test-connection.js",
     "test:users": "node scripts/utilities/add-test-users.js",
@@ -19,7 +22,8 @@
   "keywords": [
     "express",
     "mysql",
-    "backend"
+    "socket.io",
+    "api"
   ],
   "author": "",
   "license": "MIT",
@@ -30,7 +34,6 @@
     "express": "^4.22.1",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.19.0",
-    "redis": "^5.11.0",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {

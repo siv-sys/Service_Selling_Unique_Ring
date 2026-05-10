@@ -207,6 +207,7 @@ const Dashboard: React.FC = () => {
             <span className="font-medium text-black-200 dark:text-pink-300">Account preferences</span>
           </a>
         </div>
+        </section>
 
         {/* ACCESS GRID: elevated cards linking to shop/ring/profile/settings (premium style) */}
         <h2 className="heading-serif text-3xl font-light mb-8 flex items-center gap-4 text-pink-900 dark:text-pink-900">

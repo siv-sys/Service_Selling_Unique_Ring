@@ -23,7 +23,7 @@ import PurchaseView from './views/Purchase';
 import { RegisterScreen } from './views/RegisterView';
 import RelationshipView from './views/RelationshipView';
 import RingInformationView from './views/RingInformation';
-import { ResetPasswordScreen } from './views/ResetPasswordView';
+import ResetPasswordScreen from './views/ResetPasswordView';
 import SettingsView from './views/SettingsView';
 import UserPairMgmt from './views/UserPairMgmt';
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AuthScreen } from './types';
 import { LoginScreen } from '../views/LoginView';
 import { RegisterScreen } from '../views/RegisterView';
-import { ResetPasswordScreen } from '../views/ResetPasswordView';
+import ResetPasswordScreen from '../views/ResetPasswordView';
 import AdminDashboardView from '../views/AdminDashboardView';
 import { GoogleAccountSelector } from './GoogleAccountSelector';
 import { api, type AuthUser } from '../lib/api';

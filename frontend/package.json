@@ -1,12 +1,15 @@
 {
-  "name": "bondkeeper---couple-rings-&-relationship-registry",
+  "name": "bondkeeper-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Frontend app for Bondkeeper",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "check": "tsc --noEmit",
     "build": "vite build",
-    "preview": "npm run build && node server.mjs"
+    "preview": "vite preview --host 0.0.0.0",
+    "serve": "npm run build && node server.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
