@@ -47,13 +47,9 @@ app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 app.get('/', (_req, res) => {
   res.json({
     message: 'Service Selling Unique Ring backend is running.',
-<<<<<<< HEAD
-    api: '/api',
-=======
     health: '/api/health',
     settings: '/api/settings/system',
     adminProfile: '/api/settings/admin-profile',
->>>>>>> 8e10699d5d2000856153ad6ef8ed471370fda852
   });
 });
 
@@ -62,21 +58,9 @@ app.get('/api', (_req, res) => {
     message: 'API is available.',
     endpoints: [
       '/api/health',
-<<<<<<< HEAD
-      '/api/rings',
-      '/api/cart',
-      '/api/dashboard',
-      '/api/inventory',
-      '/api/admin/pairs',
-      '/api/notifications/me',
-      '/api/profile/me/current',
-      '/api/settings/system',
-      '/api/settings/notifications/:userId',
-=======
       '/api/settings/system',
       '/api/settings/notifications/:userId',
       '/api/settings/admin-profile',
->>>>>>> 8e10699d5d2000856153ad6ef8ed471370fda852
     ],
   });
 });

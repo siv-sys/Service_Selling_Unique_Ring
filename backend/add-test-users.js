@@ -1,81 +1,96 @@
+const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
 const env = require('./src/config/env');
 
+const TEST_PASSWORD = 'Password123!';
+
+const TEST_USERS = [
+  {
+    email: 'admin@example.com',
+    username: 'admin',
+    fullName: 'Admin User',
+    role: 'admin',
+  },
+  {
+    email: 'user@example.com',
+    username: 'user',
+    fullName: 'Test User',
+    role: 'user',
+  },
+  {
+    email: 'siv@gmail.com',
+    username: 'siv_user',
+    fullName: 'Sav Siv',
+    role: 'user',
+  },
+  {
+    email: 'reach@gmail.com',
+    username: 'reach_user',
+    fullName: 'Reach User',
+    role: 'user',
+  },
+];
+
 async function addTestUsers() {
+  const connection = await mysql.createConnection({
+    host: env.db.host,
+    port: env.db.port,
+    user: env.db.user,
+    password: env.db.password,
+    database: env.db.database,
+  });
+
   try {
-    // Connect to database
-    const connection = await mysql.createConnection({
-      host: env.db.host,
-      port: env.db.port,
-      user: env.db.user,
-      password: env.db.password,
-      database: env.db.database,
-    });
+    const passwordHash = await bcrypt.hash(TEST_PASSWORD, 12);
 
-    console.log('Connected to database');
-
-    // Check if users already exist
-    const [existingUsers] = await connection.execute(
-      'SELECT id, email FROM users WHERE email IN (?, ?)',
-      ['siv@gmail.com', 'reach@gmail.com']
-    );
-
-    if (existingUsers.length > 0) {
-      console.log('\nExisting users found:');
-      existingUsers.forEach(user => {
-        console.log(`  - ${user.email} (ID: ${user.id})`);
-      });
-      console.log('\nSkipping duplicate inserts...\n');
+    for (const user of TEST_USERS) {
+      await connection.execute(
+        `
+          INSERT INTO users (username, full_name, name, email, password_hash, account_status, role)
+          VALUES (?, ?, ?, ?, ?, 'ACTIVE', ?)
+          ON DUPLICATE KEY UPDATE
+            username = VALUES(username),
+            full_name = VALUES(full_name),
+            name = VALUES(name),
+            password_hash = VALUES(password_hash),
+            account_status = 'ACTIVE',
+            role = VALUES(role),
+            remember_token = NULL
+        `,
+        [user.username, user.fullName, user.fullName, user.email, passwordHash, user.role],
+      );
     }
 
-    // Insert siv@gmail.com if not exists
-    const sivExists = existingUsers.find(u => u.email === 'siv@gmail.com');
-    if (!sivExists) {
-      await connection.execute(`
-        INSERT INTO users (username, full_name, email, password_hash, account_status, role)
-        VALUES ('siv_user', 'Sav Siv', 'siv@gmail.com', '$2b$10$rH0zKzOzUul5AI3gD9WZu.', 'ACTIVE', 'user')
-      `);
-      console.log('✅ Created user: siv@gmail.com (Sav Siv)');
-    }
+    await connection.execute(`
+      UPDATE auth_sessions
+      SET revoked_at = UTC_TIMESTAMP()
+      WHERE revoked_at IS NULL
+    `).catch(() => {});
 
-    // Insert reach@gmail.com if not exists
-    const reachExists = existingUsers.find(u => u.email === 'reach@gmail.com');
-    if (!reachExists) {
-      await connection.execute(`
-        INSERT INTO users (username, full_name, email, password_hash, account_status, role)
-        VALUES ('reach_user', 'Reach User', 'reach@gmail.com', '$2b$10$rH0zKzOzUul5AI3gD9WZu.', 'ACTIVE', 'user')
-      `);
-      console.log('✅ Created user: reach@gmail.com (Reach User)');
-    }
-
-    // Get user IDs for verification
     const [users] = await connection.execute(
-      'SELECT id, email, full_name FROM users WHERE email IN (?, ?) ORDER BY id',
-      ['siv@gmail.com', 'reach@gmail.com']
+      `
+        SELECT id, email, full_name, role, account_status
+        FROM users
+        WHERE email IN (?, ?, ?, ?)
+        ORDER BY role, id
+      `,
+      TEST_USERS.map((user) => user.email),
     );
 
-    console.log('\n📋 User Information:');
-    console.log('─'.repeat(50));
-    users.forEach(user => {
-      console.log(`ID: ${user.id} | Email: ${user.email} | Name: ${user.full_name}`);
+    console.log('Test users are ready:');
+    users.forEach((user) => {
+      console.log(`- ${user.email} / ${TEST_PASSWORD} (${user.role})`);
     });
-    console.log('─'.repeat(50));
-
-    console.log('\n💡 Test Instructions:');
-    console.log('1. Login as siv@gmail.com');
-    console.log('2. Go to Relationship page');
-    console.log('3. Search for "reach" or "reach@gmail.com"');
-    console.log('4. Click [Invite] button');
-    console.log('5. Logout and login as reach@gmail.com');
-    console.log('6. Check notifications - should see invitation');
-    console.log('7. Click [Accept Connection] or [Decline]');
-    console.log('\n✨ Users are ready for testing!\n');
-
+  } finally {
     await connection.end();
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-    process.exit(1);
   }
 }
 
-addTestUsers();
+if (require.main === module) {
+  addTestUsers().catch((error) => {
+    console.error('Error adding test users:', error.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { addTestUsers };

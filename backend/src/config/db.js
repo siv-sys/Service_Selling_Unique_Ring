@@ -1,17 +1,68 @@
 const mysql = require('mysql2/promise');
 const env = require('./env');
 
-const pool = mysql.createPool({
-  host: env.db.host,
-  port: env.db.port,
-  user: env.db.user,
-  password: env.db.password,
-  database: env.db.database,
-  waitForConnections: true,
-  connectionLimit: env.db.connectionLimit,
-  queueLimit: 0,
-  namedPlaceholders: true,
-});
+let poolPromise = null;
+
+function escapeIdentifier(identifier) {
+  return `\`${String(identifier).replace(/`/g, '``')}\``;
+}
+
+async function ensureDatabaseExists() {
+  const connection = await mysql.createConnection({
+    host: env.db.host,
+    port: env.db.port,
+    user: env.db.user,
+    password: env.db.password,
+  });
+
+  try {
+    await connection.query(`CREATE DATABASE IF NOT EXISTS ${escapeIdentifier(env.db.database)}`);
+  } finally {
+    await connection.end();
+  }
+}
+
+async function createPool() {
+  await ensureDatabaseExists();
+
+  return mysql.createPool({
+    host: env.db.host,
+    port: env.db.port,
+    user: env.db.user,
+    password: env.db.password,
+    database: env.db.database,
+    waitForConnections: true,
+    connectionLimit: env.db.connectionLimit,
+    queueLimit: 0,
+    namedPlaceholders: true,
+  });
+}
+
+function getPool() {
+  if (!poolPromise) {
+    poolPromise = createPool().catch((error) => {
+      poolPromise = null;
+      throw error;
+    });
+  }
+
+  return poolPromise;
+}
+
+const pool = {
+  execute: async (sql, params = []) => {
+    const dbPool = await getPool();
+    return dbPool.execute(sql, params);
+  },
+  query: async (sql, params = []) => {
+    const dbPool = await getPool();
+    return dbPool.query(sql, params);
+  },
+  getConnection: async () => {
+    const dbPool = await getPool();
+    return dbPool.getConnection();
+  },
+};
 
 async function query(sql, params = []) {
   const [rows] = await pool.execute(sql, params);
