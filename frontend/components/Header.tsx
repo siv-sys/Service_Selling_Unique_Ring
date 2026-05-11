@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, MessageCircleMore } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { api, resolveApiAssetUrl } from '../lib/api';
 import { getStoredAuthValue, getUserScopedLocalStorageItem } from '../lib/userStorage';
 
@@ -15,14 +15,6 @@ interface HeaderProps {
   showExportButton?: boolean;
   onExportExcel?: () => void;
   onExportPdf?: () => void;
-  notifications?: Array<{
-    id: string;
-    title: string;
-    description: string;
-    time: string;
-    imageUrl?: string;
-    imageName?: string;
-  }>;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -31,7 +23,6 @@ const Header: React.FC<HeaderProps> = ({
   showExportButton = false,
   onExportExcel,
   onExportPdf,
-  notifications = []
 }) => {
   const navigate = useNavigate();
   const defaultProfilePhoto =
@@ -39,9 +30,7 @@ const Header: React.FC<HeaderProps> = ({
   const [profilePhoto, setProfilePhoto] = useState(defaultProfilePhoto);
   const [profileName, setProfileName] = useState(DEFAULT_PROFILE_NAME);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
-  const notificationRef = useRef<HTMLDivElement>(null);
 
   const syncAdminProfile = useCallback(async () => {
     const storedName = sessionStorage.getItem('auth_name')?.trim() || DEFAULT_PROFILE_NAME;
@@ -90,9 +79,6 @@ const Header: React.FC<HeaderProps> = ({
       if (exportRef.current && !exportRef.current.contains(target)) {
         setIsExportOpen(false);
       }
-      if (notificationRef.current && !notificationRef.current.contains(target)) {
-        setIsNotificationOpen(false);
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -107,43 +93,6 @@ const Header: React.FC<HeaderProps> = ({
       </div>
       
       <div className="flex items-center gap-4">
-        <div className="relative" ref={notificationRef}>
-          <button
-            type="button"
-            onClick={() => setIsNotificationOpen((prev) => !prev)}
-            title="Messages"
-            className="relative rounded-full border border-pink-200 p-2 text-pink-700 transition-colors hover:bg-pink-100 active:bg-pink-200 active:text-pink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300 dark:border-slate-700 dark:text-pink-300 dark:hover:bg-slate-800"
-          >
-            <MessageCircleMore className="w-5 h-5" />
-            {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-pink-600 rounded-full"></span>}
-          </button>
-          {isNotificationOpen && (
-            <div className="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-xl border border-pink-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
-              <div className="border-b border-pink-100 px-4 py-3 text-sm font-bold text-pink-900 dark:border-slate-800 dark:text-pink-300">
-                Messages
-              </div>
-              <div className="max-h-72 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <p className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">No notifications</p>
-                ) : (
-                  notifications.map((item) => (
-                    <div key={item.id} className="border-b border-pink-50 px-4 py-3 last:border-b-0 dark:border-slate-800">
-                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{item.title}</p>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300">{item.description}</p>
-                      {item.imageUrl ? (
-                        <div className="mt-2 overflow-hidden rounded-lg border border-pink-100 dark:border-slate-700">
-                          <img src={item.imageUrl} alt={item.imageName || 'Attachment'} className="h-32 w-full object-cover" />
-                        </div>
-                      ) : null}
-                      <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{item.time}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-        
         {showExportButton && (
           <div className="relative" ref={exportRef}>
             <button

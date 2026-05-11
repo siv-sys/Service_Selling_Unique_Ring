@@ -43,8 +43,7 @@ const ConnectionRequestsView: React.FC = () => {
       if (result.success) {
         alert('✅ Connection established! Redirecting...');
         fetchInvitations(); // Refresh list
-        // Redirect to couple profile or shared page
-        window.location.href = '/couple-profile';
+        window.location.href = '/relationship';
       }
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to accept invitation');
@@ -305,7 +304,7 @@ const ConnectionRequestsView: React.FC = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => window.location.href = '/couple-profile'}
+                      onClick={() => window.location.href = '/relationship'}
                       style={{
                         padding: '10px 20px',
                         backgroundColor: '#10b981',
@@ -316,7 +315,7 @@ const ConnectionRequestsView: React.FC = () => {
                         fontWeight: 600
                       }}
                     >
-                      View Couple Profile →
+                      View Relationship
                     </button>
                   </div>
                 ))}

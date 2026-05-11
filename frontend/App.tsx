@@ -10,7 +10,6 @@ import { THEME_EVENT, syncStoredTheme } from './lib/theme';
 import AdminSeedView from './views/AdminSeedView';
 import AdminDashboardView from './views/AdminDashboardView';
 import CartView from './views/Cart';
-import CoupleProfileView from './views/CoupleProfileView';
 import CoupleShopView from './views/CoupleShopView';
 import DashboardView from './views/DashboardView';
 import InventoryView from './views/InventoryView';
@@ -326,7 +325,7 @@ function AppRoutes() {
         }
       />
       <Route path="/cart" element={userLayout(<CartView />)} />
-      <Route path="/purchase" element={userLayout(<PurchaseView />)} />  // ADD THIS LINE
+      <Route path="/purchase" element={userLayout(<PurchaseView />)} />
       <Route path={ADMIN_HOME_PATH} element={adminLayout(<AdminDashboardView />)} />
       <Route
         path="/reset-password"
@@ -355,7 +354,7 @@ function AppRoutes() {
       <Route path="/ring-view" element={userLayout(<RingInformationView />)} />
       <Route path="/ring-view/:ringId" element={userLayout(<RingInformationView />)} />
       <Route path="/profile" element={userLayout(<ProfileView />)} />
-      <Route path="/couple-profile" element={userLayout(<CoupleProfileView />)} />
+      <Route path="/couple-profile" element={<Navigate to="/relationship" replace />} />
       <Route path="/relationship" element={userLayout(<RelationshipView />)} />
       <Route path="/cart" element={userLayout(<CartView />)} />
       <Route path={ADMIN_HOME_PATH} element={adminLayout(<AdminDashboardView />)} />

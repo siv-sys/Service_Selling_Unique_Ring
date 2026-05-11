@@ -11,11 +11,11 @@
 }
 
 html.dark {
-  --bg: #0f172a;
+  --bg: #020617;
   --card-bg: #162033;
   --text: #f8fafc;
-  --muted: #94a3b8;
-  --border: #2b3648;
+  --muted: #cbd5e1;
+  --border: #475569;
 }
 
 * {
@@ -31,14 +31,130 @@ body,
 
 body {
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  background: radial-gradient(circle at top right, #ffe7ef 0%, var(--bg) 40%);
+  background: var(--bg);
   color: var(--text);
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
 }
 
 html.dark body {
-  background:
-    radial-gradient(circle at top right, rgba(236, 19, 128, 0.18) 0%, transparent 25%),
-    linear-gradient(180deg, #111827 0%, var(--bg) 100%);
+  background: var(--bg);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+img {
+  max-width: 100%;
+}
+
+::selection {
+  background: rgba(236, 19, 128, 0.18);
+}
+
+/* Shared natural UI polish across older page-specific Tailwind markup. */
+.rounded-3xl,
+.rounded-\[28px\] {
+  border-radius: 12px !important;
+}
+
+.rounded-2xl {
+  border-radius: 10px !important;
+}
+
+.shadow-xl,
+.shadow-2xl {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
+}
+
+.tracking-\[0\.4em\],
+.tracking-\[0\.3em\],
+.tracking-\[0\.25em\],
+.tracking-\[0\.22em\] {
+  letter-spacing: 0 !important;
+}
+
+.font-black {
+  font-weight: 700 !important;
+}
+
+.bg-\[\#fff8fc\],
+.bg-cream,
+.bg-background-light {
+  background-color: #f8fafc !important;
+}
+
+.border-pink-100,
+.border-pink-200,
+.border-pink-300 {
+  border-color: #e2e8f0 !important;
+}
+
+.bg-pink-50,
+.bg-pink-100 {
+  background-color: #f8fafc !important;
+}
+
+.text-pink-600,
+.text-pink-700,
+.text-pink-800,
+.text-pink-900 {
+  color: #334155 !important;
+}
+
+.dark .bg-\[\#fff8fc\],
+.dark .bg-cream,
+.dark .bg-background-light {
+  background-color: #0f172a !important;
+}
+
+.dark .bg-pink-50,
+.dark .bg-pink-100 {
+  background-color: #1f2937 !important;
+}
+
+main,
+.page-shell,
+.user-shell-content > div,
+.user-shell-content > main {
+  scroll-margin-top: 96px;
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: clamp(1.75rem, 8vw, 2.5rem) !important;
+    line-height: 1.12 !important;
+  }
+
+  h2 {
+    line-height: 1.2 !important;
+  }
+
+  .px-8 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .p-8 {
+    padding: 1rem !important;
+  }
 }
 
 .settings-page {

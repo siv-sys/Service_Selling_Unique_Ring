@@ -604,7 +604,7 @@ const PurchaseView: React.FC = () => {
               <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
               <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
               <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
-              <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/profile" className="hover:text-primary transition-colors">Profile</Link>
               <Link to="/relationship" className="hover:text-primary transition-colors">Relationship</Link>
               <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
             </nav>
@@ -769,7 +769,7 @@ const PurchaseView: React.FC = () => {
                     <div className="p-4 bg-amber-50 dark:bg-orange-900/20 border border-amber-100 dark:border-orange-300 rounded-xl flex items-start gap-3">
                       <span className="material-symbols-outlined text-orange-600">info</span>
                       <p className="text-xs text-orange-300 dark:text-orange-700">
-                        This information will be used to create your couple profile and verify your purchase.
+                        This information will be used to verify your purchase.
                       </p>
                     </div>
                   </div>

@@ -140,7 +140,7 @@ const Dashboard: React.FC = () => {
               <Link to="/" className="text-primary border-b border-primary/40 pb-1">Dashboard</Link>
               <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
               <Link to="/ring-view" className="hover:text-primary transition-colors">My Ring</Link>
-              <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/profile" className="hover:text-primary transition-colors">Profile</Link>
             </nav>
           </div>
           {/* right icons & member subtle */}
@@ -236,7 +236,7 @@ const Dashboard: React.FC = () => {
             </span>
           </Link>
           
-          {/* couple profile card */}
+          {/* profile card */}
           <Link to="/profile" className="group bg-white dark:bg-surface-dark/70 backdrop-blur-sm rounded-2xl p-8 border border-pink-200 dark:border-pink-700 hover:border-primary/20 transition-all shadow-premium">
             <div className="w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 mb-5">
               <span className="material-symbols-outlined text-3xl">people</span>

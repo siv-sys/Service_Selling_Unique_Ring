@@ -8,10 +8,15 @@ router.post('/support-message', async (req, res) => {
   try {
     const senderId = Number(req.auth?.user?.id || 0);
     const senderName = String(req.auth?.user?.name || req.auth?.user?.email || 'Member').trim() || 'Member';
+    const senderRole = String(req.auth?.user?.role || '').trim().toLowerCase();
     const subject = String(req.body?.subject || 'Receipt verification request').trim() || 'Receipt verification request';
     const message = String(req.body?.message || '').trim();
     const attachment = String(req.body?.attachment || '').trim();
     const attachmentName = String(req.body?.attachmentName || '').trim();
+
+    if (senderRole !== 'user') {
+      return res.status(403).json({ message: 'Only user accounts can send receipt messages to admins.' });
+    }
 
     if (!message && !attachment) {
       return res.status(400).json({ message: 'Message or receipt image is required.' });
@@ -21,7 +26,7 @@ router.post('/support-message', async (req, res) => {
       `
         SELECT id
         FROM users
-        WHERE COALESCE(role, 'user') = 'admin'
+        WHERE LOWER(COALESCE(role, 'user')) = 'admin'
           AND COALESCE(account_status, 'ACTIVE') = 'ACTIVE'
       `
     );
@@ -35,6 +40,7 @@ router.post('/support-message', async (req, res) => {
     const metadata = {
       senderId: Number.isFinite(senderId) && senderId > 0 ? senderId : null,
       senderName,
+      senderRole,
       subject,
       message,
       attachment,

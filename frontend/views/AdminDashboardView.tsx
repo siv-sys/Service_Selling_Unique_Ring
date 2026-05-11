@@ -105,6 +105,20 @@ type DashboardResponse = {
   adminNotifications?: DashboardNotification[];
   weeklyConnectivity: WeeklyConnectivityPoint[];
 };
+
+function formatAlertTime(value: string | null | undefined) {
+  if (!value) return 'just now';
+
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return 'just now';
+
+  const elapsedMs = Date.now() - timestamp;
+  if (elapsedMs < 60_000) return 'just now';
+  if (elapsedMs < 60 * 60_000) return `${Math.max(1, Math.floor(elapsedMs / 60_000))} min ago`;
+
+  return new Date(value).toLocaleString();
+}
+
 const AdminDashboardView = () => {
   const [lastExport, setLastExport] = useState('');
   const [dashboardError, setDashboardError] = useState('');
@@ -130,6 +144,7 @@ const AdminDashboardView = () => {
   const [pairingRequests, setPairingRequests] = useState<PairingRequest[]>([]);
   const [relationshipUserAlerts, setRelationshipUserAlerts] = useState<RelationshipUserAlert[]>([]);
   const [adminNotifications, setAdminNotifications] = useState<DashboardNotification[]>([]);
+  const [isViewingAllAlerts, setIsViewingAllAlerts] = useState(false);
 
   const getErrorMessage = (error: unknown, fallback: string) => {
     if (error instanceof Error && error.message) {
@@ -210,7 +225,6 @@ const AdminDashboardView = () => {
       .map((item, index) => {
         const metadata = item.metadata && typeof item.metadata === 'object' ? item.metadata : null;
         const customerName = metadata && typeof metadata.customerName === 'string' ? metadata.customerName : 'A customer';
-        const senderName = metadata && typeof metadata.senderName === 'string' ? metadata.senderName : 'A member';
         const ringName = metadata && typeof metadata.ringName === 'string' ? metadata.ringName : 'a ring';
         const sku = metadata && typeof metadata.sku === 'string' ? metadata.sku : '';
         const total = metadata && typeof metadata.total === 'number' ? metadata.total : null;
@@ -223,11 +237,13 @@ const AdminDashboardView = () => {
           id: item.id || `payment-${index}`,
           title: item.title || (isSupportMessage ? 'Receipt message received' : 'Payment received'),
           desc: isSupportMessage
-            ? `${senderName} sent a receipt message${attachmentName ? ` with ${attachmentName}` : ''}.`
+            ? attachmentName
+              ? `Receipt image attached: ${attachmentName}.`
+              : 'A customer paid for a ring.'
             : item.message || `${customerName} paid for ${ringText}${amountText}.`,
-          time: item.createdAt ? new Date(item.createdAt).toLocaleString() : 'just now',
-          color: isSupportMessage ? 'primary' : 'green',
-          icon: isSupportMessage ? 'info' : 'check',
+          time: formatAlertTime(item.createdAt),
+          color: 'green',
+          icon: 'check',
         };
       });
     const pendingRequests = pairingRequests.filter((item) => item.status === 'Pending');
@@ -275,29 +291,6 @@ const AdminDashboardView = () => {
       }
     ].filter(Boolean) as RecentAlert[];
   }, [adminNotifications, pairingRequests, relationshipUserAlerts]);
-
-  const headerNotifications = useMemo(
-    () =>
-      adminNotifications.map((item) => ({
-        id: item.id,
-        title: item.title,
-        description: item.message,
-        imageUrl:
-          item.type === 'support_message' && item.metadata && typeof item.metadata === 'object'
-            ? typeof item.metadata.attachment === 'string'
-              ? item.metadata.attachment
-              : ''
-            : '',
-        imageName:
-          item.type === 'support_message' && item.metadata && typeof item.metadata === 'object'
-            ? typeof item.metadata.attachmentName === 'string'
-              ? item.metadata.attachmentName
-              : ''
-            : '',
-        time: item.createdAt ? new Date(item.createdAt).toLocaleString() : 'just now',
-      })),
-    [adminNotifications],
-  );
 
   const getTimestamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
 
@@ -415,6 +408,48 @@ const AdminDashboardView = () => {
     setLastExport(`dashboard-export-${getTimestamp()}.pdf`);
   };
 
+  if (isViewingAllAlerts) {
+    return (
+      <>
+        <Header
+          title="Recent Alerts"
+          subtitle="All admin alerts and receipt messages"
+        />
+
+        <main className="admin-dashboard-page min-h-screen overflow-y-auto p-8">
+          <div className="mx-auto max-w-5xl rounded-xl border border-pink-300 bg-white p-8 shadow-sm">
+            <div className="mb-8 flex items-center justify-between border-b border-pink-200 pb-5">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Recent Alerts</h1>
+                <p className="mt-1 text-sm text-slate-500">{recentAlerts.length} alert(s) from latest activity.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsViewingAllAlerts(false)}
+                className="rounded-lg border border-pink-300 px-4 py-2 text-sm font-bold text-pink-700 transition-colors hover:bg-pink-50"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {recentAlerts.map((alert) => (
+                <AlertItem
+                  key={alert.id}
+                  icon={alert.icon === 'alert' ? AlertCircle : alert.icon === 'check' ? CheckCircle2 : Info}
+                  title={alert.title}
+                  desc={alert.desc}
+                  time={alert.time}
+                  color={alert.color}
+                />
+              ))}
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
+
   return (
     <>
       <style>{`
@@ -426,7 +461,7 @@ const AdminDashboardView = () => {
         .dark .admin-dashboard-page .border-pink-200,
         .dark .admin-dashboard-page .border-slate-200,
         .dark .admin-dashboard-page .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
-          border-color: #374151 !important;
+          border-color: #475569 !important;
         }
 
         .dark .admin-dashboard-page .bg-pink-50,
@@ -437,16 +472,25 @@ const AdminDashboardView = () => {
           background-color: #1f2937 !important;
         }
 
+        .dark .admin-dashboard-page .text-slate-950,
         .dark .admin-dashboard-page .text-slate-900,
         .dark .admin-dashboard-page .text-slate-800 {
-          color: #f3f4f6 !important;
+          color: #f8fafc !important;
         }
 
+        .dark .admin-dashboard-page .text-slate-300,
         .dark .admin-dashboard-page .text-slate-700,
         .dark .admin-dashboard-page .text-slate-600,
         .dark .admin-dashboard-page .text-slate-500,
         .dark .admin-dashboard-page .text-slate-400 {
-          color: #94a3b8 !important;
+          color: #cbd5e1 !important;
+        }
+
+        .dark .admin-dashboard-page h1,
+        .dark .admin-dashboard-page h2,
+        .dark .admin-dashboard-page h3,
+        .dark .admin-dashboard-page strong {
+          color: #f8fafc;
         }
       `}</style>
       <Header
@@ -454,7 +498,6 @@ const AdminDashboardView = () => {
         subtitle={`Platform performance and key metrics at a glance ${dbConnected ? '🟢 Database Connected' : '🔴 Database Offline'}`}
         onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
-        notifications={headerNotifications}
         showExportButton
       />
 
@@ -753,10 +796,16 @@ const AdminDashboardView = () => {
           <div className="bg-white p-6 rounded-xl border border-pink-300 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-pink-200">
               <h2 className="text-lg font-bold">Recent Alerts</h2>
-              <button className="text-pink-700 text-xs font-bold hover:text-pink-800 hover:underline">View All</button>
+              <button
+                type="button"
+                onClick={() => setIsViewingAllAlerts(true)}
+                className="text-pink-700 text-xs font-bold hover:text-pink-800 hover:underline"
+              >
+                View All
+              </button>
             </div>
             <div className="space-y-4 flex-1">
-              {recentAlerts.map((alert) => (
+              {recentAlerts.slice(0, 5).map((alert) => (
                 <AlertItem
                   key={alert.id}
                   icon={alert.icon === 'alert' ? AlertCircle : alert.icon === 'check' ? CheckCircle2 : Info}

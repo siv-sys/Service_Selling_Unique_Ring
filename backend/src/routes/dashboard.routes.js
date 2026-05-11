@@ -335,11 +335,11 @@ router.get('/', async (_req, res) => {
     ];
 
     const paymentAlerts = paymentAlertRows.map((row) => ({
-      id: `pay-${row.id}`,
+      id: `notification-${row.id}`,
       title: row.title || 'Payment received',
       description: row.message || 'A payment has been completed.',
       time: row.created_at ? new Date(row.created_at).toLocaleString() : 'just now',
-      type: 'payment_received',
+      type: row.type,
       icon: row.icon || '$',
       iconClass: row.icon_class || 'payment',
       actionKey: row.action_key || null,

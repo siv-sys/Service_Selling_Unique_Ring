@@ -386,90 +386,86 @@ const CoupleShopView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fff8fc] dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <section className="mb-10 grid gap-6 lg:grid-cols-[1.4fr_0.6fr] items-end">
-          <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-primary font-bold mb-3">Ring Models</p>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4">
-              Discover our ring collection.
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-6 dark:border-slate-800 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="mb-2 text-xs font-bold uppercase text-primary">Ring Models</p>
+            <h1 className="text-3xl font-bold text-slate-950 dark:text-white md:text-4xl">
+              Discover our ring collection
             </h1>
-            <p className="max-w-2xl text-slate-600 dark:text-slate-400 text-base md:text-lg leading-relaxed">
-              Browse elegant designs, compare styles, and find the ring that feels right for your story.
+            <p className="mt-3 text-base leading-7 text-slate-600 dark:text-slate-400">
+              Browse designs, compare materials, and choose a ring that fits your story.
             </p>
           </div>
-          <div className="rounded-3xl border border-pink-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-6 shadow-xl shadow-pink-100/30">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <div className="text-slate-500 uppercase tracking-[0.25em] text-[11px] mb-1">Models</div>
-                <div className="text-3xl font-black">{totalRings}</div>
-              </div>
-              <div>
-                <div className="text-slate-500 uppercase tracking-[0.25em] text-[11px] mb-1">Available</div>
-                <div className="text-3xl font-black">{availableRings}</div>
-              </div>
+          <div className="grid w-full grid-cols-2 gap-3 lg:w-72">
+            <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-xs font-semibold uppercase text-slate-500">Models</p>
+              <p className="mt-1 text-2xl font-bold">{totalRings}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-xs font-semibold uppercase text-slate-500">Available</p>
+              <p className="mt-1 text-2xl font-bold">{availableRings}</p>
             </div>
           </div>
         </section>
 
-        <section className="mb-8 rounded-3xl border border-pink-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-5 shadow-sm">
-          <div className="flex flex-col xl:flex-row xl:items-center gap-4 justify-between">
-            <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0">
+        <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px]">
+            <form onSubmit={handleSearchSubmit} className="relative min-w-0">
               <input
                 type="text"
                 value={filters.search}
                 onChange={handleSearchChange}
                 placeholder="Search by model, material, collection, or description"
-                className="w-full pl-12 pr-12 py-3 rounded-full border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-10 text-sm outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-950"
               />
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-slate-400">search</span>
               {filters.search && (
                 <button
                   type="button"
                   onClick={() => applyFilters({ ...filters, search: '' })}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary"
                 >
                   <span className="material-symbols-outlined text-sm">close</span>
                 </button>
               )}
             </form>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={filters.material}
-                onChange={handleMaterialChange}
-                className="px-4 py-3 rounded-xl border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm"
-              >
-                <option value="">All Materials</option>
-                {materials.map((material) => (
-                  <option key={material} value={material}>
-                    {material}
-                  </option>
-                ))}
-              </select>
+            <select
+              value={filters.material}
+              onChange={handleMaterialChange}
+              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+            >
+              <option value="">All Materials</option>
+              {materials.map((material) => (
+                <option key={material} value={material}>
+                  {material}
+                </option>
+              ))}
+            </select>
 
-              <select
-                value={filters.sort}
-                onChange={handleSortChange}
-                className="px-4 py-3 rounded-xl border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm"
-              >
-                <option value="featured">Sort: Featured</option>
-                <option value="low-high">Price: Low to High</option>
-                <option value="high-low">Price: High to Low</option>
-                <option value="newest">Newest</option>
-              </select>
-            </div>
+            <select
+              value={filters.sort}
+              onChange={handleSortChange}
+              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+            >
+              <option value="featured">Featured</option>
+              <option value="low-high">Price: Low to High</option>
+              <option value="high-low">Price: High to Low</option>
+              <option value="newest">Newest</option>
+            </select>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Price</span>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-500">Price Range</span>
               <input
                 type="number"
                 value={filters.minPrice}
                 onChange={(e) => setFilters((prev) => ({ ...prev, minPrice: e.target.value }))}
                 placeholder={`Min $${priceRange.min}`}
-                className="w-28 px-3 py-2 rounded-lg border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm"
+                className="h-10 w-28 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
               />
               <span className="text-slate-400">-</span>
               <input
@@ -477,19 +473,19 @@ const CoupleShopView: React.FC = () => {
                 value={filters.maxPrice}
                 onChange={(e) => setFilters((prev) => ({ ...prev, maxPrice: e.target.value }))}
                 placeholder={`Max $${priceRange.max}`}
-                className="w-28 px-3 py-2 rounded-lg border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm"
+                className="h-10 w-28 rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
               />
             </div>
 
             <button
               onClick={handleApplyPriceFilter}
-              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold"
+              className="h-10 rounded-lg bg-primary px-4 text-sm font-bold text-white"
             >
               Apply
             </button>
             <button
               onClick={handleClearFilters}
-              className="px-4 py-2 rounded-lg border border-pink-100 dark:border-slate-700 text-sm font-bold"
+              className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold dark:border-slate-700"
             >
               Clear
             </button>
@@ -499,14 +495,14 @@ const CoupleShopView: React.FC = () => {
         {activeFilters.length > 0 && (
           <div className="mb-6 flex flex-wrap gap-2">
             {activeFilters.map((filter) => (
-              <span key={filter} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <span key={filter} className="rounded-lg bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
                 {filter}
               </span>
             ))}
           </div>
         )}
 
-        <div className="flex items-center justify-between text-sm text-slate-500 mb-6">
+        <div className="mb-5 flex items-center justify-between text-sm text-slate-500">
           <div>
             <span className="font-bold text-slate-900 dark:text-white">{filteredRings.length}</span> ring models found
           </div>
@@ -516,12 +512,12 @@ const CoupleShopView: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="py-20 text-center">
-            <div className="mx-auto mb-4 w-10 h-10 rounded-full border-4 border-pink-100 border-t-primary animate-spin" />
+          <div className="py-16 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-primary" />
             <p className="text-slate-500">Loading ring models from the database...</p>
           </div>
         ) : displayedRings.length === 0 ? (
-          <div className="py-20 text-center rounded-3xl border border-dashed border-pink-200 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40">
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white py-16 text-center dark:border-slate-700 dark:bg-slate-900">
             <span className="material-symbols-outlined text-5xl text-slate-400 mb-3">search_off</span>
             <p className="text-slate-500 mb-4">No ring models match your filters.</p>
             <button onClick={handleClearFilters} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-bold">
@@ -529,42 +525,47 @@ const CoupleShopView: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {displayedRings.map((ring) => {
               const isFav = localStorage.getItem(`fav-${ring.id}`) === 'true';
               const stockLabel = `${ring.available_units} in stock`;
               const statusLabel =
                 ring.available_units <= 0 ? 'Out of stock' : ring.available_units <= 5 ? 'Low stock' : 'In stock';
-              const serialText = ring.serial_number || `INV-${ring.id}-${ring.material.toUpperCase()}-${ring.size}`;
+              const statusTone =
+                ring.available_units <= 0
+                  ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
+                  : ring.available_units <= 5
+                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300'
+                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300';
 
               return (
                 <article
                   key={ring.id}
-                  className="group overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-2xl hover:shadow-pink-100/20 transition-all duration-300"
+                  className="group overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30 dark:hover:border-slate-500"
                 >
-                  <div className="relative aspect-[1.35/1] overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-white dark:bg-slate-950">
                     <img
                       src={ring.image_url || ring.image || PLACEHOLDER_IMAGE}
                       alt={ring.model_name}
-                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                       loading="lazy"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
                       }}
                     />
 
-                    <div className="absolute left-4 top-4 rounded-full bg-white/92 px-4 py-2 text-sm font-bold text-pink-600 shadow-lg backdrop-blur">
+                    <div className="absolute left-3 top-3 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-sm ring-1 ring-slate-200 dark:bg-slate-950/95 dark:text-white dark:ring-slate-500">
                       {stockLabel}
                     </div>
                     {ring.isNew && (
-                      <div className="absolute left-4 top-16 rounded-full bg-primary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-white shadow-lg">
+                      <div className="absolute left-3 top-12 rounded-lg bg-slate-950 px-2 py-1 text-[11px] font-bold uppercase text-white">
                         New
                       </div>
                     )}
                     <button
                       type="button"
                       onClick={(e) => toggleFavorite(ring.id, e)}
-                      className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur hover:text-primary"
+                      className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-lg bg-white/95 text-slate-900 shadow-sm ring-1 ring-slate-200 transition-colors hover:text-primary dark:bg-slate-950/95 dark:text-white dark:ring-slate-500"
                     >
                       <span
                         className={`material-symbols-outlined ${isFav ? 'text-primary' : ''}`}
@@ -575,56 +576,43 @@ const CoupleShopView: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <h2 className="text-2xl font-black tracking-tight truncate">{ring.model_name}</h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                          Size {ring.size} - {ring.material}
-                        </p>
-                      </div>
-                      <div className="shrink-0 rounded-full bg-pink-50 px-4 py-2 text-sm font-bold text-pink-600">
-                        {stockLabel}
-                      </div>
+                  <div className="p-4">
+                    <div className="min-w-0">
+                      <h2 className="truncate text-lg font-semibold text-slate-950 dark:text-white">
+                        {ring.model_name}
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        {ring.material} ring, size {ring.size}
+                      </p>
                     </div>
 
-                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
-                      SKU: {ring.sku}
-                    </p>
-                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                      Serial: {serialText}
-                    </p>
-                    <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">
+                    <p className="sr-only">
                       Status: {statusLabel} • {ring.material}
                     </p>
-                    <p className="mt-3 text-xl font-black text-primary">
-                      ${ring.price.toLocaleString()}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">
-                        {ring.currency_code}
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <p className="text-2xl font-bold text-slate-950 dark:text-white">
+                        {ring.price.toLocaleString()} {ring.currency_code}
+                      </p>
+                      <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${statusTone}`}>
+                        {statusLabel}
                       </span>
-                      {ring.isNew && (
-                        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                          Fresh
-                        </span>
-                      )}
                     </div>
 
-                    <div className="mt-5 grid grid-cols-2 gap-3">
+                    <div className="mt-4 grid grid-cols-2 gap-2">
                       <button
                         onClick={() => addToCart(ring)}
                         disabled={!ring.representative_ring_id || ring.available_units <= 0}
-                        className="rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 dark:bg-primary dark:hover:bg-primary/80 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
                       >
-                        Add to Cart
+                        <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+                        Add
                       </button>
                       <button
                         onClick={() => viewRingDetail(ring)}
-                        className="rounded-2xl border border-pink-100 dark:border-slate-700 px-4 py-3 text-sm font-bold transition-colors hover:border-primary hover:text-primary"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-900 transition-colors hover:border-primary hover:text-primary dark:border-slate-500 dark:bg-slate-950 dark:text-white dark:hover:border-primary"
                       >
-                        See More
+                        <span className="material-symbols-outlined text-[18px]">visibility</span>
+                        Details
                       </button>
                     </div>
                   </div>
@@ -635,13 +623,13 @@ const CoupleShopView: React.FC = () => {
         )}
 
         {!isLoading && filteredRings.length > visibleCount && (
-          <div className="mt-12 text-center">
-            <p className="text-sm uppercase tracking-[0.3em] text-slate-400 mb-4">
+          <div className="mt-10 text-center">
+            <p className="mb-4 text-sm text-slate-400">
               Showing {displayedRings.length} of {filteredRings.length}
             </p>
             <button
               onClick={handleDiscoverMore}
-              className="px-8 py-3 rounded-full border border-pink-100 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold uppercase tracking-[0.2em]"
+              className="rounded-lg border border-slate-200 bg-white px-6 py-2.5 text-sm font-bold dark:border-slate-700 dark:bg-slate-900"
             >
               Discover More
             </button>
@@ -669,8 +657,8 @@ const CoupleShopView: React.FC = () => {
         </div>
       )}
 
-      <footer className="mt-20 border-t border-pink-100 dark:border-slate-800 bg-white/60 dark:bg-slate-950/60">
-        <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
+      <footer className="mt-16 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-slate-500 md:flex-row">
           <p>BondKeeper · Curated ring collection for couples.</p>
           <div className="flex gap-5">
             <Link to="/dashboard" className="hover:text-primary">

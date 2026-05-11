@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
-const env = require('./src/config/env');
+const env = require('../../src/config/env');
 
 const TEST_PASSWORD = 'Password123!';
 

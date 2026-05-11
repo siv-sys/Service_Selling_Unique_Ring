@@ -1,5 +1,5 @@
 const mysql = require('mysql2/promise');
-const env = require('./src/config/env');
+const env = require('../../src/config/env');
 
 async function checkInvitationStatus() {
   try {
@@ -200,7 +200,7 @@ async function checkInvitationStatus() {
     const fs = require('fs');
     const path = require('path');
     
-    const appJsPath = path.join(__dirname, 'src', 'app.js');
+    const appJsPath = path.resolve(__dirname, '../../src/app.js');
     if (fs.existsSync(appJsPath)) {
       const appContent = fs.readFileSync(appJsPath, 'utf8');
       const hasPairInvitationsRoute = appContent.includes('/pair-invitations');

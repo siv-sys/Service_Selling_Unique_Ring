@@ -111,7 +111,6 @@ const UserTopNav: React.FC<UserTopNavProps> = ({ currentView, setView, onSignOut
     { id: AppView.DASHBOARD, label: 'Dashboard' },
     { id: AppView.COUPLE_SHOP, label: 'Couple Shop' },
     { id: AppView.MY_RING, label: 'My Ring' },
-    { id: AppView.COUPLE_PROFILE, label: 'Couple Profile' },
   ];
 
   const handleMessageAdmin = () => {

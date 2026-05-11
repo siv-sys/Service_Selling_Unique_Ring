@@ -5189,7 +5189,6 @@ const SettingsView = ({
           <button type="button" onClick={() => navigate('/dashboard')}>Dashboard</button>
           <button type="button" onClick={() => navigate('/shop')}>Couple Shop</button>
           <button type="button" onClick={() => navigate('/myring')}>My Ring</button>
-          <button type="button" onClick={() => { onNavigateCoupleProfile(); navigate('/couple-profile'); }}>Couple Profile</button>
           <button type="button" onClick={() => { onNavigateRelationship(); navigate('/relationship'); }}>Relationship</button>
           <button type="button" className="active">Settings</button>
         </nav>

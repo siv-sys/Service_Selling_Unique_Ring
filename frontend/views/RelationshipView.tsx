@@ -1557,7 +1557,7 @@ const RelationshipView = ({
               <Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
               <Link to="/shop" className="hover:text-primary transition-colors">Couple Shop</Link>
               <Link to="/myring" className="hover:text-primary transition-colors">My Ring</Link>
-              <Link to="/profile" className="hover:text-primary transition-colors">Couple Profile</Link>
+              <Link to="/profile" className="hover:text-primary transition-colors">Profile</Link>
               <Link to="/relationship" className="text-primary border-b border-primary/40 pb-1">Relationship</Link>
               <Link to="/settings" className="hover:text-primary transition-colors">Settings</Link>
             </nav>

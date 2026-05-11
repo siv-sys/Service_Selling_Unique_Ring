@@ -1,5 +1,5 @@
 const mysql = require('mysql2/promise');
-const env = require('./src/config/env');
+const env = require('../../src/config/env');
 
 async function fixDatabaseSchema() {
   try {

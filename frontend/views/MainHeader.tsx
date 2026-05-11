@@ -25,7 +25,6 @@ const MainHeader: React.FC<MainHeaderProps> = ({
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'Couple Shop', path: '/shop' },
     { label: 'My Ring', path: '/my-rings' },
-    { label: 'Couple Profile', path: '/couple-profile' },
     { label: 'Relationship', path: '/relationship' },
     { label: 'Settings', path: '/settings' },
   ];

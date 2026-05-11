@@ -1,7 +1,7 @@
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
-const env = require('./src/config/env');
+const env = require('../../src/config/env');
 
 async function initDatabase() {
   try {
@@ -33,7 +33,7 @@ async function initDatabase() {
     console.log('Connected to ring_app database');
 
     // Read and execute schema
-    const schemaPath = path.join(__dirname, 'sql', 'schema.sql');
+    const schemaPath = path.resolve(__dirname, '../../sql/schema.sql');
     const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
 
     // Remove the CREATE DATABASE and USE statements since we already handled them

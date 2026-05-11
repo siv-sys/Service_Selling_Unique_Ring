@@ -10,7 +10,10 @@
    `copy .env.example .env`
 4. Update `.env` with your MySQL username/password and JWT secret.
 5. Bootstrap the database:
-   `mysql -u root -p < sql/app-bootstrap.sql`
+   `npm run db:init`
+6. Seed local catalog/test data when needed:
+   `npm run db:seed`
+   `npm run users:seed`
 
 Optional legacy scripts:
 - `mysql -u root -p < sql/schema.sql`
@@ -28,6 +31,24 @@ If `nodemon` is restricted in your shell:
 `node src/server.js`
 
 Server default URL: `http://localhost:4001`
+
+## Project Structure
+
+```text
+backend/
+  config/              # legacy/shared config helpers
+  scripts/
+    database/          # database bootstrap scripts
+    utilities/         # diagnostics and one-off maintenance scripts
+    seedRings.js       # local catalog seed
+  sql/                 # raw SQL reference/bootstrap files
+  src/                 # application source code
+  uploads/             # uploaded user assets
+  .env.example
+  package.json
+```
+
+Keep runnable one-off files under `scripts/` so the backend root stays easy to scan.
 
 ## Database Connection Setup
 
