@@ -1,34 +1,81 @@
 const mysql = require('mysql2/promise');
 const env = require('./env');
 
-let connectionPromise = null;
+let poolPromise = null;
 
-function getConnection() {
-  if (!connectionPromise) {
-    connectionPromise = mysql.createConnection({
-      host: env.db.host,
-      port: env.db.port,
-      user: env.db.user,
-      password: env.db.password,
-      database: env.db.database,
-    }).catch((error) => {
-      connectionPromise = null;
+function validateDbConfig() {
+  const missing = [];
+
+  if (!env.db.host) missing.push('DB_HOST');
+  if (!env.db.user) missing.push('DB_USER');
+  if (!env.db.database) missing.push('DB_NAME');
+
+  if (missing.length) {
+    throw new Error(`Missing required database environment variables: ${missing.join(', ')}`);
+  }
+}
+
+function escapeIdentifier(identifier) {
+  return `\`${String(identifier).replace(/`/g, '``')}\``;
+}
+
+async function ensureDatabaseExists() {
+  const connection = await mysql.createConnection({
+    host: env.db.host,
+    port: env.db.port,
+    user: env.db.user,
+    password: env.db.password,
+    connectTimeout: env.db.connectTimeout,
+  });
+
+  try {
+    await connection.query(`CREATE DATABASE IF NOT EXISTS ${escapeIdentifier(env.db.database)}`);
+  } finally {
+    await connection.end();
+  }
+}
+
+async function createPool() {
+  validateDbConfig();
+  await ensureDatabaseExists();
+
+  return mysql.createPool({
+    host: env.db.host,
+    port: env.db.port,
+    user: env.db.user,
+    password: env.db.password,
+    database: env.db.database,
+    waitForConnections: true,
+    connectionLimit: env.db.connectionLimit,
+    connectTimeout: env.db.connectTimeout,
+  });
+}
+
+function getPool() {
+  if (!poolPromise) {
+    poolPromise = createPool().catch((error) => {
+      poolPromise = null;
       throw error;
     });
   }
 
-  return connectionPromise;
+  return poolPromise;
+}
+
+async function getConnection() {
+  const dbPool = await getPool();
+  return dbPool.getConnection();
 }
 
 const pool = {
   getConnection: getConnection,
   execute: async (sql, params = []) => {
-    const connection = await getConnection();
-    return connection.execute(sql, params);
+    const dbPool = await getPool();
+    return dbPool.execute(sql, params);
   },
   query: async (sql, params = []) => {
-    const connection = await getConnection();
-    return connection.query(sql, params);
+    const dbPool = await getPool();
+    return dbPool.query(sql, params);
   },
 };
 
@@ -43,8 +90,12 @@ async function execute(sql, params = []) {
 }
 
 async function ping() {
-  const conn = await getConnection();
-  await conn.ping();
+  const connection = await getConnection();
+  try {
+    await connection.ping();
+  } finally {
+    connection.release();
+  }
 }
 
 async function tableExists(tableName) {
@@ -60,6 +111,30 @@ async function tableExists(tableName) {
   );
 
   return rows.length > 0;
+}
+
+async function columnExists(tableName, columnName) {
+  const rows = await query(
+    `
+      SELECT 1
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+        AND COLUMN_NAME = ?
+      LIMIT 1
+    `,
+    [tableName, columnName],
+  );
+
+  return rows.length > 0;
+}
+
+async function addColumnIfMissing(tableName, columnName, columnDefinition) {
+  if (await columnExists(tableName, columnName)) {
+    return;
+  }
+
+  await execute(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
 }
 
 async function initializeCoreTables() {
@@ -95,19 +170,20 @@ async function initializeCoreTables() {
     ? String(userIdTypeRows[0].COLUMN_TYPE).toUpperCase()
     : 'BIGINT';
 
-  await execute(`
-    ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NULL AFTER email,
-    ADD COLUMN IF NOT EXISTS username VARCHAR(50) NULL AFTER id,
-    ADD COLUMN IF NOT EXISTS full_name VARCHAR(120) NULL AFTER username,
-    ADD COLUMN IF NOT EXISTS name VARCHAR(100) NULL AFTER email,
-    ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500) NULL AFTER name,
-    ADD COLUMN IF NOT EXISTS profile_headline VARCHAR(255) NULL AFTER avatar_url,
-    ADD COLUMN IF NOT EXISTS phone_number VARCHAR(40) NULL AFTER avatar_url,
-    ADD COLUMN IF NOT EXISTS role ENUM('admin', 'user') NOT NULL DEFAULT 'user' AFTER avatar_url,
-    ADD COLUMN IF NOT EXISTS account_status ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE' AFTER role,
-    ADD COLUMN IF NOT EXISTS remember_token VARCHAR(255) NULL AFTER account_status
-  `);
+  await addColumnIfMissing('users', 'password_hash', 'VARCHAR(255) NULL AFTER email');
+  await addColumnIfMissing('users', 'username', 'VARCHAR(50) NULL AFTER id');
+  await addColumnIfMissing('users', 'full_name', 'VARCHAR(120) NULL AFTER username');
+  await addColumnIfMissing('users', 'name', 'VARCHAR(100) NULL AFTER email');
+  await addColumnIfMissing('users', 'avatar_url', 'VARCHAR(500) NULL AFTER name');
+  await addColumnIfMissing('users', 'profile_headline', 'VARCHAR(255) NULL AFTER avatar_url');
+  await addColumnIfMissing('users', 'phone_number', 'VARCHAR(40) NULL AFTER avatar_url');
+  await addColumnIfMissing('users', 'role', "ENUM('admin', 'user') NOT NULL DEFAULT 'user' AFTER avatar_url");
+  await addColumnIfMissing(
+    'users',
+    'account_status',
+    "ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE' AFTER role",
+  );
+  await addColumnIfMissing('users', 'remember_token', 'VARCHAR(255) NULL AFTER account_status');
 
   await execute(`
     UPDATE users
@@ -248,10 +324,7 @@ async function initializeCoreTables() {
     ) ENGINE=InnoDB
   `);
   await execute(`ALTER TABLE notifications MODIFY COLUMN user_id ${userIdType} NOT NULL`);
-  await execute(`
-    ALTER TABLE notifications
-    ADD COLUMN IF NOT EXISTS metadata JSON NULL AFTER unread
-  `).catch(() => {});
+  await addColumnIfMissing('notifications', 'metadata', 'JSON NULL AFTER unread').catch(() => {});
   await execute(
     `
       ALTER TABLE notifications
@@ -359,18 +432,21 @@ async function initializeCoreTables() {
     ) ENGINE=InnoDB
   `);
   await execute(`ALTER TABLE notification_preferences MODIFY COLUMN user_id ${userIdType} NOT NULL`);
-  await execute(`
-    ALTER TABLE notification_preferences
-    ADD COLUMN IF NOT EXISTS security_alerts BOOLEAN DEFAULT FALSE AFTER system_updates
-  `).catch(() => {});
-  await execute(`
-    ALTER TABLE notification_preferences
-    ADD COLUMN IF NOT EXISTS order_placement BOOLEAN DEFAULT FALSE AFTER security_alerts
-  `).catch(() => {});
-  await execute(`
-    ALTER TABLE notification_preferences
-    ADD COLUMN IF NOT EXISTS push_notifications BOOLEAN DEFAULT FALSE AFTER order_placement
-  `).catch(() => {});
+  await addColumnIfMissing(
+    'notification_preferences',
+    'security_alerts',
+    'BOOLEAN DEFAULT FALSE AFTER system_updates',
+  ).catch(() => {});
+  await addColumnIfMissing(
+    'notification_preferences',
+    'order_placement',
+    'BOOLEAN DEFAULT FALSE AFTER security_alerts',
+  ).catch(() => {});
+  await addColumnIfMissing(
+    'notification_preferences',
+    'push_notifications',
+    'BOOLEAN DEFAULT FALSE AFTER order_placement',
+  ).catch(() => {});
   await execute(
     `
       ALTER TABLE notification_preferences
@@ -615,17 +691,11 @@ async function initializeCoreTables() {
   `);
 
   if (await tableExists('ring_models')) {
-    await execute(`
-      ALTER TABLE ring_models
-      ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL AFTER description
-    `).catch(() => {});
+    await addColumnIfMissing('ring_models', 'image_url', 'VARCHAR(500) NULL AFTER description').catch(() => {});
   }
 
   if (await tableExists('rings')) {
-    await execute(`
-      ALTER TABLE rings
-      ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL AFTER price
-    `).catch(() => {});
+    await addColumnIfMissing('rings', 'image_url', 'VARCHAR(500) NULL AFTER price').catch(() => {});
   }
 
   const settingsRows = await query('SELECT id FROM system_settings LIMIT 1');
@@ -643,4 +713,5 @@ module.exports = {
   execute,
   ping,
   initializeCoreTables,
+  addColumnIfMissing,
 };

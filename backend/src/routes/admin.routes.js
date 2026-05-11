@@ -1,19 +1,12 @@
 const express = require('express');
-const { execute, query } = require('../config/db');
+const { addColumnIfMissing, execute, query } = require('../config/db');
 const { createNotification } = require('../services/notifications.service');
 
 const router = express.Router();
 
 async function ensureCatalogColumns() {
-  await execute(`
-    ALTER TABLE ring_models
-    ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL AFTER description
-  `).catch(() => {});
-
-  await execute(`
-    ALTER TABLE rings
-    ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL AFTER price
-  `).catch(() => {});
+  await addColumnIfMissing('ring_models', 'image_url', 'VARCHAR(500) NULL AFTER description').catch(() => {});
+  await addColumnIfMissing('rings', 'image_url', 'VARCHAR(500) NULL AFTER price').catch(() => {});
 }
 
 async function ensureInventoryTable() {

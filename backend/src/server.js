@@ -7,20 +7,16 @@ let dbInitPromise = null;
 async function ensureDatabaseInitialized() {
   if (!dbInitPromise) {
     dbInitPromise = (async () => {
-      let dbReady = false;
+      await ping();
+      await initializeCoreTables();
 
-      try {
-        await ping();
-        await initializeCoreTables();
-        dbReady = true;
-      } catch (error) {
-        console.warn(`Database startup check failed: ${error.message}`);
-        console.warn('Server will still start, but DB features may fail.');
-      }
-
-      app.locals.dbReady = dbReady;
-      return dbReady;
-    })();
+      app.locals.dbReady = true;
+      return true;
+    })().catch((error) => {
+      dbInitPromise = null;
+      app.locals.dbReady = false;
+      throw error;
+    });
   }
 
   return dbInitPromise;
@@ -51,7 +47,13 @@ if (process.env.VERCEL) {
     try {
       await ensureDatabaseInitialized();
     } catch (error) {
-      console.warn('Database init failed in serverless handler:', error.message);
+      app.locals.dbReady = false;
+      console.error('Database init failed in serverless handler:', error.message);
+
+      return res.status(503).json({
+        message: 'Database is not available',
+        detail: error.message,
+      });
     }
 
     return app(req, res);
