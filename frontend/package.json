@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "npm run build && node server.mjs"
+    "preview": "npm run build && node server.mjs",
+    "rings:add-demo": "node scripts/add-50-rings.js",
+    "rings:update-images": "node scripts/update-model-images.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -3,9 +3,7 @@ import type { Config } from 'tailwindcss';
 const config: Config = {
     content: [
         './index.html',
-        './components/**/*.{ts,tsx}',
-        './views/**/*.{ts,tsx}',
-        './App.tsx',
+        './src/**/*.{ts,tsx}',
     ],
     theme: {
         colors: {
